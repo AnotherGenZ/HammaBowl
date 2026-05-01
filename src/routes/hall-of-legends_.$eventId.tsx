@@ -1,30 +1,49 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
+import { HallOfLegendsUnderConstruction } from '../components/HallOfLegendsUnderConstruction'
+import { canViewHallOfLegends } from '../lib/featureFlags'
 import { shortDate } from '../lib/format'
 import { pageMeta } from '../lib/meta'
 
 const loadHistoricalEvent = createServerFn({ method: 'GET' })
   .inputValidator((input: { eventId: string }) => input)
   .handler(async ({ data }) => {
+    const { getDiscordSessionUser } = await import('../lib/discord.server')
+    const user = await getDiscordSessionUser()
+
+    if (!canViewHallOfLegends(user)) {
+      return {
+        enabled: false,
+        event: null,
+      }
+    }
+
     const { getHistoricalEvent } = await import('../lib/db.server')
-    return getHistoricalEvent(data.eventId)
+    return {
+      enabled: true,
+      event: await getHistoricalEvent(data.eventId),
+    }
   })
 
 export const Route = createFileRoute('/hall-of-legends_/$eventId')({
   loader: ({ params }) => loadHistoricalEvent({ data: { eventId: params.eventId } }),
   head: ({ loaderData }) =>
     pageMeta({
-      title: loaderData?.name ?? 'Historical Event',
-      description: loaderData
-        ? `${loaderData.name} results, teams, VODs, and lore.`
+      title: loaderData?.event?.name ?? 'Historical Event',
+      description: loaderData?.event
+        ? `${loaderData.event.name} results, teams, VODs, and lore.`
         : 'Historical HammaBowl event.',
-      path: loaderData ? `/hall-of-legends/${loaderData.id}` : '/hall-of-legends',
+      path: loaderData?.event ? `/hall-of-legends/${loaderData.event.id}` : '/hall-of-legends',
     }),
   component: HistoricalEventPage,
 })
 
 function HistoricalEventPage() {
-  const event = Route.useLoaderData()
+  const { enabled, event } = Route.useLoaderData()
+
+  if (!enabled) {
+    return <HallOfLegendsUnderConstruction />
+  }
 
   if (!event) {
     return (

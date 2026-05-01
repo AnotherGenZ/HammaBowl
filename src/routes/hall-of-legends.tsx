@@ -1,11 +1,26 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
+import { HallOfLegendsUnderConstruction } from '../components/HallOfLegendsUnderConstruction'
+import { canViewHallOfLegends } from '../lib/featureFlags'
 import { shortDate } from '../lib/format'
 import { pageMeta } from '../lib/meta'
 
 const loadHistoricalEvents = createServerFn({ method: 'GET' }).handler(async () => {
+  const { getDiscordSessionUser } = await import('../lib/discord.server')
+  const user = await getDiscordSessionUser()
+
+  if (!canViewHallOfLegends(user)) {
+    return {
+      enabled: false,
+      events: [],
+    }
+  }
+
   const { getHistoricalEvents } = await import('../lib/db.server')
-  return getHistoricalEvents()
+  return {
+    enabled: true,
+    events: await getHistoricalEvents(),
+  }
 })
 
 export const Route = createFileRoute('/hall-of-legends')({
@@ -20,7 +35,11 @@ export const Route = createFileRoute('/hall-of-legends')({
 })
 
 function HallOfLegends() {
-  const events = Route.useLoaderData()
+  const { enabled, events } = Route.useLoaderData()
+
+  if (!enabled) {
+    return <HallOfLegendsUnderConstruction />
+  }
 
   return (
     <main>
