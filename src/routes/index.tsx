@@ -1,6 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { EventSummary } from '../components/EventSummary'
 import { PlayerTable } from '../components/PlayerTable'
+import { shortDate } from '../lib/format'
+import { pageMeta } from '../lib/meta'
 import { calculatePlayerSalaries } from '../lib/rules'
 import { getCurrentEvent, getSessionUser } from '../lib/services'
 import { useRealtimeCurrentEvent } from '../lib/useRealtimeCurrentEvent'
@@ -10,6 +12,29 @@ export const Route = createFileRoute('/')({
     event: await getCurrentEvent(),
     user: await getSessionUser(),
   }),
+  head: ({ loaderData }) => {
+    const event = loaderData?.event
+    if (!event) {
+      return pageMeta({
+        description:
+          'HammaBowl event operations, ratings, drafts, standings, and stream overlay.',
+      })
+    }
+
+    const signupSummary = `${event.players.length} accepted signup${
+      event.players.length === 1 ? '' : 's'
+    }`
+    const closeSummary = event.closingTime
+      ? ` Signups close ${shortDate(event.closingTime)}.`
+      : ''
+
+    return pageMeta({
+      title: event.name,
+      description: `${event.name} is scheduled for ${shortDate(
+        event.startsAt,
+      )} with ${signupSummary}.${closeSummary}`,
+    })
+  },
   component: Home,
 })
 

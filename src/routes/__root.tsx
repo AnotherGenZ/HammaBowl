@@ -7,28 +7,30 @@ import {
   Scripts,
   createRootRoute,
 } from '@tanstack/react-router'
+import { pageMeta } from '../lib/meta'
 import appCss from '../styles.css?url'
 import type { Role } from '../lib/types'
 
 export const Route = createRootRoute({
-  head: () => ({
-    meta: [
-      { charSet: 'utf-8' },
-      { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      {
-        name: 'description',
-        content:
-          'HammaBowl event operations, ratings, drafts, standings, and stream overlay.',
-      },
-      { title: 'HammaBowl' },
-    ],
-    links: [
-      { rel: 'stylesheet', href: appCss },
-      { rel: 'icon', href: '/hammabowl.ico' },
-      { rel: 'shortcut icon', href: '/hammabowl.ico' },
-      { rel: 'apple-touch-icon', href: '/hammabowl.png' },
-    ],
-  }),
+  head: () => {
+    const defaultMeta = pageMeta()
+
+    return {
+      meta: [
+        { charSet: 'utf-8' },
+        { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+        ...defaultMeta.meta,
+      ],
+      links: [
+        { rel: 'stylesheet', href: appCss },
+        { rel: 'icon', href: '/hammabowl.ico' },
+        { rel: 'icon', type: 'image/png', href: '/hammabowl.png' },
+        { rel: 'shortcut icon', href: '/hammabowl.ico' },
+        { rel: 'apple-touch-icon', href: '/hammabowl.png' },
+        ...defaultMeta.links,
+      ],
+    }
+  },
   component: RootComponent,
 })
 

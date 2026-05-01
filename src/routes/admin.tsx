@@ -1,11 +1,21 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { AdminTools } from '../components/AdminTools'
+import { pageMeta } from '../lib/meta'
 import { getCurrentEvent } from '../lib/services'
 import type { Role } from '../lib/types'
 
 export const Route = createFileRoute('/admin')({
   loader: () => getCurrentEvent(),
+  head: ({ loaderData }) =>
+    pageMeta({
+      title: loaderData ? `${loaderData.name} Admin` : 'Admin',
+      description: loaderData
+        ? `Private admin controls for ${loaderData.name}.`
+        : 'Private HammaBowl admin controls.',
+      path: '/admin',
+      noIndex: true,
+    }),
   component: Admin,
 })
 

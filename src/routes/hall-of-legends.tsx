@@ -1,6 +1,13 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { pageMeta } from '../lib/meta'
 
 export const Route = createFileRoute('/hall-of-legends')({
+  head: () =>
+    pageMeta({
+      title: 'Hall of Legends',
+      description: 'HammaBowl event history and player leaderboard. Coming soon.',
+      path: '/hall-of-legends',
+    }),
   component: HallOfLegends,
 })
 

@@ -1,11 +1,20 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { DraftBoard } from '../components/DraftBoard'
+import { pageMeta } from '../lib/meta'
 import { getCurrentEvent } from '../lib/services'
 import type { Role } from '../lib/types'
 
 export const Route = createFileRoute('/draft')({
   loader: () => getCurrentEvent(),
+  head: ({ loaderData }) =>
+    pageMeta({
+      title: loaderData ? `${loaderData.name} Draft` : 'Draft',
+      description: loaderData
+        ? `Draft board for ${loaderData.name} with captain budgets, bids, and team picks.`
+        : 'HammaBowl draft board for captain budgets, bids, and team picks.',
+      path: '/draft',
+    }),
   component: Draft,
 })
 

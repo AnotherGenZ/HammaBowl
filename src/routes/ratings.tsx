@@ -1,10 +1,20 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
+import { pageMeta } from '../lib/meta'
 import { getCurrentEvent } from '../lib/services'
 import type { Role } from '../lib/types'
 
 export const Route = createFileRoute('/ratings')({
   loader: () => getCurrentEvent(),
+  head: ({ loaderData }) =>
+    pageMeta({
+      title: loaderData ? `${loaderData.name} Ratings` : 'Ratings',
+      description: loaderData
+        ? `Private rating page for ${loaderData.name} participants.`
+        : 'Private HammaBowl participant rating page.',
+      path: '/ratings',
+      noIndex: true,
+    }),
   component: Ratings,
 })
 

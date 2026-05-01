@@ -1,9 +1,19 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { pageMeta } from '../lib/meta'
 import { getCurrentEvent } from '../lib/services'
 import { useRealtimeCurrentEvent } from '../lib/useRealtimeCurrentEvent'
 
 export const Route = createFileRoute('/overlay')({
   loader: () => getCurrentEvent(),
+  head: ({ loaderData }) =>
+    pageMeta({
+      title: loaderData ? `${loaderData.name} Overlay` : 'Overlay',
+      description: loaderData
+        ? `Stream overlay for ${loaderData.name}.`
+        : 'HammaBowl stream overlay.',
+      path: '/overlay',
+      noIndex: true,
+    }),
   component: Overlay,
 })
 
