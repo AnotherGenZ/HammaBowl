@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { shortDate } from '../lib/format'
 import { pageMeta } from '../lib/meta'
-import type { AdminPlayerBadgeEditorData, PlayerBadge } from '../lib/types'
+import type { AdminPlayerProfileEditorData, PlayerBadge } from '../lib/types'
 
 const loadPlayerProfile = createServerFn({ method: 'GET' })
   .inputValidator((input: { discordId: string }) => input)
@@ -34,7 +34,13 @@ export const Route = createFileRoute('/players_/$discordId')({
 function PlayerProfilePage() {
   const { profile, isAdmin, isOwner } = Route.useLoaderData()
   const [badges, setBadges] = useState<PlayerBadge[]>(profile?.badges ?? [])
+  const [catchphrase, setCatchphrase] = useState(profile?.catchphrase ?? '')
   const [profileEditorOpen, setProfileEditorOpen] = useState(false)
+
+  useEffect(() => {
+    setBadges(profile?.badges ?? [])
+    setCatchphrase(profile?.catchphrase ?? '')
+  }, [profile?.discordId, profile?.badges, profile?.catchphrase])
 
   if (!profile) {
     return (
@@ -82,7 +88,7 @@ function PlayerProfilePage() {
           <div>
             <p className="eyebrow">Player profile</p>
             <h1>{profile.name}</h1>
-            {profile.catchphrase ? <p className="profile-catchphrase">{profile.catchphrase}</p> : null}
+            {catchphrase ? <p className="profile-catchphrase">{catchphrase}</p> : null}
             {badges.length ? (
               <div className="profile-hero-badges">
                 {badges.map((badge) => (
@@ -102,6 +108,7 @@ function PlayerProfilePage() {
           playerName={profile.name}
           onClose={() => setProfileEditorOpen(false)}
           onBadgesChanged={setBadges}
+          onCatchphraseChanged={setCatchphrase}
         />
       ) : null}
 
@@ -210,11 +217,13 @@ function AdminProfileEditorModal({
   playerName,
   onClose,
   onBadgesChanged,
+  onCatchphraseChanged,
 }: {
   discordId: string
   playerName: string
   onClose: () => void
   onBadgesChanged: (badges: PlayerBadge[]) => void
+  onCatchphraseChanged: (catchphrase: string) => void
 }) {
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
@@ -234,7 +243,11 @@ function AdminProfileEditorModal({
             x
           </button>
         </div>
-        <PlayerBadgeEditor discordId={discordId} onBadgesChanged={onBadgesChanged} />
+        <PlayerBadgeEditor
+          discordId={discordId}
+          onBadgesChanged={onBadgesChanged}
+          onCatchphraseChanged={onCatchphraseChanged}
+        />
       </section>
     </div>
   )
@@ -243,11 +256,13 @@ function AdminProfileEditorModal({
 function PlayerBadgeEditor({
   discordId,
   onBadgesChanged,
+  onCatchphraseChanged,
 }: {
   discordId: string
   onBadgesChanged: (badges: PlayerBadge[]) => void
+  onCatchphraseChanged: (catchphrase: string) => void
 }) {
-  const [data, setData] = useState<AdminPlayerBadgeEditorData>()
+  const [data, setData] = useState<AdminPlayerProfileEditorData>()
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState('')
 
@@ -257,18 +272,26 @@ function PlayerBadgeEditor({
 
   async function loadEditor() {
     setMessage('')
-    const response = await fetch(`/api/admin/player-badges?discordId=${encodeURIComponent(discordId)}`)
+    const response = await fetch(`/api/admin/player-profile?discordId=${encodeURIComponent(discordId)}`)
     if (!response.ok) throw new Error(await response.text())
-    const payload = await response.json() as AdminPlayerBadgeEditorData
+    const payload = await response.json() as AdminPlayerProfileEditorData
     setData(payload)
     onBadgesChanged(payload.visibleBadges)
+    onCatchphraseChanged(payload.catchphrase)
+  }
+
+  function applyEditorPayload(payload: AdminPlayerProfileEditorData & { message?: string }) {
+    setData(payload)
+    onBadgesChanged(payload.visibleBadges)
+    onCatchphraseChanged(payload.catchphrase)
+    setMessage(payload.message ?? 'Profile updated.')
   }
 
   async function toggleBadge(badgeId: string, checked: boolean) {
     setBusy(badgeId)
     setMessage('')
     try {
-      const response = await fetch('/api/admin/player-badges', {
+      const response = await fetch('/api/admin/player-profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -278,12 +301,32 @@ function PlayerBadgeEditor({
         }),
       })
       if (!response.ok) throw new Error(await response.text())
-      const payload = await response.json() as AdminPlayerBadgeEditorData & { message?: string }
-      setData(payload)
-      onBadgesChanged(payload.visibleBadges)
-      setMessage(payload.message ?? 'Badges updated.')
+      const payload = await response.json() as AdminPlayerProfileEditorData & { message?: string }
+      applyEditorPayload(payload)
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Unable to update badges.')
+    } finally {
+      setBusy('')
+    }
+  }
+
+  async function resetCatchphrase() {
+    setBusy('catchphrase')
+    setMessage('')
+    try {
+      const response = await fetch('/api/admin/player-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'reset-catchphrase',
+          discordId,
+        }),
+      })
+      if (!response.ok) throw new Error(await response.text())
+      const payload = await response.json() as AdminPlayerProfileEditorData & { message?: string }
+      applyEditorPayload(payload)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Unable to reset catchphrase.')
     } finally {
       setBusy('')
     }
@@ -293,7 +336,7 @@ function PlayerBadgeEditor({
     return (
       <section className="admin-badge-editor">
         <div className="section-heading">
-          <h2>Admin badges</h2>
+          <h2>Badges</h2>
         </div>
         <div className="empty-inline">Loading badges.</div>
       </section>
@@ -303,9 +346,28 @@ function PlayerBadgeEditor({
   return (
     <section className="admin-badge-editor">
       <div className="section-heading">
-        <h2>Admin badges</h2>
+        <h2>Profile controls</h2>
       </div>
       {message ? <div className="admin-result">{message}</div> : null}
+      <div className="badge-settings-list">
+        <article className="badge-settings-row" data-selected={Boolean(data.catchphrase)}>
+          <span>
+            <strong>Catchphrase</strong>
+            <small>{data.catchphrase || 'No catchphrase set.'}</small>
+          </span>
+          <button
+            type="button"
+            className="danger-button"
+            disabled={busy === 'catchphrase' || !data.catchphrase}
+            onClick={() => void resetCatchphrase()}
+          >
+            Reset catchphrase
+          </button>
+        </article>
+      </div>
+      <div className="section-heading">
+        <h2>Badges</h2>
+      </div>
       <div className="badge-settings-list">
         {data.badges.length ? (
           data.badges.map((badge) => {

@@ -340,7 +340,11 @@ function EventJaegerAssignments({
       faction,
       characterName,
     }) as { assignments?: EventPlayerCharacterAssignment[] }
-    if (result.assignments) setAssignments(result.assignments)
+    if (result.assignments) {
+      setAssignments(result.assignments)
+      setSelectedDiscordId(result.assignments[0]?.discordId ?? '')
+    }
+    setFaction('TR')
     setCharacterName('')
     return result
   }
@@ -458,7 +462,8 @@ function PlayerRenameManager({
     }) as { players?: RegisteredParticipant[] }
     if (result.players) {
       setPlayers(result.players)
-      setName(result.players.find((player) => player.discordId === discordId)?.name ?? name)
+      setDiscordId('')
+      setName('')
     }
     return result
   }
@@ -486,11 +491,14 @@ function PlayerRenameManager({
             onChange={(event) => choosePlayer(event.currentTarget.value)}
           >
             {players.length ? (
-              players.map((player) => (
-                <option key={player.discordId} value={player.discordId}>
-                  {player.name}
-                </option>
-              ))
+              <>
+                <option value="">Choose player</option>
+                {players.map((player) => (
+                  <option key={player.discordId} value={player.discordId}>
+                    {player.name}
+                  </option>
+                ))}
+              </>
             ) : (
               <option value="">{loaded ? 'No known players' : 'Loading players'}</option>
             )}
@@ -564,7 +572,8 @@ function PlayerJaegerManager({
     }) as { players?: AdminPlayerCharacterConfig[] }
     if (result.players) {
       setPlayers(result.players)
-      setNames(namesFromPlayer(result.players.find((player) => player.discordId === discordId)))
+      setDiscordId('')
+      setNames(namesFromPlayer())
     }
     return result
   }
@@ -594,11 +603,14 @@ function PlayerJaegerManager({
             onChange={(event) => choosePlayer(event.currentTarget.value)}
           >
             {players.length ? (
-              players.map((player) => (
-                <option key={player.discordId} value={player.discordId}>
-                  {player.name}
-                </option>
-              ))
+              <>
+                <option value="">Choose player</option>
+                {players.map((player) => (
+                  <option key={player.discordId} value={player.discordId}>
+                    {player.name}
+                  </option>
+                ))}
+              </>
             ) : (
               <option value="">{loaded ? 'No known players' : 'Loading players'}</option>
             )}
@@ -1181,6 +1193,13 @@ function EventResultControls({
     return result
   }
 
+  async function adjustScore() {
+    const result = await postResult({ teamId: scoreTeamId, delta: Number(scoreDelta) })
+    setScoreTeamId(event.captains[0]?.id ?? '')
+    setScoreDelta('1')
+    return result
+  }
+
   return (
     <AdminSection title="Streams and results">
       <div className="event-result-grid">
@@ -1244,11 +1263,7 @@ function EventResultControls({
           <button
             type="button"
             disabled={busy === 'score-adjust' || !scoreTeamId || Number(scoreDelta) === 0}
-            onClick={() =>
-              void onRun('score-adjust', () =>
-                postResult({ teamId: scoreTeamId, delta: Number(scoreDelta) }),
-              )
-            }
+            onClick={() => void onRun('score-adjust', adjustScore)}
           >
             Apply score
           </button>

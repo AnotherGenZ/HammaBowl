@@ -31,9 +31,9 @@ import { Route as ApiAuthLogoutRouteImport } from './routes/api.auth.logout'
 import { Route as ApiAuthDiscordRouteImport } from './routes/api.auth.discord'
 import { Route as ApiAdminResultRouteImport } from './routes/api.admin.result'
 import { Route as ApiAdminPlayersRouteImport } from './routes/api.admin.players'
+import { Route as ApiAdminPlayerProfileRouteImport } from './routes/api.admin.player-profile'
 import { Route as ApiAdminPlayerJaegerRouteImport } from './routes/api.admin.player-jaeger'
 import { Route as ApiAdminPlayerCharactersRouteImport } from './routes/api.admin.player-characters'
-import { Route as ApiAdminPlayerBadgesRouteImport } from './routes/api.admin.player-badges'
 import { Route as ApiAdminHistoryRouteImport } from './routes/api.admin.history'
 import { Route as ApiAdminEventRouteImport } from './routes/api.admin.event'
 import { Route as ApiAdminCoinflipRouteImport } from './routes/api.admin.coinflip'
@@ -157,6 +157,11 @@ const ApiAdminPlayersRoute = ApiAdminPlayersRouteImport.update({
   path: '/api/admin/players',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAdminPlayerProfileRoute = ApiAdminPlayerProfileRouteImport.update({
+  id: '/api/admin/player-profile',
+  path: '/api/admin/player-profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAdminPlayerJaegerRoute = ApiAdminPlayerJaegerRouteImport.update({
   id: '/api/admin/player-jaeger',
   path: '/api/admin/player-jaeger',
@@ -168,11 +173,6 @@ const ApiAdminPlayerCharactersRoute =
     path: '/api/admin/player-characters',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiAdminPlayerBadgesRoute = ApiAdminPlayerBadgesRouteImport.update({
-  id: '/api/admin/player-badges',
-  path: '/api/admin/player-badges',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiAdminHistoryRoute = ApiAdminHistoryRouteImport.update({
   id: '/api/admin/history',
   path: '/api/admin/history',
@@ -256,9 +256,9 @@ export interface FileRoutesByFullPath {
   '/api/admin/coinflip': typeof ApiAdminCoinflipRoute
   '/api/admin/event': typeof ApiAdminEventRoute
   '/api/admin/history': typeof ApiAdminHistoryRoute
-  '/api/admin/player-badges': typeof ApiAdminPlayerBadgesRoute
   '/api/admin/player-characters': typeof ApiAdminPlayerCharactersRoute
   '/api/admin/player-jaeger': typeof ApiAdminPlayerJaegerRoute
+  '/api/admin/player-profile': typeof ApiAdminPlayerProfileRoute
   '/api/admin/players': typeof ApiAdminPlayersRoute
   '/api/admin/result': typeof ApiAdminResultRoute
   '/api/auth/discord': typeof ApiAuthDiscordRouteWithChildren
@@ -295,9 +295,9 @@ export interface FileRoutesByTo {
   '/api/admin/coinflip': typeof ApiAdminCoinflipRoute
   '/api/admin/event': typeof ApiAdminEventRoute
   '/api/admin/history': typeof ApiAdminHistoryRoute
-  '/api/admin/player-badges': typeof ApiAdminPlayerBadgesRoute
   '/api/admin/player-characters': typeof ApiAdminPlayerCharactersRoute
   '/api/admin/player-jaeger': typeof ApiAdminPlayerJaegerRoute
+  '/api/admin/player-profile': typeof ApiAdminPlayerProfileRoute
   '/api/admin/players': typeof ApiAdminPlayersRoute
   '/api/admin/result': typeof ApiAdminResultRoute
   '/api/auth/discord': typeof ApiAuthDiscordRouteWithChildren
@@ -335,9 +335,9 @@ export interface FileRoutesById {
   '/api/admin/coinflip': typeof ApiAdminCoinflipRoute
   '/api/admin/event': typeof ApiAdminEventRoute
   '/api/admin/history': typeof ApiAdminHistoryRoute
-  '/api/admin/player-badges': typeof ApiAdminPlayerBadgesRoute
   '/api/admin/player-characters': typeof ApiAdminPlayerCharactersRoute
   '/api/admin/player-jaeger': typeof ApiAdminPlayerJaegerRoute
+  '/api/admin/player-profile': typeof ApiAdminPlayerProfileRoute
   '/api/admin/players': typeof ApiAdminPlayersRoute
   '/api/admin/result': typeof ApiAdminResultRoute
   '/api/auth/discord': typeof ApiAuthDiscordRouteWithChildren
@@ -376,9 +376,9 @@ export interface FileRouteTypes {
     | '/api/admin/coinflip'
     | '/api/admin/event'
     | '/api/admin/history'
-    | '/api/admin/player-badges'
     | '/api/admin/player-characters'
     | '/api/admin/player-jaeger'
+    | '/api/admin/player-profile'
     | '/api/admin/players'
     | '/api/admin/result'
     | '/api/auth/discord'
@@ -415,9 +415,9 @@ export interface FileRouteTypes {
     | '/api/admin/coinflip'
     | '/api/admin/event'
     | '/api/admin/history'
-    | '/api/admin/player-badges'
     | '/api/admin/player-characters'
     | '/api/admin/player-jaeger'
+    | '/api/admin/player-profile'
     | '/api/admin/players'
     | '/api/admin/result'
     | '/api/auth/discord'
@@ -454,9 +454,9 @@ export interface FileRouteTypes {
     | '/api/admin/coinflip'
     | '/api/admin/event'
     | '/api/admin/history'
-    | '/api/admin/player-badges'
     | '/api/admin/player-characters'
     | '/api/admin/player-jaeger'
+    | '/api/admin/player-profile'
     | '/api/admin/players'
     | '/api/admin/result'
     | '/api/auth/discord'
@@ -494,9 +494,9 @@ export interface RootRouteChildren {
   ApiAdminCoinflipRoute: typeof ApiAdminCoinflipRoute
   ApiAdminEventRoute: typeof ApiAdminEventRoute
   ApiAdminHistoryRoute: typeof ApiAdminHistoryRoute
-  ApiAdminPlayerBadgesRoute: typeof ApiAdminPlayerBadgesRoute
   ApiAdminPlayerCharactersRoute: typeof ApiAdminPlayerCharactersRoute
   ApiAdminPlayerJaegerRoute: typeof ApiAdminPlayerJaegerRoute
+  ApiAdminPlayerProfileRoute: typeof ApiAdminPlayerProfileRoute
   ApiAdminPlayersRoute: typeof ApiAdminPlayersRoute
   ApiAdminResultRoute: typeof ApiAdminResultRoute
   ApiAuthDiscordRoute: typeof ApiAuthDiscordRouteWithChildren
@@ -669,6 +669,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAdminPlayersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/admin/player-profile': {
+      id: '/api/admin/player-profile'
+      path: '/api/admin/player-profile'
+      fullPath: '/api/admin/player-profile'
+      preLoaderRoute: typeof ApiAdminPlayerProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/admin/player-jaeger': {
       id: '/api/admin/player-jaeger'
       path: '/api/admin/player-jaeger'
@@ -681,13 +688,6 @@ declare module '@tanstack/react-router' {
       path: '/api/admin/player-characters'
       fullPath: '/api/admin/player-characters'
       preLoaderRoute: typeof ApiAdminPlayerCharactersRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/admin/player-badges': {
-      id: '/api/admin/player-badges'
-      path: '/api/admin/player-badges'
-      fullPath: '/api/admin/player-badges'
-      preLoaderRoute: typeof ApiAdminPlayerBadgesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/admin/history': {
@@ -820,9 +820,9 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAdminCoinflipRoute: ApiAdminCoinflipRoute,
   ApiAdminEventRoute: ApiAdminEventRoute,
   ApiAdminHistoryRoute: ApiAdminHistoryRoute,
-  ApiAdminPlayerBadgesRoute: ApiAdminPlayerBadgesRoute,
   ApiAdminPlayerCharactersRoute: ApiAdminPlayerCharactersRoute,
   ApiAdminPlayerJaegerRoute: ApiAdminPlayerJaegerRoute,
+  ApiAdminPlayerProfileRoute: ApiAdminPlayerProfileRoute,
   ApiAdminPlayersRoute: ApiAdminPlayersRoute,
   ApiAdminResultRoute: ApiAdminResultRoute,
   ApiAuthDiscordRoute: ApiAuthDiscordRouteWithChildren,

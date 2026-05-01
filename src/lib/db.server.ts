@@ -36,7 +36,7 @@ import {
 } from './rules'
 import type {
   AdminBadgeManagerData,
-  AdminPlayerBadgeEditorData,
+  AdminPlayerProfileEditorData,
   AdminPlayerCharacterConfig,
   Captain,
   DraftPick,
@@ -1770,7 +1770,7 @@ export function unassignManualBadge(badgeId: string, discordId: string) {
   return getAdminBadgeManagerData()
 }
 
-export function getAdminPlayerBadgeEditorData(discordId: string): AdminPlayerBadgeEditorData {
+export function getAdminPlayerProfileEditorData(discordId: string): AdminPlayerProfileEditorData {
   const normalizedId = discordId.trim()
   const participant = db.select().from(participants).where(eq(participants.discordId, normalizedId)).get()
   if (!participant) throw new Error('Player not found.')
@@ -1804,6 +1804,7 @@ export function getAdminPlayerBadgeEditorData(discordId: string): AdminPlayerBad
       discordId: participant.discordId,
       name: participant.name,
     },
+    catchphrase: profile?.catchphrase ?? '',
     badges,
     assignedBadgeIds,
     visibleBadges: getVisibleBadges(playerBadges, profile?.badgeDisplayOrder),
@@ -1812,12 +1813,17 @@ export function getAdminPlayerBadgeEditorData(discordId: string): AdminPlayerBad
 
 export function assignPlayerManualBadge(discordId: string, badgeId: string) {
   assignManualBadge(badgeId, discordId)
-  return getAdminPlayerBadgeEditorData(discordId)
+  return getAdminPlayerProfileEditorData(discordId)
 }
 
 export function unassignPlayerManualBadge(discordId: string, badgeId: string) {
   unassignManualBadge(badgeId, discordId)
-  return getAdminPlayerBadgeEditorData(discordId)
+  return getAdminPlayerProfileEditorData(discordId)
+}
+
+export function resetPlayerCatchphrase(discordId: string) {
+  updatePlayerProfile(discordId, { catchphrase: '' })
+  return getAdminPlayerProfileEditorData(discordId)
 }
 
 function upsertParticipant(discordId: string, name: string, updatedAt = new Date().toISOString()) {

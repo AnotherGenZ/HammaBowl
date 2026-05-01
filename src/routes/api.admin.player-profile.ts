@@ -2,17 +2,18 @@ import { createFileRoute } from '@tanstack/react-router'
 import { requireAdminSession } from '../lib/discord.server'
 import {
   assignPlayerManualBadge,
-  getAdminPlayerBadgeEditorData,
+  getAdminPlayerProfileEditorData,
+  resetPlayerCatchphrase,
   unassignPlayerManualBadge,
 } from '../lib/db.server'
 
-export const Route = createFileRoute('/api/admin/player-badges')({
+export const Route = createFileRoute('/api/admin/player-profile')({
   server: {
     handlers: {
       GET: async ({ request }) => {
         await requireAdminSession()
         const url = new URL(request.url)
-        return Response.json(getAdminPlayerBadgeEditorData(url.searchParams.get('discordId') ?? ''))
+        return Response.json(getAdminPlayerProfileEditorData(url.searchParams.get('discordId') ?? ''))
       },
       POST: async ({ request }) => {
         await requireAdminSession()
@@ -40,7 +41,15 @@ export const Route = createFileRoute('/api/admin/player-badges')({
           })
         }
 
-        throw new Response('Unknown badge action.', { status: 400 })
+        if (body.action === 'reset-catchphrase') {
+          return Response.json({
+            ok: true,
+            message: 'Catchphrase reset.',
+            ...resetPlayerCatchphrase(discordId),
+          })
+        }
+
+        throw new Response('Unknown profile action.', { status: 400 })
       },
     },
   },

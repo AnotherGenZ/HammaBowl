@@ -63,8 +63,10 @@ function HistoricalAdmin() {
       if (body.action === 'create-event') {
         setNewEvent({ name: '', startsAt: new Date().toISOString().slice(0, 16), server: 'Manual' })
       }
+      return true
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Unable to save historical event.')
+      return false
     } finally {
       setBusy(false)
     }
@@ -154,7 +156,7 @@ function HistoricalEventEditor({
   event: HistoricalEvent
   participants: RegisteredParticipant[]
   busy: boolean
-  onRun: (body: Record<string, unknown>) => Promise<void>
+  onRun: (body: Record<string, unknown>) => Promise<boolean>
 }) {
   const [nameOverride, setNameOverride] = useState(event.nameOverride ?? event.name)
   const [startsAt, setStartsAt] = useState(toLocalDateTimeValue(event.date))
@@ -276,14 +278,17 @@ function HistoricalEventEditor({
             type="button"
             disabled={busy || !newTeam.name}
             onClick={() =>
-              void onRun({
-                action: 'upsert-team',
-                eventId: event.id,
-                name: newTeam.name,
-                score: Number(newTeam.score),
-                captainDiscordId: newTeam.captainDiscordId,
-                captainName: newTeam.captainName,
-              })
+              void (async () => {
+                const saved = await onRun({
+                  action: 'upsert-team',
+                  eventId: event.id,
+                  name: newTeam.name,
+                  score: Number(newTeam.score),
+                  captainDiscordId: newTeam.captainDiscordId,
+                  captainName: newTeam.captainName,
+                })
+                if (saved) setNewTeam({ name: '', score: '0', captainDiscordId: '', captainName: '' })
+              })()
             }
           >
             Add team
@@ -305,7 +310,7 @@ function HistoricalTeamEditor({
   team: HistoricalEvent['teams'][number]
   participants: RegisteredParticipant[]
   busy: boolean
-  onRun: (body: Record<string, unknown>) => Promise<void>
+  onRun: (body: Record<string, unknown>) => Promise<boolean>
 }) {
   const captain = participants.find((participant) => participant.name === team.captain)
   const [name, setName] = useState(team.name)
@@ -380,13 +385,19 @@ function HistoricalTeamEditor({
         type="button"
         disabled={busy || !memberDiscordId}
         onClick={() =>
-          void onRun({
-            action: 'add-member',
-            eventId,
-            teamId: team.id,
-            discordId: memberDiscordId,
-            name: memberName,
-          })
+          void (async () => {
+            const saved = await onRun({
+              action: 'add-member',
+              eventId,
+              teamId: team.id,
+              discordId: memberDiscordId,
+              name: memberName,
+            })
+            if (saved) {
+              setMemberDiscordId('')
+              setMemberName('')
+            }
+          })()
         }
       >
         Add member

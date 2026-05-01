@@ -221,8 +221,9 @@ export interface AdminBadgeManagerData {
   assignments: AdminBadgeAssignment[]
 }
 
-export interface AdminPlayerBadgeEditorData {
+export interface AdminPlayerProfileEditorData {
   player: RegisteredParticipant
+  catchphrase: string
   badges: AdminBadgeDefinition[]
   assignedBadgeIds: string[]
   visibleBadges: PlayerBadge[]
