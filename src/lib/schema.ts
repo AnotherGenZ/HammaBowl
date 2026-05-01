@@ -25,8 +25,75 @@ export const events = sqliteTable('events', {
 export const participants = sqliteTable('participants', {
   discordId: text('discord_id').primaryKey(),
   name: text('name').notNull(),
+  avatarUrl: text('avatar_url'),
+  nameOverridden: integer('name_overridden', { mode: 'boolean' }).notNull().default(false),
   updatedAt: text('updated_at').notNull(),
 })
+
+export const playerProfiles = sqliteTable('player_profiles', {
+  discordId: text('discord_id').primaryKey(),
+  bannerUrl: text('banner_url'),
+  catchphrase: text('catchphrase'),
+  noPersonalJaegerAccount: integer('no_personal_jaeger_account', { mode: 'boolean' }).notNull().default(false),
+  badgeDisplayOrder: text('badge_display_order'),
+  updatedAt: text('updated_at').notNull(),
+})
+
+export const playerCharacters = sqliteTable(
+  'player_characters',
+  {
+    discordId: text('discord_id').notNull(),
+    faction: text('faction').notNull(),
+    characterId: text('character_id').notNull(),
+    characterName: text('character_name').notNull(),
+    resolvedAt: text('resolved_at').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.discordId, table.faction] })],
+)
+
+export const playerEventStats = sqliteTable(
+  'player_event_stats',
+  {
+    eventId: text('event_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
+    discordId: text('discord_id').notNull(),
+    killsOnHamma: integer('kills_on_hamma').notNull().default(0),
+    deathsToHamma: integer('deaths_to_hamma').notNull().default(0),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.eventId, table.discordId] })],
+)
+
+export const eventPlayerCharacters = sqliteTable(
+  'event_player_characters',
+  {
+    eventId: text('event_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
+    discordId: text('discord_id').notNull(),
+    faction: text('faction').notNull(),
+    characterId: text('character_id').notNull(),
+    characterName: text('character_name').notNull(),
+    assignedAt: text('assigned_at').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.eventId, table.discordId] })],
+)
+
+export const badgeDefinitions = sqliteTable('badge_definitions', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  description: text('description').notNull(),
+  color: text('color').notNull().default('#e4b45e'),
+  source: text('source').notNull().default('manual'),
+  createdAt: text('created_at').notNull(),
+})
+
+export const playerBadgeAssignments = sqliteTable(
+  'player_badge_assignments',
+  {
+    badgeId: text('badge_id').notNull().references(() => badgeDefinitions.id, { onDelete: 'cascade' }),
+    discordId: text('discord_id').notNull(),
+    assignedAt: text('assigned_at').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.badgeId, table.discordId] })],
+)
 
 export const eventParticipants = sqliteTable(
   'event_participants',

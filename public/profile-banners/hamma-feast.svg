@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" role="img" aria-label="Hamma Feast profile banner">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#241413"/>
+      <stop offset=".48" stop-color="#4b2822"/>
+      <stop offset="1" stop-color="#152022"/>
+    </linearGradient>
+    <radialGradient id="heat" cx="52%" cy="52%" r="46%">
+      <stop offset="0" stop-color="#ffcf7a" stop-opacity=".8"/>
+      <stop offset=".5" stop-color="#c95634" stop-opacity=".32"/>
+      <stop offset="1" stop-color="#c95634" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="360" fill="url(#bg)"/>
+  <rect width="1200" height="360" fill="url(#heat)"/>
+  <ellipse cx="600" cy="233" rx="285" ry="70" fill="#161b1c"/>
+  <ellipse cx="600" cy="219" rx="238" ry="51" fill="#d9b36b"/>
+  <path d="M390 206c49-64 132-90 230-80 93 10 159 49 198 102-92 52-323 61-428-22z" fill="#ba5534"/>
+  <path d="M424 203c54-39 120-58 198-49 68 8 119 31 154 68-84 30-253 34-352-19z" fill="#f0a956" opacity=".82"/>
+  <path d="M314 250h572l-62 65H376z" fill="#0b0f11"/>
+  <path d="M233 118c45 29 45 58 0 87m733-84c-47 28-47 57 0 88" fill="none" stroke="#f0a956" stroke-width="13" stroke-linecap="round" opacity=".45"/>
+  <path d="M0 301c176-24 368-23 576 2s416 24 624-8v65H0z" fill="#07090b" opacity=".78"/>
+</svg>

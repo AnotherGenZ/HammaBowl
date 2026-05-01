@@ -24,6 +24,7 @@ export async function getDiscordSessionUser() {
 
   if (!data.discordId || !data.username || !data.roles) return null
   const { isParticipantInAnyEvent } = await import('./db.server')
+  const { hasCompletePlayerCharacters } = await import('./db.server')
   const roles = new Set(data.roles)
 
   if (isParticipantInAnyEvent(data.discordId)) {
@@ -33,6 +34,8 @@ export async function getDiscordSessionUser() {
   return {
     id: data.discordId,
     name: data.displayName ?? data.username,
+    avatarUrl: data.avatarUrl ?? undefined,
+    profileComplete: hasCompletePlayerCharacters(data.discordId),
     roles: Array.from(roles),
   }
 }

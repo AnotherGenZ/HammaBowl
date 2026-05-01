@@ -2,16 +2,24 @@ import '@tanstack/react-start/server-only'
 
 import fs from 'node:fs'
 import path from 'node:path'
+import { randomUUID } from 'node:crypto'
 import Database from 'better-sqlite3'
 import { and, eq } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { env } from './env'
+import { normalizeProfileBanner } from './profileBanners'
 import {
   activeDraftBids,
+  badgeDefinitions,
   coinflips,
   draftPicks,
+  eventPlayerCharacters,
   eventParticipants,
   events,
+  playerCharacters,
+  playerBadgeAssignments,
+  playerEventStats,
+  playerProfiles,
   participants,
   ratings,
   scoreAdjustments,
@@ -27,12 +35,20 @@ import {
   isCaptainPlayer,
 } from './rules'
 import type {
+  AdminBadgeManagerData,
+  AdminPlayerBadgeEditorData,
+  AdminPlayerCharacterConfig,
   Captain,
   DraftPick,
+  EventPlayerCharacterAssignment,
   Faction,
   HammaEvent,
   HistoricalEvent,
   Player,
+  PlayerBadge,
+  PlayerCharacter,
+  PlayerProfile,
+  PlayerProfileSummary,
   Rating,
   RegisteredParticipant,
   StartingSide,
@@ -87,6 +103,30 @@ export async function upsertEventFromRaidHelper(event: HammaEvent) {
     .get()
   if (!persistedEvent) throw new Error('Failed to persist Raid Helper event.')
 
+  const acceptedDiscordIds = new Set(event.players.map((player) => player.id))
+  const staleParticipants = db
+    .select()
+    .from(eventParticipants)
+    .where(eq(eventParticipants.eventId, persistedEvent.id))
+    .all()
+    .filter((participant) => !acceptedDiscordIds.has(participant.discordId))
+
+  for (const participant of staleParticipants) {
+    db.update(eventParticipants)
+      .set({
+        status: 'disqualified',
+        disqualified: true,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(eventParticipants.eventId, persistedEvent.id),
+          eq(eventParticipants.discordId, participant.discordId),
+        ),
+      )
+      .run()
+  }
+
   for (const player of event.players) {
     upsertParticipant(player.id, player.name, now)
     db.insert(eventParticipants)
@@ -103,6 +143,7 @@ export async function upsertEventFromRaidHelper(event: HammaEvent) {
         set: {
           name: player.name,
           status: player.status,
+          disqualified: player.status === 'disqualified',
           updatedAt: now,
         },
       })
@@ -132,12 +173,14 @@ export async function getDbEvent(eventId: string): Promise<HammaEvent | null> {
     .get()
   const coinflipRow = db.select().from(coinflips).where(eq(coinflips.eventId, event.id)).get()
 
-  const players: Player[] = participantRows.map((participant) => ({
+  const activeParticipantRows = participantRows.filter((participant) => !participant.disqualified)
+  const activeParticipantIds = new Set(activeParticipantRows.map((participant) => participant.discordId))
+  const players: Player[] = activeParticipantRows.map((participant) => ({
     id: participant.discordId,
     name: participantNames.get(participant.discordId) ?? participant.name,
     outfit: '',
     faction: 'NS',
-    status: participant.disqualified ? 'disqualified' : 'signed_up',
+    status: 'signed_up',
   }))
 
   const captains: Captain[] = teamRows.map((team) => ({
@@ -159,15 +202,17 @@ export async function getDbEvent(eventId: string): Promise<HammaEvent | null> {
     disqualified: rating.disqualified,
   }))
 
-  const eventDraftPicks: DraftPick[] = pickRows.map((pick) => ({
-    id: pick.id,
-    playerId: pick.playerDiscordId,
-    captainId: pick.teamId,
-    salary: pick.salary,
-    bonusSpent: pick.bonusSpent,
-    contestedByCaptainId: pick.contestedByTeamId ?? undefined,
-    confirmedAt: pick.confirmedAt,
-  }))
+  const eventDraftPicks: DraftPick[] = pickRows
+    .filter((pick) => activeParticipantIds.has(pick.playerDiscordId))
+    .map((pick) => ({
+      id: pick.id,
+      playerId: pick.playerDiscordId,
+      captainId: pick.teamId,
+      salary: pick.salary,
+      bonusSpent: pick.bonusSpent,
+      contestedByCaptainId: pick.contestedByTeamId ?? undefined,
+      confirmedAt: pick.confirmedAt,
+    }))
 
   return {
     id: event.id,
@@ -186,7 +231,7 @@ export async function getDbEvent(eventId: string): Promise<HammaEvent | null> {
     players,
     ratings: eventRatings,
     draftPicks: eventDraftPicks,
-    activeDraftBid: activeBidRow
+    activeDraftBid: activeBidRow && activeParticipantIds.has(activeBidRow.playerDiscordId)
       ? {
           id: activeBidRow.id,
           playerId: activeBidRow.playerDiscordId,
@@ -1082,7 +1127,7 @@ export async function resetDraftPick(eventId: string, pickId: string) {
 
   db.update(events).set({ updatedAt: new Date().toISOString() }).where(eq(events.id, eventId)).run()
 
-  return { player: player?.name ?? pick.playerDiscordId }
+  return { player: getParticipantName(pick.playerDiscordId) ?? player?.name ?? pick.playerDiscordId }
 }
 
 export async function cancelActiveDraftBid(eventId: string) {
@@ -1169,6 +1214,7 @@ export async function saveRating(
   score: number,
 ) {
   if (fromDiscordId === toDiscordId) throw new Error('You cannot rate yourself.')
+  if (!event.players.some((player) => player.id === toDiscordId)) throw new Error('Player is not active for this event.')
   if (isCaptainPlayer(event, toDiscordId)) throw new Error('Captains cannot be rated.')
   if (score < 1 || score > 10) throw new Error('Rating must be between 1 and 10.')
 
@@ -1216,6 +1262,7 @@ export function isEventParticipant(eventId: string, discordId: string) {
         and(
           eq(eventParticipants.eventId, eventId),
           eq(eventParticipants.discordId, discordId),
+          eq(eventParticipants.disqualified, false),
         ),
       )
       .get(),
@@ -1232,21 +1279,565 @@ export function isParticipantInAnyEvent(discordId: string) {
   )
 }
 
-function upsertParticipant(discordId: string, name: string, updatedAt = new Date().toISOString()) {
+export function getRegisteredPlayerList(): RegisteredParticipant[] {
+  return getRegisteredParticipants()
+}
+
+export function getAdminPlayerCharacterConfigs(): AdminPlayerCharacterConfig[] {
+  return getRegisteredPlayerList().map((player) => {
+    const profile = db.select().from(playerProfiles).where(eq(playerProfiles.discordId, player.discordId)).get()
+
+    return {
+      discordId: player.discordId,
+      name: player.name,
+      noPersonalJaegerAccount: Boolean(profile?.noPersonalJaegerAccount),
+      characters: getPlayerCharacters(player.discordId),
+    }
+  })
+}
+
+export function renameParticipant(discordId: string, name: string) {
   const normalizedId = discordId.trim()
-  if (!normalizedId) throw new Error('Discord ID is required.')
+  const normalizedName = name.trim().slice(0, 80)
+  if (!normalizedId) throw new Error('Player is required.')
+  if (!normalizedName) throw new Error('Player name is required.')
+
+  const participant = db.select().from(participants).where(eq(participants.discordId, normalizedId)).get()
+  if (!participant) throw new Error('Player not found.')
+
+  const now = new Date().toISOString()
+  db.update(participants)
+    .set({
+      name: normalizedName,
+      nameOverridden: true,
+      updatedAt: now,
+    })
+    .where(eq(participants.discordId, normalizedId))
+    .run()
+
+  db.update(eventParticipants)
+    .set({
+      name: normalizedName,
+      updatedAt: now,
+    })
+    .where(eq(eventParticipants.discordId, normalizedId))
+    .run()
+
+  return getRegisteredPlayerList()
+}
+
+export function upsertParticipantProfileIdentity(discordId: string, name: string, avatarUrl?: string | null) {
+  const now = new Date().toISOString()
+  const normalizedId = discordId.trim()
   const normalizedName = name.trim() || normalizedId
+  if (!normalizedId) throw new Error('Discord ID is required.')
+  const existing = db.select().from(participants).where(eq(participants.discordId, normalizedId)).get()
+  const displayName = existing?.nameOverridden ? existing.name : normalizedName
 
   db.insert(participants)
     .values({
       discordId: normalizedId,
-      name: normalizedName,
+      name: displayName,
+      avatarUrl: avatarUrl ?? undefined,
+      nameOverridden: existing?.nameOverridden ?? false,
+      updatedAt: now,
+    })
+    .onConflictDoUpdate({
+      target: participants.discordId,
+      set: {
+        name: displayName,
+        avatarUrl: avatarUrl ?? undefined,
+        updatedAt: now,
+      },
+    })
+    .run()
+
+  db.insert(playerProfiles)
+    .values({
+      discordId: normalizedId,
+      updatedAt: now,
+    })
+    .onConflictDoUpdate({
+      target: playerProfiles.discordId,
+      set: { updatedAt: now },
+    })
+    .run()
+}
+
+export function hasCompletePlayerCharacters(discordId: string) {
+  const profile = db.select().from(playerProfiles).where(eq(playerProfiles.discordId, discordId)).get()
+  if (profile?.noPersonalJaegerAccount) return true
+
+  const factions = new Set(
+    db
+      .select()
+      .from(playerCharacters)
+      .where(eq(playerCharacters.discordId, discordId))
+      .all()
+      .map((character) => character.faction),
+  )
+  return factions.has('TR') && factions.has('VS') && factions.has('NC')
+}
+
+export function getPlayerSettings(discordId: string) {
+  ensurePlayerProfile(discordId)
+  const participant = db.select().from(participants).where(eq(participants.discordId, discordId)).get()
+  const profile = db.select().from(playerProfiles).where(eq(playerProfiles.discordId, discordId)).get()
+  const badges = getPlayerBadges(discordId)
+
+  return {
+    discordId,
+    name: participant?.name ?? discordId,
+    avatarUrl: participant?.avatarUrl ?? undefined,
+    bannerUrl: normalizeProfileBanner(profile?.bannerUrl),
+    catchphrase: profile?.catchphrase ?? '',
+    noPersonalJaegerAccount: Boolean(profile?.noPersonalJaegerAccount),
+    characters: getPlayerCharacters(discordId),
+    badges,
+    badgeDisplayOrder: getVisibleBadges(badges, profile?.badgeDisplayOrder).map((badge) => badge.id),
+    complete: hasCompletePlayerCharacters(discordId),
+  }
+}
+
+export function updatePlayerProfile(
+  discordId: string,
+  values: {
+    bannerUrl?: string
+    catchphrase?: string
+    noPersonalJaegerAccount?: boolean
+    badgeDisplayOrder?: string[]
+  },
+) {
+  ensurePlayerProfile(discordId)
+  const now = new Date().toISOString()
+  const current = db.select().from(playerProfiles).where(eq(playerProfiles.discordId, discordId)).get()
+  const bannerUrl =
+    values.bannerUrl === undefined
+      ? normalizeProfileBanner(current?.bannerUrl) || null
+      : normalizeProfileBanner(values.bannerUrl) || null
+  const catchphrase =
+    values.catchphrase === undefined
+      ? current?.catchphrase ?? null
+      : normalizeOptionalText(values.catchphrase, 140)
+  const noPersonalJaegerAccount =
+    values.noPersonalJaegerAccount === undefined
+      ? Boolean(current?.noPersonalJaegerAccount)
+      : Boolean(values.noPersonalJaegerAccount)
+  const badgeDisplayOrder =
+    values.badgeDisplayOrder === undefined
+      ? current?.badgeDisplayOrder ?? null
+      : JSON.stringify(normalizeBadgeDisplayPreferences(discordId, values.badgeDisplayOrder))
+
+  db.update(playerProfiles)
+    .set({
+      bannerUrl,
+      catchphrase,
+      noPersonalJaegerAccount,
+      badgeDisplayOrder,
+      updatedAt: now,
+    })
+    .where(eq(playerProfiles.discordId, discordId))
+    .run()
+
+  return getPlayerSettings(discordId)
+}
+
+export function savePlayerCharacters(discordId: string, characters: PlayerCharacter[]) {
+  const now = new Date().toISOString()
+  const seen = new Set<Faction>()
+  ensurePlayerProfile(discordId)
+
+  db.update(playerProfiles)
+    .set({
+      noPersonalJaegerAccount: false,
+      updatedAt: now,
+    })
+    .where(eq(playerProfiles.discordId, discordId))
+    .run()
+
+  for (const character of characters) {
+    if (seen.has(character.faction)) throw new Error(`Duplicate ${character.faction} character.`)
+    seen.add(character.faction)
+    db.insert(playerCharacters)
+      .values({
+        discordId,
+        faction: character.faction,
+        characterId: character.characterId,
+        characterName: character.characterName,
+        resolvedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: [playerCharacters.discordId, playerCharacters.faction],
+        set: {
+          characterId: character.characterId,
+          characterName: character.characterName,
+          resolvedAt: now,
+        },
+      })
+      .run()
+  }
+
+  return getPlayerSettings(discordId)
+}
+
+export function getEventPlayerCharacterAssignments(eventId: string): EventPlayerCharacterAssignment[] {
+  const rows = sqlite.prepare(`
+    SELECT
+      ep.event_id AS eventId,
+      ep.discord_id AS discordId,
+      COALESCE(p.name, ep.name, ep.discord_id) AS playerName,
+      COALESCE(pp.no_personal_jaeger_account, 0) AS noPersonalJaegerAccount,
+      ec.faction AS faction,
+      ec.character_id AS characterId,
+      ec.character_name AS characterName,
+      ec.assigned_at AS assignedAt
+    FROM event_participants ep
+    JOIN player_profiles pp ON pp.discord_id = ep.discord_id
+    LEFT JOIN participants p ON p.discord_id = ep.discord_id
+    LEFT JOIN event_player_characters ec
+      ON ec.event_id = ep.event_id AND ec.discord_id = ep.discord_id
+    WHERE ep.event_id = ? AND pp.no_personal_jaeger_account = 1 AND ep.disqualified = 0
+    ORDER BY playerName COLLATE NOCASE
+  `).all(eventId) as Array<{
+    eventId: string
+    discordId: string
+    playerName: string
+    noPersonalJaegerAccount: number
+    faction: string | null
+    characterId: string | null
+    characterName: string | null
+    assignedAt: string | null
+  }>
+
+  return rows.map((row) => ({
+    eventId: row.eventId,
+    discordId: row.discordId,
+    playerName: row.playerName,
+    noPersonalJaegerAccount: Boolean(row.noPersonalJaegerAccount),
+    assignment: row.faction && row.characterId && row.characterName && row.assignedAt
+      ? {
+          faction: normalizeRequiredFaction(row.faction),
+          characterId: row.characterId,
+          characterName: row.characterName,
+          resolvedAt: row.assignedAt,
+        }
+      : undefined,
+  }))
+}
+
+export function saveEventPlayerCharacterAssignment(
+  eventId: string,
+  discordId: string,
+  character: PlayerCharacter,
+) {
+  const participant = db
+    .select()
+    .from(eventParticipants)
+    .where(and(eq(eventParticipants.eventId, eventId), eq(eventParticipants.discordId, discordId)))
+    .get()
+  if (!participant || participant.disqualified) {
+    throw new Error('Player must be an active signup for this event.')
+  }
+
+  const profile = db.select().from(playerProfiles).where(eq(playerProfiles.discordId, discordId)).get()
+  if (!profile?.noPersonalJaegerAccount) {
+    throw new Error('Player has not marked that they need an assigned Jaeger character.')
+  }
+
+  const assignedAt = new Date().toISOString()
+  db.insert(eventPlayerCharacters)
+    .values({
+      eventId,
+      discordId,
+      faction: character.faction,
+      characterId: character.characterId,
+      characterName: character.characterName,
+      assignedAt,
+    })
+    .onConflictDoUpdate({
+      target: [eventPlayerCharacters.eventId, eventPlayerCharacters.discordId],
+      set: {
+        faction: character.faction,
+        characterId: character.characterId,
+        characterName: character.characterName,
+        assignedAt,
+      },
+    })
+    .run()
+
+  return getEventPlayerCharacterAssignments(eventId)
+}
+
+export function searchPlayerProfiles(query = ''): PlayerProfileSummary[] {
+  const normalized = query.trim().toLowerCase()
+  const rows = sqlite.prepare(`
+    SELECT
+      p.discord_id AS discordId,
+      p.name AS name,
+      p.avatar_url AS avatarUrl,
+      pp.catchphrase AS catchphrase,
+      pp.badge_display_order AS badgeDisplayOrder,
+      COALESCE(events.eventCount, 0) AS eventCount,
+      COALESCE(wins.winCount, 0) AS winCount,
+      ratings.averageRating AS averageRating,
+      COALESCE(characters.characterCount, 0) AS characterCount
+    FROM participants p
+    LEFT JOIN player_profiles pp ON pp.discord_id = p.discord_id
+    LEFT JOIN (
+      SELECT discord_id, COUNT(*) AS eventCount
+      FROM event_participants
+      WHERE disqualified = 0
+      GROUP BY discord_id
+    ) events ON events.discord_id = p.discord_id
+    LEFT JOIN (
+      SELECT discord_id, COUNT(*) AS winCount
+      FROM event_participants
+      WHERE winner = 1 AND disqualified = 0
+      GROUP BY discord_id
+    ) wins ON wins.discord_id = p.discord_id
+    LEFT JOIN (
+      SELECT to_discord_id AS discord_id, AVG(score) AS averageRating
+      FROM ratings
+      WHERE disqualified = 0 AND from_discord_id != to_discord_id
+      GROUP BY to_discord_id
+    ) ratings ON ratings.discord_id = p.discord_id
+    LEFT JOIN (
+      SELECT discord_id, COUNT(*) AS characterCount
+      FROM player_characters
+      GROUP BY discord_id
+    ) characters ON characters.discord_id = p.discord_id
+    WHERE ? = '' OR LOWER(p.name) LIKE ? OR LOWER(COALESCE(pp.catchphrase, '')) LIKE ?
+    ORDER BY p.name COLLATE NOCASE
+    LIMIT 200
+  `).all(normalized, `%${normalized}%`, `%${normalized}%`) as Array<{
+    discordId: string
+    name: string
+    avatarUrl: string | null
+    catchphrase: string | null
+    badgeDisplayOrder: string | null
+    eventCount: number
+    winCount: number
+    averageRating: number | null
+    characterCount: number
+  }>
+
+  return rows.map((row) => {
+    const badges = getPlayerBadges(row.discordId)
+
+    return {
+      discordId: row.discordId,
+      name: row.name,
+      avatarUrl: row.avatarUrl ?? undefined,
+      catchphrase: row.catchphrase ?? undefined,
+      eventCount: Number(row.eventCount),
+      winCount: Number(row.winCount),
+      averageRating: row.averageRating === null ? null : Number(row.averageRating),
+      characterCount: Number(row.characterCount),
+      badges: getVisibleBadges(badges, row.badgeDisplayOrder).slice(0, 3),
+    }
+  })
+}
+
+export function getPlayerProfile(discordId: string): PlayerProfile | null {
+  const participant = db.select().from(participants).where(eq(participants.discordId, discordId)).get()
+  if (!participant) return null
+  const profile = db.select().from(playerProfiles).where(eq(playerProfiles.discordId, discordId)).get()
+  const history = getRatingHistory(discordId)
+  const hammaStats = getHammaCombatStats(discordId)
+  const badges = getPlayerBadges(discordId)
+  const averageRating = history.length
+    ? history.reduce((sum, item) => sum + item.averageRating, 0) / history.length
+    : null
+
+  return {
+    discordId,
+    name: participant.name,
+    avatarUrl: participant.avatarUrl ?? undefined,
+    bannerUrl: normalizeProfileBanner(profile?.bannerUrl) || undefined,
+    catchphrase: profile?.catchphrase ?? undefined,
+    characters: getPlayerCharacters(discordId),
+    stats: {
+      events: countPlayerEvents(discordId),
+      wins: countPlayerWins(discordId),
+      averageRating,
+      killsOnHamma: hammaStats.killsOnHamma,
+      deathsToHamma: hammaStats.deathsToHamma,
+      ratingHistory: history,
+    },
+    badges: getVisibleBadges(badges, profile?.badgeDisplayOrder),
+  }
+}
+
+export function getAdminBadgeManagerData(): AdminBadgeManagerData {
+  const badges = db
+    .select()
+    .from(badgeDefinitions)
+    .all()
+    .map((badge) => ({
+      id: badge.id,
+      name: badge.name,
+      description: badge.description,
+      color: normalizeBadgeColor(badge.color),
+      source: badge.source === 'automatic' ? 'automatic' as const : 'manual' as const,
+      createdAt: badge.createdAt,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name))
+
+  const players = db
+    .select()
+    .from(participants)
+    .all()
+    .map((participant) => ({
+      discordId: participant.discordId,
+      name: participant.name,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name))
+
+  const assignments = sqlite.prepare(`
+    SELECT
+      pba.badge_id AS badgeId,
+      pba.discord_id AS discordId,
+      COALESCE(p.name, pba.discord_id) AS playerName,
+      bd.name AS badgeName,
+      pba.assigned_at AS assignedAt
+    FROM player_badge_assignments pba
+    JOIN badge_definitions bd ON bd.id = pba.badge_id
+    LEFT JOIN participants p ON p.discord_id = pba.discord_id
+    ORDER BY bd.name COLLATE NOCASE, playerName COLLATE NOCASE
+  `).all() as AdminBadgeManagerData['assignments']
+
+  return { badges, players, assignments }
+}
+
+export function createManualBadge(values: { name: string; description: string; color?: string }) {
+  const name = values.name.trim().slice(0, 48)
+  const description = values.description.trim().slice(0, 160)
+  const color = normalizeBadgeColor(values.color)
+  if (!name) throw new Error('Badge name is required.')
+  if (!description) throw new Error('Badge description is required.')
+
+  db.insert(badgeDefinitions)
+    .values({
+      id: `manual-${randomUUID()}`,
+      name,
+      description,
+      color,
+      source: 'manual',
+      createdAt: new Date().toISOString(),
+    })
+    .run()
+
+  return getAdminBadgeManagerData()
+}
+
+export function updateManualBadgeColor(badgeId: string, color: string) {
+  const badge = db.select().from(badgeDefinitions).where(eq(badgeDefinitions.id, badgeId)).get()
+  if (!badge) throw new Error('Badge not found.')
+  if (badge.source !== 'manual') throw new Error('Only manual badges can be configured here.')
+
+  db.update(badgeDefinitions)
+    .set({ color: normalizeBadgeColor(color) })
+    .where(eq(badgeDefinitions.id, badgeId))
+    .run()
+
+  return getAdminBadgeManagerData()
+}
+
+export function assignManualBadge(badgeId: string, discordId: string) {
+  const badge = db.select().from(badgeDefinitions).where(eq(badgeDefinitions.id, badgeId)).get()
+  if (!badge) throw new Error('Badge not found.')
+  if (badge.source !== 'manual') throw new Error('Only manual badges can be assigned here.')
+  const participant = db.select().from(participants).where(eq(participants.discordId, discordId)).get()
+  if (!participant) throw new Error('Player not found.')
+
+  db.insert(playerBadgeAssignments)
+    .values({
+      badgeId,
+      discordId,
+      assignedAt: new Date().toISOString(),
+    })
+    .onConflictDoNothing()
+    .run()
+
+  return getAdminBadgeManagerData()
+}
+
+export function unassignManualBadge(badgeId: string, discordId: string) {
+  db.delete(playerBadgeAssignments)
+    .where(and(eq(playerBadgeAssignments.badgeId, badgeId), eq(playerBadgeAssignments.discordId, discordId)))
+    .run()
+
+  return getAdminBadgeManagerData()
+}
+
+export function getAdminPlayerBadgeEditorData(discordId: string): AdminPlayerBadgeEditorData {
+  const normalizedId = discordId.trim()
+  const participant = db.select().from(participants).where(eq(participants.discordId, normalizedId)).get()
+  if (!participant) throw new Error('Player not found.')
+
+  const badges = db
+    .select()
+    .from(badgeDefinitions)
+    .all()
+    .map((badge) => ({
+      id: badge.id,
+      name: badge.name,
+      description: badge.description,
+      color: normalizeBadgeColor(badge.color),
+      source: badge.source === 'automatic' ? 'automatic' as const : 'manual' as const,
+      createdAt: badge.createdAt,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name))
+
+  const assignedBadgeIds = db
+    .select()
+    .from(playerBadgeAssignments)
+    .where(eq(playerBadgeAssignments.discordId, normalizedId))
+    .all()
+    .map((assignment) => assignment.badgeId)
+
+  const profile = db.select().from(playerProfiles).where(eq(playerProfiles.discordId, normalizedId)).get()
+  const playerBadges = getPlayerBadges(normalizedId)
+
+  return {
+    player: {
+      discordId: participant.discordId,
+      name: participant.name,
+    },
+    badges,
+    assignedBadgeIds,
+    visibleBadges: getVisibleBadges(playerBadges, profile?.badgeDisplayOrder),
+  }
+}
+
+export function assignPlayerManualBadge(discordId: string, badgeId: string) {
+  assignManualBadge(badgeId, discordId)
+  return getAdminPlayerBadgeEditorData(discordId)
+}
+
+export function unassignPlayerManualBadge(discordId: string, badgeId: string) {
+  unassignManualBadge(badgeId, discordId)
+  return getAdminPlayerBadgeEditorData(discordId)
+}
+
+function upsertParticipant(discordId: string, name: string, updatedAt = new Date().toISOString()) {
+  const normalizedId = discordId.trim()
+  if (!normalizedId) throw new Error('Discord ID is required.')
+  const normalizedName = name.trim() || normalizedId
+  const existing = db.select().from(participants).where(eq(participants.discordId, normalizedId)).get()
+  const displayName = existing?.nameOverridden ? existing.name : normalizedName
+
+  db.insert(participants)
+    .values({
+      discordId: normalizedId,
+      name: displayName,
+      nameOverridden: existing?.nameOverridden ?? false,
       updatedAt,
     })
     .onConflictDoUpdate({
       target: participants.discordId,
       set: {
-        name: normalizedName,
+        name: displayName,
         updatedAt,
       },
     })
@@ -1293,6 +1884,258 @@ function getParticipantName(discordId: string) {
     .get()?.name
 }
 
+function ensurePlayerProfile(discordId: string) {
+  const now = new Date().toISOString()
+  db.insert(playerProfiles)
+    .values({ discordId, updatedAt: now })
+    .onConflictDoNothing()
+    .run()
+}
+
+function getPlayerCharacters(discordId: string): PlayerCharacter[] {
+  return db
+    .select()
+    .from(playerCharacters)
+    .where(eq(playerCharacters.discordId, discordId))
+    .all()
+    .map((character) => ({
+      faction: normalizeRequiredFaction(character.faction),
+      characterId: character.characterId,
+      characterName: character.characterName,
+      resolvedAt: character.resolvedAt,
+    }))
+    .sort((a, b) => factionOrder(a.faction) - factionOrder(b.faction))
+}
+
+function getRatingHistory(discordId: string): PlayerProfile['stats']['ratingHistory'] {
+  const rows = sqlite.prepare(`
+    SELECT
+      e.id AS eventId,
+      COALESCE(e.name_override, e.name) AS eventName,
+      e.starts_at AS startsAt,
+      AVG(r.score) AS averageRating
+    FROM ratings r
+    JOIN events e ON e.id = r.event_id
+    JOIN event_participants ep ON ep.event_id = r.event_id AND ep.discord_id = r.to_discord_id
+    WHERE r.to_discord_id = ? AND r.from_discord_id != ? AND r.disqualified = 0
+      AND ep.disqualified = 0
+    GROUP BY e.id
+    ORDER BY e.starts_at ASC
+  `).all(discordId, discordId) as Array<{
+    eventId: string
+    eventName: string
+    startsAt: string
+    averageRating: number
+  }>
+
+  return rows.map((row) => ({
+    eventId: row.eventId,
+    eventName: row.eventName,
+    startsAt: row.startsAt,
+    averageRating: Number(row.averageRating),
+  }))
+}
+
+function countPlayerEvents(discordId: string) {
+  const row = sqlite
+    .prepare('SELECT COUNT(*) AS count FROM event_participants WHERE discord_id = ? AND disqualified = 0')
+    .get(discordId) as { count: number } | undefined
+  return Number(row?.count ?? 0)
+}
+
+function countPlayerWins(discordId: string) {
+  const row = sqlite
+    .prepare('SELECT COUNT(*) AS count FROM event_participants WHERE discord_id = ? AND winner = 1 AND disqualified = 0')
+    .get(discordId) as { count: number } | undefined
+  return Number(row?.count ?? 0)
+}
+
+export function upsertPlayerEventStats(
+  eventId: string,
+  discordId: string,
+  values: {
+    killsOnHamma?: number
+    deathsToHamma?: number
+  },
+) {
+  const now = new Date().toISOString()
+  db.insert(playerEventStats)
+    .values({
+      eventId,
+      discordId,
+      killsOnHamma: Math.max(0, Math.trunc(values.killsOnHamma ?? 0)),
+      deathsToHamma: Math.max(0, Math.trunc(values.deathsToHamma ?? 0)),
+      updatedAt: now,
+    })
+    .onConflictDoUpdate({
+      target: [playerEventStats.eventId, playerEventStats.discordId],
+      set: {
+        killsOnHamma: Math.max(0, Math.trunc(values.killsOnHamma ?? 0)),
+        deathsToHamma: Math.max(0, Math.trunc(values.deathsToHamma ?? 0)),
+        updatedAt: now,
+      },
+    })
+    .run()
+}
+
+function getHammaCombatStats(discordId: string) {
+  const row = sqlite.prepare(`
+    SELECT
+      COALESCE(SUM(kills_on_hamma), 0) AS killsOnHamma,
+      COALESCE(SUM(deaths_to_hamma), 0) AS deathsToHamma
+    FROM player_event_stats
+    WHERE discord_id = ?
+  `).get(discordId) as { killsOnHamma: number; deathsToHamma: number } | undefined
+
+  return {
+    killsOnHamma: Number(row?.killsOnHamma ?? 0),
+    deathsToHamma: Number(row?.deathsToHamma ?? 0),
+  }
+}
+
+function getPlayerBadges(discordId: string): PlayerBadge[] {
+  const badges: PlayerBadge[] = getManualPlayerBadges(discordId)
+  const bigSpend = sqlite.prepare(`
+    SELECT 1
+    FROM draft_picks dp
+    JOIN teams t ON t.id = dp.team_id
+    WHERE t.captain_discord_id = ? AND dp.bonus_spent >= t.bonus_cap * 0.6 AND t.bonus_cap > 0
+    LIMIT 1
+  `).get(discordId)
+  const taxCollector = sqlite.prepare(`
+    SELECT 1
+    FROM draft_picks dp
+    JOIN teams t ON t.id = dp.team_id
+    WHERE dp.player_discord_id = ? AND dp.bonus_spent >= t.bonus_cap * 0.4 AND t.bonus_cap > 0
+    LIMIT 1
+  `).get(discordId)
+
+  if (bigSpend) {
+    badges.push({
+      id: 'big-spender',
+      name: 'BIG SPENDER',
+      description: 'Captain spent most of a bonus cap on one player.',
+      color: '#f0b46b',
+      source: 'automatic',
+    })
+  }
+  if (taxCollector) {
+    badges.push({
+      id: 'tax-collector',
+      name: 'Tax Collector',
+      description: 'Earned an outsized draft bonus.',
+      color: '#7dc7c4',
+      source: 'automatic',
+    })
+  }
+  return badges
+}
+
+function getManualPlayerBadges(discordId: string): PlayerBadge[] {
+  const rows = sqlite.prepare(`
+    SELECT
+      bd.id AS id,
+      bd.name AS name,
+      bd.description AS description,
+      bd.color AS color,
+      bd.source AS source
+    FROM player_badge_assignments pba
+    JOIN badge_definitions bd ON bd.id = pba.badge_id
+    WHERE pba.discord_id = ?
+    ORDER BY bd.name COLLATE NOCASE
+  `).all(discordId) as Array<{
+    id: string
+    name: string
+    description: string
+    color: string | null
+    source: string
+  }>
+
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    description: row.description,
+    color: normalizeBadgeColor(row.color),
+    source: row.source === 'automatic' ? 'automatic' : 'manual',
+  }))
+}
+
+function normalizeBadgeDisplayPreferences(discordId: string, badgeIds: string[]) {
+  const earnedBadges = getPlayerBadges(discordId)
+  const earned = new Set(earnedBadges.map((badge) => badge.id))
+  const seen = new Set<string>()
+  const order = badgeIds
+    .map((badgeId) => badgeId.trim())
+    .filter((badgeId) => earned.has(badgeId) && !seen.has(badgeId) && seen.add(badgeId))
+
+  return {
+    order,
+    hidden: earnedBadges.map((badge) => badge.id).filter((badgeId) => !seen.has(badgeId)),
+  }
+}
+
+function normalizeLegacyBadgeOrder(badgeIds: string[], badges: PlayerBadge[]) {
+  const badgeById = new Map(badges.map((badge) => [badge.id, badge]))
+  return badgeIds
+    .map((badgeId) => badgeId.trim())
+    .flatMap((badgeId) => {
+      const badge = badgeById.get(badgeId)
+      if (!badge) return []
+      badgeById.delete(badgeId)
+      return [badge]
+    })
+}
+
+function getVisibleBadges(badges: PlayerBadge[], persistedOrder?: string | null) {
+  if (!persistedOrder) return badges
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(persistedOrder)
+  } catch {
+    return badges
+  }
+
+  if (Array.isArray(parsed)) {
+    const badgeIds = parsed.filter((value): value is string => typeof value === 'string')
+    return badgeIds.length ? normalizeLegacyBadgeOrder(badgeIds, badges) : badges
+  }
+
+  if (!parsed || typeof parsed !== 'object') return badges
+  const order = 'order' in parsed && Array.isArray(parsed.order)
+    ? parsed.order.filter((value): value is string => typeof value === 'string')
+    : []
+  const hidden = new Set(
+    'hidden' in parsed && Array.isArray(parsed.hidden)
+      ? parsed.hidden.filter((value): value is string => typeof value === 'string')
+      : [],
+  )
+  const badgeById = new Map(badges.map((badge) => [badge.id, badge]))
+  const ordered = normalizeLegacyBadgeOrder(order, badges).filter((badge) => !hidden.has(badge.id))
+  const remaining = badges.filter((badge) => badgeById.has(badge.id) && !order.includes(badge.id) && !hidden.has(badge.id))
+  return [...ordered, ...remaining]
+}
+
+function normalizeOptionalText(value: string | undefined, maxLength: number) {
+  const trimmed = value?.trim() ?? ''
+  return trimmed ? trimmed.slice(0, maxLength) : null
+}
+
+function normalizeBadgeColor(value?: string | null) {
+  const color = String(value ?? '').trim()
+  return /^#[0-9a-fA-F]{6}$/.test(color) ? color.toLowerCase() : '#e4b45e'
+}
+
+function normalizeRequiredFaction(value: string): Faction {
+  const faction = normalizeFaction(value)
+  if (!faction) throw new Error(`Invalid faction: ${value}`)
+  return faction
+}
+
+function factionOrder(faction: Faction) {
+  return faction === 'TR' ? 0 : faction === 'VS' ? 1 : 2
+}
+
 function bootstrap() {
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS events (
@@ -1318,7 +2161,56 @@ function bootstrap() {
     CREATE TABLE IF NOT EXISTS participants (
       discord_id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
+      avatar_url TEXT,
+      name_overridden INTEGER NOT NULL DEFAULT 0,
       updated_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS player_profiles (
+      discord_id TEXT PRIMARY KEY,
+      banner_url TEXT,
+      catchphrase TEXT,
+      no_personal_jaeger_account INTEGER NOT NULL DEFAULT 0,
+      badge_display_order TEXT,
+      updated_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS player_characters (
+      discord_id TEXT NOT NULL,
+      faction TEXT NOT NULL,
+      character_id TEXT NOT NULL,
+      character_name TEXT NOT NULL,
+      resolved_at TEXT NOT NULL,
+      PRIMARY KEY (discord_id, faction)
+    );
+    CREATE TABLE IF NOT EXISTS player_event_stats (
+      event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+      discord_id TEXT NOT NULL,
+      kills_on_hamma INTEGER NOT NULL DEFAULT 0,
+      deaths_to_hamma INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (event_id, discord_id)
+    );
+    CREATE TABLE IF NOT EXISTS event_player_characters (
+      event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+      discord_id TEXT NOT NULL,
+      faction TEXT NOT NULL,
+      character_id TEXT NOT NULL,
+      character_name TEXT NOT NULL,
+      assigned_at TEXT NOT NULL,
+      PRIMARY KEY (event_id, discord_id)
+    );
+    CREATE TABLE IF NOT EXISTS badge_definitions (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT NOT NULL,
+      color TEXT NOT NULL DEFAULT '#e4b45e',
+      source TEXT NOT NULL DEFAULT 'manual',
+      created_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS player_badge_assignments (
+      badge_id TEXT NOT NULL REFERENCES badge_definitions(id) ON DELETE CASCADE,
+      discord_id TEXT NOT NULL,
+      assigned_at TEXT NOT NULL,
+      PRIMARY KEY (badge_id, discord_id)
     );
     CREATE TABLE IF NOT EXISTS event_participants (
       event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
@@ -1406,6 +2298,11 @@ function bootstrap() {
   addColumnIfMissing('events', 'twitch_stream_url', 'TEXT')
   addColumnIfMissing('events', 'twitch_vod_url', 'TEXT')
   addColumnIfMissing('events', 'lore', 'TEXT')
+  addColumnIfMissing('participants', 'avatar_url', 'TEXT')
+  addColumnIfMissing('participants', 'name_overridden', 'INTEGER NOT NULL DEFAULT 0')
+  addColumnIfMissing('player_profiles', 'no_personal_jaeger_account', 'INTEGER NOT NULL DEFAULT 0')
+  addColumnIfMissing('player_profiles', 'badge_display_order', 'TEXT')
+  addColumnIfMissing('badge_definitions', 'color', "TEXT NOT NULL DEFAULT '#e4b45e'")
   addColumnIfMissing('event_participants', 'winner', 'INTEGER NOT NULL DEFAULT 0')
   addColumnIfMissing('coinflips', 'calling_team_id', 'TEXT REFERENCES teams(id) ON DELETE SET NULL')
   addColumnIfMissing('coinflips', 'caller_call', 'TEXT')
@@ -1421,7 +2318,8 @@ function bootstrap() {
     GROUP BY discord_id
     ON CONFLICT(discord_id) DO UPDATE SET
       name = excluded.name,
-      updated_at = excluded.updated_at;
+      updated_at = excluded.updated_at
+      WHERE participants.name_overridden = 0;
   `)
 }
 

@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router'
 import type { PlayerSalary } from '../lib/types'
 
 export function PlayerTable({ rows }: { rows: PlayerSalary[] }) {
@@ -14,7 +15,9 @@ export function PlayerTable({ rows }: { rows: PlayerSalary[] }) {
           {rows.map((row) => (
             <tr key={row.player.id}>
               <td>
-                <strong>{row.player.name}</strong>
+                <Link to="/players/$discordId" params={{ discordId: row.player.id }}>
+                  <strong>{row.player.name}</strong>
+                </Link>
               </td>
               <td>{row.ratingCount ? row.averageRating.toFixed(2) : 'TBD'}</td>
             </tr>

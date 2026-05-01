@@ -10,6 +10,7 @@ export const Route = createFileRoute('/api/ratings')({
       GET: async () => {
         const user = await getDiscordSessionUser()
         if (!user) throw new Response('Discord login required', { status: 401 })
+        if (!user.profileComplete) throw new Response('Complete player settings before rating.', { status: 403 })
 
         const event = await requireCurrentEvent()
         if (!isEventParticipant(event.id, user.id) && !user.roles.includes('admin')) {
@@ -21,6 +22,7 @@ export const Route = createFileRoute('/api/ratings')({
       POST: async ({ request }) => {
         const user = await getDiscordSessionUser()
         if (!user) throw new Response('Discord login required', { status: 401 })
+        if (!user.profileComplete) throw new Response('Complete player settings before rating.', { status: 403 })
 
         const event = await requireCurrentEvent()
         if (!isEventParticipant(event.id, user.id) && !user.roles.includes('admin')) {

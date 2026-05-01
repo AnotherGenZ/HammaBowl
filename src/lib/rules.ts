@@ -65,11 +65,15 @@ export function buildTeamLedgers(event: HammaEvent): TeamLedger[] {
   return event.captains.map((captain) => {
     const picks = event.draftPicks
       .filter((pick) => pick.captainId === captain.id)
-      .map((pick) => ({
-        ...pick,
-        player: playerById.get(pick.playerId)!,
-        salary: salaryByPlayer.get(pick.playerId) ?? pick.salary,
-      }))
+      .flatMap((pick) => {
+        const player = playerById.get(pick.playerId)
+        if (!player) return []
+        return [{
+          ...pick,
+          player,
+          salary: salaryByPlayer.get(pick.playerId) ?? pick.salary,
+        }]
+      })
 
     const salarySpent = picks.reduce((sum, pick) => sum + pick.salary, 0)
     const bonusSpent = picks.reduce((sum, pick) => sum + pick.bonusSpent, 0)

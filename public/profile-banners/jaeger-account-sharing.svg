@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" role="img" aria-label="Shared Jaeger Login profile banner">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#19171f"/>
+      <stop offset=".48" stop-color="#2a3a42"/>
+      <stop offset="1" stop-color="#4d2520"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="360" fill="url(#bg)"/>
+  <path d="M0 292c162-38 322-35 480 7s333 40 525-8c72-18 137-20 195-6v75H0z" fill="#07090b" opacity=".75"/>
+  <rect x="396" y="86" width="408" height="184" rx="18" fill="#101418" stroke="#e7b76a" stroke-width="7"/>
+  <path d="M468 145h264v34H468zm0 63h175v34H468z" fill="#26333a"/>
+  <circle cx="739" cy="220" r="42" fill="#7dc7c4"/>
+  <path d="M720 220h38m-19-19v38" stroke="#101418" stroke-width="9" stroke-linecap="round"/>
+  <path d="M288 156h82m460 0h82" stroke="#d8dedc" stroke-width="14" stroke-linecap="round"/>
+  <text x="444" y="129" fill="#fff2cf" font-family="Arial, sans-serif" font-size="26" font-weight="900">WHO HAS THE LOGIN?</text>
+</svg>

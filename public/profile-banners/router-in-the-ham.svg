@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" role="img" aria-label="Router in the Ham profile banner">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#172225"/>
+      <stop offset=".52" stop-color="#4b2822"/>
+      <stop offset="1" stop-color="#211418"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="56%" cy="50%" r="42%">
+      <stop offset="0" stop-color="#7dc7c4" stop-opacity=".7"/>
+      <stop offset=".45" stop-color="#7dc7c4" stop-opacity=".16"/>
+      <stop offset="1" stop-color="#7dc7c4" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="360" fill="url(#bg)"/>
+  <rect width="1200" height="360" fill="url(#glow)"/>
+  <ellipse cx="590" cy="237" rx="300" ry="70" fill="#111619"/>
+  <path d="M388 213c56-69 152-97 258-78 86 15 146 55 180 106-105 48-326 52-438-28z" fill="#ba5534"/>
+  <path d="M506 173h188l36 78H470z" fill="#18262c" stroke="#7dc7c4" stroke-width="7"/>
+  <circle cx="539" cy="214" r="12" fill="#7dc7c4"/>
+  <circle cx="600" cy="214" r="12" fill="#e7b76a"/>
+  <circle cx="661" cy="214" r="12" fill="#c65d42"/>
+  <path d="M514 171c-13-42-57-54-85-24m257 24c13-42 57-54 85-24" fill="none" stroke="#d8dedc" stroke-width="9" stroke-linecap="round"/>
+  <path d="M0 302h1200v58H0z" fill="#07090b" opacity=".76"/>
+  <text x="383" y="74" fill="#fff2cf" font-family="Arial, sans-serif" font-size="29" font-weight="900">DO NOT EAT THE ROUTER</text>
+</svg>

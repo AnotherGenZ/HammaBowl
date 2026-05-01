@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" role="img" aria-label="Point Hold Panic profile banner">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#171b20"/>
+      <stop offset=".45" stop-color="#2b3d3f"/>
+      <stop offset="1" stop-color="#5a1d1d"/>
+    </linearGradient>
+    <radialGradient id="cap" cx="50%" cy="50%" r="35%">
+      <stop offset="0" stop-color="#ffefb0" stop-opacity=".86"/>
+      <stop offset=".34" stop-color="#e25b45" stop-opacity=".55"/>
+      <stop offset="1" stop-color="#e25b45" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="360" fill="url(#bg)"/>
+  <rect width="1200" height="360" fill="url(#cap)"/>
+  <path d="M363 92h474l70 182H293z" fill="#0d1216" stroke="#d8dedc" stroke-width="7"/>
+  <path d="M420 139h360v85H420z" fill="#26333a"/>
+  <path d="M489 139h222v85H489z" fill="#c65d42" opacity=".78"/>
+  <path d="M300 274h600l60 86H240z" fill="#07090b"/>
+  <circle cx="600" cy="181" r="44" fill="#e7b76a"/>
+  <text x="573" y="197" fill="#101418" font-family="Arial, sans-serif" font-size="48" font-weight="900">A</text>
+  <path d="M176 109l46 45-46 45m848-90-46 45 46 45" fill="none" stroke="#7dc7c4" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" opacity=".62"/>
+  <text x="382" y="68" fill="#fff2cf" font-family="Arial, sans-serif" font-size="27" font-weight="900">MAX CRASH IN 3... 2...</text>
+</svg>

@@ -242,7 +242,7 @@ export function DraftBoard({
                     <strong>{ledger.captain.faction ?? 'TBD'}</strong>
                   </span>
                   <span>
-                    <small>Side</small>
+                    <small>Starting Side</small>
                     <strong>{ledger.captain.startingSide ?? 'TBD'}</strong>
                   </span>
                 </div>

@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" role="img" aria-label="TR Warpgate profile banner">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#160e10"/>
+      <stop offset="0.55" stop-color="#52191b"/>
+      <stop offset="1" stop-color="#131518"/>
+    </linearGradient>
+    <linearGradient id="beam" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff6b57" stop-opacity=".85"/>
+      <stop offset="1" stop-color="#ff6b57" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="360" fill="url(#bg)"/>
+  <path d="M532 45h136l55 215H477z" fill="url(#beam)" opacity=".7"/>
+  <path d="M600 71 715 284H485z" fill="none" stroke="#ffb0a2" stroke-width="10" opacity=".55"/>
+  <path d="M333 284h534l62 76H271z" fill="#0d1114"/>
+  <path d="M382 284h436l-49-96H431z" fill="#1c2529"/>
+  <path d="M431 188h338l-37-42H468z" fill="#34464c"/>
+  <path d="M0 300h1200v60H0z" fill="#07090b" opacity=".75"/>
+  <path d="M84 84h120v30H84zm912 36h92v25h-92z" fill="#ff6b57" opacity=".45"/>
+</svg>

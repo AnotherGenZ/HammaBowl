@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" role="img" aria-label="Orbital Ham Strike profile banner">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#111722"/>
+      <stop offset=".52" stop-color="#263341"/>
+      <stop offset="1" stop-color="#5a211e"/>
+    </linearGradient>
+    <radialGradient id="blast" cx="50%" cy="60%" r="34%">
+      <stop offset="0" stop-color="#fff4b8"/>
+      <stop offset=".22" stop-color="#e7b76a"/>
+      <stop offset=".55" stop-color="#c65d42" stop-opacity=".58"/>
+      <stop offset="1" stop-color="#c65d42" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="360" fill="url(#bg)"/>
+  <path d="M604 0 536 236h128z" fill="#7dc7c4" opacity=".38"/>
+  <rect width="1200" height="360" fill="url(#blast)"/>
+  <path d="M0 286 112 243l103 27 114-69 124 70 102-37 104 43 124-88 106 79 103-34 208 68v58H0z" fill="#080d11"/>
+  <ellipse cx="600" cy="252" rx="204" ry="45" fill="#c65d42"/>
+  <ellipse cx="600" cy="239" rx="144" ry="28" fill="#f0b46b"/>
+  <path d="M515 226c52-39 122-42 177 0" fill="none" stroke="#fff2cf" stroke-width="10" stroke-linecap="round" opacity=".72"/>
+  <text x="397" y="66" fill="#fff2cf" font-family="Arial, sans-serif" font-size="29" font-weight="900">ORBITAL STRIKE ON THE HAM</text>
+</svg>

@@ -1,12 +1,22 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, redirect } from '@tanstack/react-router'
+import { createServerFn } from '@tanstack/react-start'
 import { useEffect, useState } from 'react'
 import { pageMeta } from '../lib/meta'
 import { isCaptainPlayer } from '../lib/rules'
 import { getCurrentEvent } from '../lib/services'
 import type { Role } from '../lib/types'
 
+const requireCompleteProfile = createServerFn({ method: 'GET' }).handler(async () => {
+  const { getDiscordSessionUser } = await import('../lib/discord.server')
+  const user = await getDiscordSessionUser()
+  if (user && !user.profileComplete) throw redirect({ to: '/settings' })
+})
+
 export const Route = createFileRoute('/ratings')({
-  loader: () => getCurrentEvent(),
+  loader: async () => {
+    await requireCompleteProfile()
+    return getCurrentEvent()
+  },
   head: ({ loaderData }) =>
     pageMeta({
       title: loaderData ? `${loaderData.name} Ratings` : 'Ratings',

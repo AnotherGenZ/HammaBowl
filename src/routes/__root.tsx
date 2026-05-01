@@ -44,7 +44,7 @@ function RootComponent() {
 }
 
 function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
-  const [user, setUser] = useState<{ name: string; roles: Role[] } | null>(null)
+  const [user, setUser] = useState<{ id: string; name: string; profileComplete: boolean; roles: Role[] } | null>(null)
   const [hasCurrentEvent, setHasCurrentEvent] = useState(false)
   const pathname = useRouterState({ select: (state) => state.location.pathname })
   const isOverlayRoute = pathname === '/overlay'
@@ -54,7 +54,7 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
 
     fetch('/api/auth/session')
       .then((response) => response.json())
-      .then((payload: { user: { name: string; roles: Role[] } | null }) => {
+      .then((payload: { user: { id: string; name: string; profileComplete: boolean; roles: Role[] } | null }) => {
         if (active) setUser(payload.user)
       })
       .catch(() => {
@@ -101,13 +101,18 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
                     Draft
                   </Link>
                 ) : null}
-                {hasCurrentEvent && user?.roles.some((role) => role === 'participant' || role === 'admin') ? (
+                {hasCurrentEvent &&
+                user?.profileComplete &&
+                user.roles.some((role) => role === 'participant' || role === 'admin') ? (
                   <Link to="/ratings" activeProps={{ className: 'active' }}>
                     Ratings
                   </Link>
                 ) : null}
                 <Link to="/hall-of-legends" activeProps={{ className: 'active' }}>
                   Hall of Legends
+                </Link>
+                <Link to="/players" activeProps={{ className: 'active' }}>
+                  Players
                 </Link>
               </nav>
               <div className="account-actions">
@@ -116,9 +121,25 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
                     Admin
                   </Link>
                 ) : null}
-                <a className="login" href="/api/auth/discord">
-                  {user ? user.name : 'Discord login'}
-                </a>
+                {user ? (
+                  <>
+                    <Link to="/settings" className="login" activeProps={{ className: 'login active' }}>
+                      Settings
+                    </Link>
+                    <a className="login" href={`/players/${user.id}`}>
+                      {user.name}
+                    </a>
+                    <form action="/api/auth/logout" method="post">
+                      <button className="login logout-button" type="submit">
+                        Logout
+                      </button>
+                    </form>
+                  </>
+                ) : (
+                  <a className="login" href="/api/auth/discord">
+                    Discord login
+                  </a>
+                )}
               </div>
             </header>
           )}

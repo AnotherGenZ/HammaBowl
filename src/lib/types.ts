@@ -139,3 +139,98 @@ export interface RegisteredParticipant {
   discordId: string
   name: string
 }
+
+export interface PlayerCharacter {
+  faction: Faction
+  characterId: string
+  characterName: string
+  resolvedAt: string
+}
+
+export interface PlayerBadge {
+  id: string
+  name: string
+  description: string
+  color: string
+  source?: 'automatic' | 'manual'
+}
+
+export interface PlayerProfile {
+  discordId: string
+  name: string
+  avatarUrl?: string
+  bannerUrl?: string
+  catchphrase?: string
+  characters: PlayerCharacter[]
+  stats: {
+    events: number
+    wins: number
+    averageRating: number | null
+    killsOnHamma: number
+    deathsToHamma: number
+    ratingHistory: Array<{
+      eventId: string
+      eventName: string
+      startsAt: string
+      averageRating: number
+    }>
+  }
+  badges: PlayerBadge[]
+}
+
+export interface EventPlayerCharacterAssignment {
+  eventId: string
+  discordId: string
+  playerName: string
+  noPersonalJaegerAccount: boolean
+  assignment?: PlayerCharacter
+}
+
+export interface PlayerProfileSummary {
+  discordId: string
+  name: string
+  avatarUrl?: string
+  catchphrase?: string
+  eventCount: number
+  winCount: number
+  averageRating: number | null
+  characterCount: number
+  badges: PlayerBadge[]
+}
+
+export interface AdminBadgeDefinition {
+  id: string
+  name: string
+  description: string
+  color: string
+  source: 'automatic' | 'manual'
+  createdAt: string
+}
+
+export interface AdminBadgeAssignment {
+  badgeId: string
+  discordId: string
+  playerName: string
+  badgeName: string
+  assignedAt: string
+}
+
+export interface AdminBadgeManagerData {
+  badges: AdminBadgeDefinition[]
+  players: RegisteredParticipant[]
+  assignments: AdminBadgeAssignment[]
+}
+
+export interface AdminPlayerBadgeEditorData {
+  player: RegisteredParticipant
+  badges: AdminBadgeDefinition[]
+  assignedBadgeIds: string[]
+  visibleBadges: PlayerBadge[]
+}
+
+export interface AdminPlayerCharacterConfig {
+  discordId: string
+  name: string
+  noPersonalJaegerAccount: boolean
+  characters: PlayerCharacter[]
+}

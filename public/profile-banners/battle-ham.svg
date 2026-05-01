@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" role="img" aria-label="Battle Ham profile banner">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#111a20"/>
+      <stop offset=".42" stop-color="#293136"/>
+      <stop offset="1" stop-color="#5a241f"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="360" fill="url(#bg)"/>
+  <path d="M0 285 112 238l112 29 107-63 124 58 96-39 101 51 128-84 105 72 89-33 226 75v56H0z" fill="#0b1013"/>
+  <path d="M517 102h166l50 140-133 58-133-58z" fill="#201a18" stroke="#e7b76a" stroke-width="9"/>
+  <path d="M600 125c45 0 84 28 84 67 0 46-44 78-84 78s-84-32-84-78c0-39 39-67 84-67z" fill="#c65d42"/>
+  <path d="M549 175c26-24 77-31 114-4-22-8-49-3-65 13-15-13-31-16-49-9z" fill="#f0b46b"/>
+  <path d="M478 122 329 74m393 48 149-48" stroke="#d8e0dc" stroke-width="12" stroke-linecap="round"/>
+  <path d="M312 69h84m408 0h84" stroke="#7dc7c4" stroke-width="16" stroke-linecap="round"/>
+  <path d="M0 306h1200v54H0z" fill="#06080a" opacity=".72"/>
+  <path d="M79 99h156v24H79zm886 122h144v23H965z" fill="#e7b76a" opacity=".42"/>
+</svg>

@@ -19,6 +19,7 @@ interface DiscordUserResponse {
 
 interface DiscordGuildMemberResponse {
   nick?: string | null
+  avatar?: string | null
   roles: string[]
   user?: DiscordUserResponse
 }
@@ -33,6 +34,7 @@ export interface DiscordSessionData {
   refreshToken?: string
   roleIds: string[]
   roles: Role[]
+  avatarUrl?: string | null
 }
 
 export function discordAuthorizeUrl(state: string) {
@@ -70,10 +72,11 @@ export async function exchangeDiscordCode(code: string) {
 }
 
 export async function getDiscordIdentity(accessToken: string) {
+  const guildId = requireEnv('DISCORD_GUILD_ID')
   const [user, member] = await Promise.all([
     discordFetch<DiscordUserResponse>('/users/@me', accessToken),
     discordFetch<DiscordGuildMemberResponse>(
-      `/users/@me/guilds/${requireEnv('DISCORD_GUILD_ID')}/member`,
+      `/users/@me/guilds/${guildId}/member`,
       accessToken,
     ),
   ])
@@ -86,6 +89,9 @@ export async function getDiscordIdentity(accessToken: string) {
     username: user.username,
     displayName: member.nick ?? user.global_name ?? user.username,
     avatar: user.avatar,
+    avatarUrl: member.avatar
+      ? discordGuildAvatarUrl(guildId, user.id, member.avatar)
+      : discordAvatarUrl(user.id, user.avatar),
     roleIds,
     roles,
   }
@@ -122,4 +128,15 @@ async function discordFetch<T>(path: string, accessToken: string) {
   }
 
   return response.json() as Promise<T>
+}
+
+function discordAvatarUrl(discordId: string, avatarHash?: string | null) {
+  if (!avatarHash) return null
+  const extension = avatarHash.startsWith('a_') ? 'gif' : 'png'
+  return `https://cdn.discordapp.com/avatars/${discordId}/${avatarHash}.${extension}?size=256`
+}
+
+function discordGuildAvatarUrl(guildId: string, discordId: string, avatarHash: string) {
+  const extension = avatarHash.startsWith('a_') ? 'gif' : 'png'
+  return `https://cdn.discordapp.com/guilds/${guildId}/users/${discordId}/avatars/${avatarHash}.${extension}?size=256`
 }

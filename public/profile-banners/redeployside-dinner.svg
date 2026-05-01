@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" role="img" aria-label="Redeployside Dinner profile banner">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#161b21"/>
+      <stop offset=".48" stop-color="#34424b"/>
+      <stop offset="1" stop-color="#5c2a22"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="360" fill="url(#bg)"/>
+  <path d="M0 304h1200v56H0z" fill="#07090b" opacity=".75"/>
+  <circle cx="600" cy="190" r="96" fill="#11161a" stroke="#d8dedc" stroke-width="8"/>
+  <circle cx="600" cy="190" r="64" fill="#c65d42"/>
+  <path d="M600 101v58l42-42m-42 142v-58l-42 42m-101-53h58l-42-42m242 42h-58l42 42" fill="none" stroke="#e7b76a" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M333 122c-68 29-105 74-111 134m645-134c68 29 105 74 111 134" fill="none" stroke="#7dc7c4" stroke-width="11" stroke-linecap="round" opacity=".58"/>
+  <text x="406" y="67" fill="#fff2cf" font-family="Arial, sans-serif" font-size="29" font-weight="900">REDEPLOY TO DINNER TABLE</text>
+</svg>

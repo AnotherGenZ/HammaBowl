@@ -1,5 +1,15 @@
 import { type ReactNode, useEffect, useState } from 'react'
-import type { Captain, Faction, HammaEvent, Player, StartingSide } from '../lib/types'
+import type {
+  AdminBadgeManagerData,
+  AdminPlayerCharacterConfig,
+  Captain,
+  EventPlayerCharacterAssignment,
+  Faction,
+  HammaEvent,
+  Player,
+  RegisteredParticipant,
+  StartingSide,
+} from '../lib/types'
 
 export function AdminTools({ event }: { event: HammaEvent }) {
   const [currentEvent, setCurrentEvent] = useState(event)
@@ -62,6 +72,8 @@ export function AdminTools({ event }: { event: HammaEvent }) {
           onEvent={setCurrentEvent}
         />
 
+        <EventJaegerAssignments event={currentEvent} busy={busy} onRun={run} />
+
         <CoinflipControls event={currentEvent} busy={busy} onRun={run} onEvent={setCurrentEvent} />
 
         <RatingAdjustments
@@ -99,6 +111,52 @@ export function AdminTools({ event }: { event: HammaEvent }) {
       </div>
     </section>
   )
+}
+
+export function GeneralAdminTools() {
+  const [message, setMessage] = useState<string>()
+  const [busy, setBusy] = useState<string>()
+
+  async function run(label: string, action: () => Promise<unknown>) {
+    setBusy(label)
+    setMessage(undefined)
+    try {
+      const result = await action()
+      setMessage(summarizeResult(result))
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Action failed.')
+    } finally {
+      setBusy(undefined)
+    }
+  }
+
+  return (
+    <section className="panel">
+      <div className="section-heading">
+        <div>
+          <h1>General controls</h1>
+        </div>
+      </div>
+
+      {message ? <div className="admin-result">{message}</div> : null}
+
+      <div className="admin-stack">
+        <PlayerRenameManager busy={busy} onRun={run} />
+        <PlayerJaegerManager busy={busy} onRun={run} />
+        <BadgeManager busy={busy} onRun={run} />
+      </div>
+    </section>
+  )
+}
+
+function useClientReady() {
+  const [ready, setReady] = useState(false)
+
+  useEffect(() => {
+    setReady(true)
+  }, [])
+
+  return ready
 }
 
 function EventIdentityControls({
@@ -229,6 +287,490 @@ function TeamEditor({
       ) : (
         <p>Create teams, then assign captains and names here.</p>
       )}
+    </AdminSection>
+  )
+}
+
+function EventJaegerAssignments({
+  event,
+  busy,
+  onRun,
+}: {
+  event: HammaEvent
+  busy?: string
+  onRun: (label: string, action: () => Promise<unknown>) => Promise<void>
+}) {
+  const [assignments, setAssignments] = useState<EventPlayerCharacterAssignment[]>([])
+  const [selectedDiscordId, setSelectedDiscordId] = useState('')
+  const [faction, setFaction] = useState<Faction>('TR')
+  const [characterName, setCharacterName] = useState('')
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    let active = true
+    setLoaded(false)
+    fetch('/api/admin/player-characters')
+      .then((response) => {
+        if (!response.ok) throw new Error('Unable to load event Jaeger assignments.')
+        return response.json() as Promise<{ assignments: EventPlayerCharacterAssignment[] }>
+      })
+      .then((payload) => {
+        if (!active) return
+        setAssignments(payload.assignments)
+        setSelectedDiscordId((current) => current || payload.assignments[0]?.discordId || '')
+        setLoaded(true)
+      })
+      .catch(() => {
+        if (active) setLoaded(true)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [event.id])
+
+  useEffect(() => {
+    if (selectedDiscordId && assignments.some((assignment) => assignment.discordId === selectedDiscordId)) return
+    setSelectedDiscordId(assignments[0]?.discordId ?? '')
+  }, [assignments, selectedDiscordId])
+
+  async function assignCharacter() {
+    const result = await postAdminJson('/api/admin/player-characters', {
+      discordId: selectedDiscordId,
+      faction,
+      characterName,
+    }) as { assignments?: EventPlayerCharacterAssignment[] }
+    if (result.assignments) setAssignments(result.assignments)
+    setCharacterName('')
+    return result
+  }
+
+  return (
+    <AdminSection
+      title="Event Jaeger assignments"
+      actions={
+        <button
+          type="button"
+          disabled={busy === 'event-jaeger' || !selectedDiscordId || !characterName.trim()}
+          onClick={() => void onRun('event-jaeger', assignCharacter)}
+        >
+          Resolve and assign
+        </button>
+      }
+    >
+      <div className="rating-adjustment-grid">
+        <label>
+          Player
+          <select
+            value={selectedDiscordId}
+            disabled={!assignments.length}
+            onChange={(event) => setSelectedDiscordId(event.currentTarget.value)}
+          >
+            {assignments.length ? (
+              assignments.map((assignment) => (
+                <option key={assignment.discordId} value={assignment.discordId}>
+                  {assignment.playerName}
+                </option>
+              ))
+            ) : (
+              <option value="">{loaded ? 'No players need assignments' : 'Loading players'}</option>
+            )}
+          </select>
+        </label>
+        <label>
+          Faction
+          <select value={faction} onChange={(event) => setFaction(event.currentTarget.value as Faction)}>
+            <option value="TR">TR</option>
+            <option value="VS">VS</option>
+            <option value="NC">NC</option>
+          </select>
+        </label>
+        <label>
+          Character
+          <input
+            value={characterName}
+            disabled={!assignments.length}
+            onChange={(event) => setCharacterName(event.currentTarget.value)}
+          />
+        </label>
+      </div>
+      <div className="resolved-list admin-assignment-list">
+        {assignments.map((assignment) => (
+          <span key={assignment.discordId}>
+            <strong>{assignment.playerName}</strong>
+            {assignment.assignment
+              ? `${assignment.assignment.faction} ${assignment.assignment.characterName} #${assignment.assignment.characterId}`
+              : 'Needs an event character'}
+          </span>
+        ))}
+      </div>
+    </AdminSection>
+  )
+}
+
+function PlayerRenameManager({
+  busy,
+  onRun,
+}: {
+  busy?: string
+  onRun: (label: string, action: () => Promise<unknown>) => Promise<void>
+}) {
+  const [players, setPlayers] = useState<RegisteredParticipant[]>([])
+  const [discordId, setDiscordId] = useState('')
+  const [name, setName] = useState('')
+  const [loaded, setLoaded] = useState(false)
+  const ready = useClientReady()
+
+  useEffect(() => {
+    if (!ready) return
+    let active = true
+    fetch('/api/admin/players')
+      .then((response) => {
+        if (!response.ok) throw new Error('Unable to load players.')
+        return response.json() as Promise<{ players: RegisteredParticipant[] }>
+      })
+      .then((payload) => {
+        if (!active) return
+        setPlayers(payload.players)
+        const firstPlayer = payload.players[0]
+        setDiscordId((current) => current || firstPlayer?.discordId || '')
+        setName((current) => current || firstPlayer?.name || '')
+        setLoaded(true)
+      })
+      .catch(() => {
+        if (active) setLoaded(true)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [ready])
+
+  function choosePlayer(nextDiscordId: string) {
+    setDiscordId(nextDiscordId)
+    setName(players.find((player) => player.discordId === nextDiscordId)?.name ?? '')
+  }
+
+  async function renamePlayer() {
+    const result = await postAdminJson('/api/admin/players', {
+      discordId,
+      name,
+    }) as { players?: RegisteredParticipant[] }
+    if (result.players) {
+      setPlayers(result.players)
+      setName(result.players.find((player) => player.discordId === discordId)?.name ?? name)
+    }
+    return result
+  }
+
+  return (
+    <AdminSection
+      title="Player names"
+      actions={
+        <button
+          type="button"
+          disabled={!ready || busy === 'player-rename' || !discordId || !name.trim()}
+          onClick={() => void onRun('player-rename', renamePlayer)}
+        >
+          Rename player
+        </button>
+      }
+    >
+      {!ready ? <div className="empty-inline">Loading players.</div> : null}
+      <div className="rating-adjustment-grid">
+        <label>
+          Player
+          <select
+            value={discordId}
+            disabled={!ready || !players.length}
+            onChange={(event) => choosePlayer(event.currentTarget.value)}
+          >
+            {players.length ? (
+              players.map((player) => (
+                <option key={player.discordId} value={player.discordId}>
+                  {player.name}
+                </option>
+              ))
+            ) : (
+              <option value="">{loaded ? 'No known players' : 'Loading players'}</option>
+            )}
+          </select>
+        </label>
+        <label>
+          Display name
+          <input value={name} disabled={!ready || !players.length} onChange={(event) => setName(event.currentTarget.value)} />
+        </label>
+      </div>
+    </AdminSection>
+  )
+}
+
+function PlayerJaegerManager({
+  busy,
+  onRun,
+}: {
+  busy?: string
+  onRun: (label: string, action: () => Promise<unknown>) => Promise<void>
+}) {
+  const [players, setPlayers] = useState<AdminPlayerCharacterConfig[]>([])
+  const [discordId, setDiscordId] = useState('')
+  const [names, setNames] = useState<Record<Faction, string>>({ TR: '', VS: '', NC: '' })
+  const [loaded, setLoaded] = useState(false)
+  const ready = useClientReady()
+
+  useEffect(() => {
+    if (!ready) return
+    let active = true
+    fetch('/api/admin/player-jaeger')
+      .then((response) => {
+        if (!response.ok) throw new Error('Unable to load player Jaeger characters.')
+        return response.json() as Promise<{ players: AdminPlayerCharacterConfig[] }>
+      })
+      .then((payload) => {
+        if (!active) return
+        setPlayers(payload.players)
+        const firstPlayer = payload.players[0]
+        if (firstPlayer) {
+          const nextDiscordId = discordId || firstPlayer.discordId
+          setDiscordId(nextDiscordId)
+          setNames(namesFromPlayer(payload.players.find((player) => player.discordId === nextDiscordId) ?? firstPlayer))
+        }
+        setLoaded(true)
+      })
+      .catch(() => {
+        if (active) setLoaded(true)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [ready])
+
+  function choosePlayer(nextDiscordId: string) {
+    setDiscordId(nextDiscordId)
+    setNames(namesFromPlayer(players.find((player) => player.discordId === nextDiscordId)))
+  }
+
+  function updateFaction(faction: Faction, value: string) {
+    setNames((current) => ({ ...current, [faction]: value }))
+  }
+
+  async function saveCharacters() {
+    const result = await postAdminJson('/api/admin/player-jaeger', {
+      discordId,
+      TR: names.TR,
+      VS: names.VS,
+      NC: names.NC,
+    }) as { players?: AdminPlayerCharacterConfig[] }
+    if (result.players) {
+      setPlayers(result.players)
+      setNames(namesFromPlayer(result.players.find((player) => player.discordId === discordId)))
+    }
+    return result
+  }
+
+  const selectedPlayer = players.find((player) => player.discordId === discordId)
+
+  return (
+    <AdminSection
+      title="Player Jaeger characters"
+      actions={
+        <button
+          type="button"
+          disabled={!ready || busy === 'player-jaeger' || !discordId || !names.TR.trim() || !names.VS.trim() || !names.NC.trim()}
+          onClick={() => void onRun('player-jaeger', saveCharacters)}
+        >
+          Resolve and save
+        </button>
+      }
+    >
+      {!ready ? <div className="empty-inline">Loading players.</div> : null}
+      <div className="rating-adjustment-grid">
+        <label>
+          Player
+          <select
+            value={discordId}
+            disabled={!ready || !players.length}
+            onChange={(event) => choosePlayer(event.currentTarget.value)}
+          >
+            {players.length ? (
+              players.map((player) => (
+                <option key={player.discordId} value={player.discordId}>
+                  {player.name}
+                </option>
+              ))
+            ) : (
+              <option value="">{loaded ? 'No known players' : 'Loading players'}</option>
+            )}
+          </select>
+        </label>
+        {(['TR', 'VS', 'NC'] as Faction[]).map((faction) => (
+          <label key={faction}>
+            {faction} character
+            <input
+              value={names[faction]}
+              disabled={!ready || !players.length}
+              onChange={(event) => updateFaction(faction, event.currentTarget.value)}
+            />
+          </label>
+        ))}
+      </div>
+      <div className="resolved-list admin-assignment-list">
+        {selectedPlayer ? (
+          <span>
+            <strong>{selectedPlayer.name}</strong>
+            {selectedPlayer.noPersonalJaegerAccount
+              ? 'Currently marked as needing event-assigned Jaeger characters'
+              : 'Uses configured Jaeger characters'}
+          </span>
+        ) : null}
+        {selectedPlayer?.characters.map((character) => (
+          <span key={character.faction}>
+            <strong>{character.faction}</strong>
+            {character.characterName} #{character.characterId}
+          </span>
+        ))}
+      </div>
+    </AdminSection>
+  )
+}
+
+function namesFromPlayer(player?: AdminPlayerCharacterConfig): Record<Faction, string> {
+  return {
+    TR: player?.characters.find((character) => character.faction === 'TR')?.characterName ?? '',
+    VS: player?.characters.find((character) => character.faction === 'VS')?.characterName ?? '',
+    NC: player?.characters.find((character) => character.faction === 'NC')?.characterName ?? '',
+  }
+}
+
+function BadgeManager({
+  busy,
+  onRun,
+}: {
+  busy?: string
+  onRun: (label: string, action: () => Promise<unknown>) => Promise<void>
+}) {
+  const [data, setData] = useState<AdminBadgeManagerData>({
+    badges: [],
+    players: [],
+    assignments: [],
+  })
+  const [loaded, setLoaded] = useState(false)
+  const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
+  const [color, setColor] = useState('#e4b45e')
+  const [badgeColors, setBadgeColors] = useState<Record<string, string>>({})
+  const ready = useClientReady()
+
+  useEffect(() => {
+    if (!ready) return
+    let active = true
+    fetch('/api/admin/badges')
+      .then((response) => {
+        if (!response.ok) throw new Error('Unable to load badges.')
+        return response.json() as Promise<AdminBadgeManagerData>
+      })
+      .then((payload) => {
+        if (!active) return
+        setData(payload)
+        setBadgeColors(Object.fromEntries(payload.badges.map((badge) => [badge.id, badge.color])))
+        setLoaded(true)
+      })
+      .catch(() => {
+        if (active) setLoaded(true)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [ready])
+
+  async function createBadge() {
+    const result = await postAdminJson('/api/admin/badges', {
+      action: 'create',
+      name,
+      description,
+      color,
+    }) as AdminBadgeManagerData & { message?: string }
+    setData(result)
+    setBadgeColors(Object.fromEntries(result.badges.map((badge) => [badge.id, badge.color])))
+    setName('')
+    setDescription('')
+    setColor('#e4b45e')
+    return result
+  }
+
+  async function updateBadgeColor(targetBadgeId: string) {
+    const result = await postAdminJson('/api/admin/badges', {
+      action: 'update-color',
+      badgeId: targetBadgeId,
+      color: badgeColors[targetBadgeId],
+    }) as AdminBadgeManagerData & { message?: string }
+    setData(result)
+    setBadgeColors(Object.fromEntries(result.badges.map((badge) => [badge.id, badge.color])))
+    return result
+  }
+
+  return (
+    <AdminSection title="Badges">
+      <div className="badge-admin-grid">
+        <div className="team-admin-card">
+          <label>
+            Badge name
+            <input value={name} onChange={(event) => setName(event.currentTarget.value)} />
+          </label>
+          <label>
+            Description
+            <input value={description} onChange={(event) => setDescription(event.currentTarget.value)} />
+          </label>
+          <label>
+            Color
+            <input type="color" value={color} onChange={(event) => setColor(event.currentTarget.value)} />
+          </label>
+          <button
+            type="button"
+            disabled={!ready || busy === 'badge-create' || !name.trim() || !description.trim()}
+            onClick={() => void onRun('badge-create', createBadge)}
+          >
+            Create badge
+          </button>
+        </div>
+      </div>
+
+      <div className="resolved-list badge-definition-list">
+        {data.badges.length ? (
+          data.badges.map((badge) => (
+            <span key={`badge-color-${badge.id}`}>
+              <strong>{badge.name}</strong>
+              <label className="inline-color-field">
+                Color
+                <input
+                  type="color"
+                  value={badgeColors[badge.id] ?? badge.color}
+                  disabled={badge.source !== 'manual'}
+                  onChange={(event) => {
+                    const nextColor = event.currentTarget.value
+                    setBadgeColors((current) => ({ ...current, [badge.id]: nextColor }))
+                  }}
+                />
+              </label>
+              <button
+                type="button"
+                disabled={
+                  badge.source !== 'manual' ||
+                  busy === `badge-color-${badge.id}` ||
+                  (badgeColors[badge.id] ?? badge.color) === badge.color
+                }
+                onClick={() => void onRun(`badge-color-${badge.id}`, () => updateBadgeColor(badge.id))}
+              >
+                Save color
+              </button>
+            </span>
+          ))
+        ) : (
+          <div className="empty-inline">{loaded ? 'No manual badges created yet.' : 'Loading badges.'}</div>
+        )}
+      </div>
     </AdminSection>
   )
 }

@@ -83,6 +83,9 @@ export function AdminNav() {
       <Link to="/admin" activeOptions={{ exact: true }} activeProps={{ className: 'active' }}>
         Current event
       </Link>
+      <Link to="/admin/general" activeOptions={{ exact: true }} activeProps={{ className: 'active' }}>
+        General
+      </Link>
       <Link to="/admin/history" activeOptions={{ exact: true }} activeProps={{ className: 'active' }}>
         Historical events
       </Link>

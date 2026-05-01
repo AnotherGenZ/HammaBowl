@@ -4,6 +4,7 @@ import {
   getDiscordIdentity,
 } from '../lib/discord'
 import { getHammaSession } from '../lib/discord.server'
+import { hasCompletePlayerCharacters, upsertParticipantProfileIdentity } from '../lib/db.server'
 
 export const Route = createFileRoute('/api/auth/discord/callback')({
   server: {
@@ -27,15 +28,17 @@ export const Route = createFileRoute('/api/auth/discord/callback')({
           username: identity.username,
           displayName: identity.displayName,
           avatar: identity.avatar,
+          avatarUrl: identity.avatarUrl,
           accessToken: token.access_token,
           refreshToken: token.refresh_token,
           roleIds: identity.roleIds,
           roles: identity.roles,
         })
+        upsertParticipantProfileIdentity(identity.discordId, identity.displayName, identity.avatarUrl)
 
         return new Response(null, {
           status: 302,
-          headers: { Location: '/' },
+          headers: { Location: hasCompletePlayerCharacters(identity.discordId) ? '/' : '/settings' },
         })
       },
     },

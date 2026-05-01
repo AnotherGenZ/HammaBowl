@@ -8,7 +8,10 @@ export const Route = createFileRoute('/api/auth/logout')({
         const session = await getHammaSession()
         await session.clear()
 
-        return Response.json({ ok: true })
+        return new Response(null, {
+          status: 302,
+          headers: { Location: '/' },
+        })
       },
     },
   },
