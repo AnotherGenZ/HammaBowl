@@ -703,14 +703,7 @@ dd {
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.04);
-  margin-bottom: 14px;
-}
-
-.rating-chart polyline {
-  fill: none;
-  stroke: #e4b45e;
-  stroke-width: 3;
-  vector-effect: non-scaling-stroke;
+  padding: 12px 12px 8px;
 }
 
 .player-directory-panel {

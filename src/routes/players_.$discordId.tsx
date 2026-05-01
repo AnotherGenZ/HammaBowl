@@ -2,6 +2,7 @@ import { Link, createFileRoute } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import type { CSSProperties } from 'react'
 import { useEffect, useState } from 'react'
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { shortDate } from '../lib/format'
 import { pageMeta } from '../lib/meta'
 import type { AdminPlayerBadgeEditorData, PlayerBadge } from '../lib/types'
@@ -45,11 +46,10 @@ function PlayerProfilePage() {
     )
   }
 
-  const chartPoints = profile.stats.ratingHistory.map((item, index, all) => {
-    const x = all.length === 1 ? 50 : (index / (all.length - 1)) * 100
-    const y = 100 - ((item.averageRating - 1) / 9) * 100
-    return `${x},${Math.max(0, Math.min(100, y))}`
-  })
+  const ratingHistory = profile.stats.ratingHistory.map((item) => ({
+    ...item,
+    dateLabel: shortDate(item.startsAt),
+  }))
 
   return (
     <main>
@@ -147,20 +147,55 @@ function PlayerProfilePage() {
           <div className="section-heading">
             <h2>Rating history</h2>
           </div>
-          {chartPoints.length ? (
-            <>
-              <svg className="rating-chart" viewBox="0 0 100 100" preserveAspectRatio="none" role="img">
-                <polyline points={chartPoints.join(' ')} />
-              </svg>
-              <div className="history-points">
-                {profile.stats.ratingHistory.map((item) => (
-                  <span key={item.eventId}>
-                    <strong>{item.averageRating.toFixed(2)}</strong>
-                    {item.eventName} · {shortDate(item.startsAt)}
-                  </span>
-                ))}
-              </div>
-            </>
+          {ratingHistory.length ? (
+            <div className="rating-chart">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={ratingHistory} margin={{ top: 12, right: 18, bottom: 8, left: 0 }}>
+                  <CartesianGrid stroke="rgba(255, 255, 255, 0.08)" vertical={false} />
+                  <XAxis
+                    dataKey="dateLabel"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: '#a9b3b2', fontSize: 12, fontWeight: 700 }}
+                    minTickGap={18}
+                  />
+                  <YAxis
+                    domain={[1, 10]}
+                    ticks={[1, 3, 5, 7, 10]}
+                    axisLine={false}
+                    tickLine={false}
+                    width={34}
+                    tick={{ fill: '#a9b3b2', fontSize: 12, fontWeight: 700 }}
+                  />
+                  <Tooltip
+                    cursor={{ stroke: 'rgba(228, 180, 94, 0.28)', strokeWidth: 1 }}
+                    contentStyle={{
+                      border: '1px solid rgba(255, 255, 255, 0.14)',
+                      borderRadius: 8,
+                      background: '#121417',
+                      boxShadow: '0 18px 40px rgba(0, 0, 0, 0.32)',
+                      color: '#f4f0e8',
+                    }}
+                    labelStyle={{ color: '#e4b45e', fontWeight: 900 }}
+                    formatter={(value) => [Number(value).toFixed(2), 'Rating']}
+                    labelFormatter={(_, payload) => {
+                      const point = payload?.[0]?.payload as (typeof ratingHistory)[number] | undefined
+                      return point ? `${point.eventName} - ${point.dateLabel}` : ''
+                    }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="averageRating"
+                    name="Rating"
+                    stroke="#e4b45e"
+                    strokeWidth={3}
+                    dot={{ r: 4, fill: '#e4b45e', stroke: '#121417', strokeWidth: 2 }}
+                    activeDot={{ r: 6, fill: '#f0c878', stroke: '#121417', strokeWidth: 2 }}
+                    isAnimationActive={false}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           ) : (
             <div className="empty-inline">No rating history yet.</div>
           )}
