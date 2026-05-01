@@ -4,6 +4,7 @@ import {
   buildTeamLedgers,
   calculatePlayerSalaries,
   canAcquirePlayer,
+  isDraftEligiblePlayer,
   nextDraftSide,
 } from '../lib/rules'
 import type { HammaEvent } from '../lib/types'
@@ -49,12 +50,18 @@ export function DraftBoard({
     salaries.map((salary) => [salary.player.id, salary.salary]),
   )
   const available = currentEvent.players
-    .filter((player) => !draftedIds.has(player.id))
+    .filter(
+      (player) =>
+        isDraftEligiblePlayer(currentEvent, player) && !draftedIds.has(player.id),
+    )
     .sort((a, b) => {
       const salaryDelta =
         (salaryByPlayer.get(b.id) ?? 0) - (salaryByPlayer.get(a.id) ?? 0)
       return salaryDelta || a.name.localeCompare(b.name)
     })
+  const draftEligibleCount = currentEvent.players.filter((player) =>
+    isDraftEligiblePlayer(currentEvent, player),
+  ).length
   const allowedLedgers = canManageAll
     ? ledgers
     : ledgers.filter((ledger) => ledger.captain.playerId === userId)
@@ -260,6 +267,19 @@ export function DraftBoard({
                   }}
                   onScroll={() => syncPickListScroll(ledgerIndex)}
                 >
+                  {ledger.captainPlayer ? (
+                    <li className="locked-pick">
+                      <div className="pick-main">
+                        <span className="captain-pick-name">
+                          {ledger.captainPlayer.name}
+                          <span className="captain-crown" aria-hidden="true">
+                            ♛
+                          </span>
+                        </span>
+                        <small>Captain</small>
+                      </div>
+                    </li>
+                  ) : null}
                   {ledger.picks.map((pick) => (
                     <li key={pick.id}>
                       <div className="pick-main">
@@ -283,7 +303,10 @@ export function DraftBoard({
                   ))}
                 </ul>
                 <div className="team-count-chip">
-                  {ledger.picks.length} {ledger.picks.length === 1 ? 'player' : 'players'}
+                  {ledger.picks.length + (ledger.captainPlayer ? 1 : 0)}{' '}
+                  {ledger.picks.length + (ledger.captainPlayer ? 1 : 0) === 1
+                    ? 'player'
+                    : 'players'}
                 </div>
               </article>
             ))}
@@ -411,10 +434,10 @@ export function DraftBoard({
           </div>
         ) : null}
         <div className="available-list">
-          {!currentEvent.players.length ? (
-            <div className="empty-inline">No accepted signups are available for this event yet.</div>
+          {!draftEligibleCount ? (
+            <div className="empty-inline">No draft-eligible signups are available for this event yet.</div>
           ) : !available.length ? (
-            <div className="empty-inline">Every accepted signup has already been drafted.</div>
+            <div className="empty-inline">Every draft-eligible signup has already been drafted.</div>
           ) : available.map((player) => {
             const salary = salaryByPlayer.get(player.id) ?? 0
             return (

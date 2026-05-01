@@ -98,6 +98,7 @@ export interface PlayerSalary {
 
 export interface TeamLedger {
   captain: Captain
+  captainPlayer?: Player
   picks: Array<DraftPick & { player: Player; salary: number }>
   salarySpent: number
   bonusSpent: number

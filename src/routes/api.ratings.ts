@@ -28,7 +28,7 @@ export const Route = createFileRoute('/api/ratings')({
         }
 
         const body = await request.json()
-        await saveRating(event.id, user.id, String(body.toDiscordId ?? ''), Number(body.score))
+        await saveRating(event, user.id, String(body.toDiscordId ?? ''), Number(body.score))
         clearCurrentEventCache()
         publishEventUpdate(event.id, 'ratings.updated')
 

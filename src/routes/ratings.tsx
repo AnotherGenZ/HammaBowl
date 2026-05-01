@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { pageMeta } from '../lib/meta'
+import { isCaptainPlayer } from '../lib/rules'
 import { getCurrentEvent } from '../lib/services'
 import type { Role } from '../lib/types'
 
@@ -49,7 +50,10 @@ function Ratings() {
   }, [])
 
   const canRate = user?.roles.some((role) => role === 'participant' || role === 'admin')
-  const players = event?.players.filter((player) => player.id !== user?.id) ?? []
+  const players =
+    event?.players.filter(
+      (player) => player.id !== user?.id && !isCaptainPlayer(event, player.id),
+    ) ?? []
 
   useEffect(() => {
     if (!event || !canRate) {

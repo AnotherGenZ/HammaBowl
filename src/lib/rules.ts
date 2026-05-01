@@ -4,9 +4,20 @@ export const TEAM_BUDGET = 125_000_000
 export const BONUS_CAP = 25_000_000
 export const SALARY_POOL = 250_000_000
 
+export function isCaptainPlayer(event: HammaEvent, playerId: string) {
+  return event.captains.some((captain) => captain.playerId === playerId)
+}
+
+export function isDraftEligiblePlayer(
+  event: HammaEvent,
+  player: HammaEvent['players'][number],
+) {
+  return player.status !== 'disqualified' && !isCaptainPlayer(event, player.id)
+}
+
 export function calculatePlayerSalaries(event: HammaEvent): PlayerSalary[] {
   const eligiblePlayers = event.players.filter(
-    (player) => player.status !== 'disqualified',
+    (player) => isDraftEligiblePlayer(event, player),
   )
 
   const playerAverages = eligiblePlayers.map((player) => {
@@ -67,6 +78,7 @@ export function buildTeamLedgers(event: HammaEvent): TeamLedger[] {
 
     return {
       captain,
+      captainPlayer: captain.playerId ? playerById.get(captain.playerId) : undefined,
       picks,
       salarySpent,
       bonusSpent,

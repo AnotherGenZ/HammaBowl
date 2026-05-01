@@ -23,6 +23,7 @@ import {
   buildTeamLedgers,
   calculatePlayerSalaries,
   canAcquirePlayer,
+  isCaptainPlayer,
 } from './rules'
 import type { Captain, DraftPick, Faction, HammaEvent, Player, Rating, StartingSide } from './types'
 
@@ -833,17 +834,18 @@ export async function resetRatingsFromPlayer(eventId: string, fromDiscordId: str
 }
 
 export async function saveRating(
-  eventId: string,
+  event: HammaEvent,
   fromDiscordId: string,
   toDiscordId: string,
   score: number,
 ) {
   if (fromDiscordId === toDiscordId) throw new Error('You cannot rate yourself.')
+  if (isCaptainPlayer(event, toDiscordId)) throw new Error('Captains cannot be rated.')
   if (score < 1 || score > 10) throw new Error('Rating must be between 1 and 10.')
 
   db.insert(ratings)
     .values({
-      eventId,
+      eventId: event.id,
       fromDiscordId,
       toDiscordId,
       score,
