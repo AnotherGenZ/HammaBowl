@@ -1,4 +1,4 @@
-import { Link, createFileRoute } from '@tanstack/react-router'
+import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import type { CSSProperties } from 'react'
 import { useEffect, useState } from 'react'
@@ -33,9 +33,11 @@ export const Route = createFileRoute('/players_/$discordId')({
 
 function PlayerProfilePage() {
   const { profile, isAdmin, isOwner } = Route.useLoaderData()
+  const navigate = useNavigate()
   const [badges, setBadges] = useState<PlayerBadge[]>(profile?.badges ?? [])
   const [catchphrase, setCatchphrase] = useState(profile?.catchphrase ?? '')
   const [profileEditorOpen, setProfileEditorOpen] = useState(false)
+  const [chartExpanded, setChartExpanded] = useState(false)
 
   useEffect(() => {
     setBadges(profile?.badges ?? [])
@@ -73,7 +75,7 @@ function PlayerProfilePage() {
               if (isAdmin) {
                 setProfileEditorOpen(true)
               } else {
-                window.location.href = '/settings'
+                void navigate({ to: '/settings' })
               }
             }}
           >
@@ -124,17 +126,23 @@ function PlayerProfilePage() {
               label="Average rating"
               value={profile.stats.averageRating === null ? 'TBD' : profile.stats.averageRating.toFixed(2)}
             />
-            <Metric label="Kills on Hamma" value={profile.stats.killsOnHamma.toString()} />
-            <Metric label="Deaths to Hamma" value={profile.stats.deathsToHamma.toString()} />
+            {profile.stats.killsOnHamma > 0 ? (
+              <Metric label="Kills on Hamma" value={profile.stats.killsOnHamma.toString()} />
+            ) : null}
+            {profile.stats.deathsToHamma > 0 ? (
+              <Metric label="Deaths to Hamma" value={profile.stats.deathsToHamma.toString()} />
+            ) : null}
           </dl>
         </article>
 
         <article className="panel">
           <div className="section-heading">
             <h2>Characters</h2>
-            <Link to="/settings" className="pill">
-              Edit
-            </Link>
+            {isOwner ? (
+              <Link to="/settings" className="pill">
+                Edit
+              </Link>
+            ) : null}
           </div>
           <div className="character-list">
             {profile.characters.length ? (
@@ -153,9 +161,18 @@ function PlayerProfilePage() {
         <article className="panel profile-wide">
           <div className="section-heading">
             <h2>Rating history</h2>
+            {ratingHistory.length > 1 ? (
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => setChartExpanded((v) => !v)}
+              >
+                {chartExpanded ? 'Collapse' : 'Expand'}
+              </button>
+            ) : null}
           </div>
           {ratingHistory.length ? (
-            <div className="rating-chart">
+            <div className={`rating-chart${chartExpanded ? ' rating-chart-expanded' : ''}`}>
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={ratingHistory} margin={{ top: 12, right: 18, bottom: 8, left: 0 }}>
                   <CartesianGrid stroke="rgba(255, 255, 255, 0.08)" vertical={false} />
@@ -240,7 +257,7 @@ function AdminProfileEditorModal({
             <h2 id="admin-profile-editor-title">{playerName}</h2>
           </div>
           <button type="button" className="modal-close" aria-label="Close profile editor" onClick={onClose}>
-            x
+            ×
           </button>
         </div>
         <PlayerBadgeEditor
@@ -338,7 +355,7 @@ function PlayerBadgeEditor({
         <div className="section-heading">
           <h2>Badges</h2>
         </div>
-        <div className="empty-inline">Loading badges.</div>
+        <div className="empty-inline"><span className="spinner" aria-label="Loading" /> Loading badges.</div>
       </section>
     )
   }
@@ -361,6 +378,7 @@ function PlayerBadgeEditor({
             disabled={busy === 'catchphrase' || !data.catchphrase}
             onClick={() => void resetCatchphrase()}
           >
+            {busy === 'catchphrase' ? <span className="spinner" aria-label="Saving" /> : null}
             Reset catchphrase
           </button>
         </article>

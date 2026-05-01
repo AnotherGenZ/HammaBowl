@@ -41,6 +41,16 @@ button {
   padding: 0 14px;
   font-weight: 800;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: center;
+  transition: background 120ms ease, border-color 120ms ease, opacity 120ms ease;
+}
+
+button:hover:not(:disabled) {
+  background: #f0c878;
+  border-color: #f0c878;
 }
 
 button:disabled {
@@ -51,6 +61,19 @@ button:disabled {
 a {
   color: inherit;
   text-decoration: none;
+}
+
+:focus-visible {
+  outline: 2px solid #e4b45e;
+  outline-offset: 2px;
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #e4b45e;
+  outline-offset: 0;
+  border-color: #e4b45e;
 }
 
 h1,
@@ -81,10 +104,83 @@ td {
 }
 
 th {
-  color: #a9b3b2;
+  color: #b4bcbb;
   font-size: 0.78rem;
   text-transform: uppercase;
 }
+
+/* ── Spinner ────────────────────────────────────────── */
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-top-color: #e4b45e;
+  border-radius: 50%;
+  animation: spin 600ms linear infinite;
+  flex-shrink: 0;
+}
+
+.spinner-lg {
+  width: 28px;
+  height: 28px;
+  border-width: 3px;
+}
+
+button .spinner {
+  border-color: rgba(22, 19, 15, 0.25);
+  border-top-color: #16130f;
+}
+
+/* ── Toast / feedback ───────────────────────────────── */
+
+.toast {
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.toast-neutral {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.06);
+  color: #d8dedc;
+}
+
+.toast-success {
+  border: 1px solid rgba(71, 191, 143, 0.55);
+  background: rgba(71, 191, 143, 0.12);
+  color: #bff0db;
+}
+
+.toast-error {
+  border: 1px solid rgba(217, 79, 61, 0.6);
+  background: rgba(217, 79, 61, 0.12);
+  color: #f2b4ab;
+}
+
+/* ── Empty states ───────────────────────────────────── */
+
+.empty-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #b4bcbb;
+  padding: 12px 14px;
+  font-weight: 700;
+}
+
+/* ── Shell & topbar ─────────────────────────────────── */
 
 .shell {
   min-height: 100vh;
@@ -127,7 +223,7 @@ th {
 .pick-list small,
 .leader-row small {
   display: block;
-  color: #a9b3b2;
+  color: #b4bcbb;
 }
 
 .brand-mark {
@@ -163,18 +259,27 @@ th {
   border-radius: 999px;
   padding: 0 12px;
   color: #cbd5d3;
+  transition: background 120ms ease, color 120ms ease;
 }
 
-.nav a.active,
 .nav a:hover,
-.login,
+.nav a.active,
+.login:hover,
 .login.active {
   background: rgba(255, 255, 255, 0.08);
   color: #fff7e6;
 }
 
 .logout-button {
+  background: transparent;
   border-color: rgba(255, 255, 255, 0.08);
+  color: #cbd5d3;
+}
+
+.logout-button:hover:not(:disabled) {
+  background: rgba(217, 79, 61, 0.16);
+  border-color: rgba(217, 79, 61, 0.5);
+  color: #f2b4ab;
 }
 
 main {
@@ -187,6 +292,8 @@ main.wide-page {
   width: min(1680px, calc(100% - 32px));
   min-height: calc(100vh - 138px);
 }
+
+/* ── Event hero ─────────────────────────────────────── */
 
 .event-hero {
   display: grid;
@@ -266,6 +373,11 @@ main.wide-page {
   border-color: rgba(228, 180, 94, 0.42);
   color: #f4d59a;
   font-weight: 900;
+  transition: background 120ms ease;
+}
+
+.meta-row a:hover {
+  background: rgba(228, 180, 94, 0.2);
 }
 
 .stat-strip {
@@ -302,7 +414,7 @@ main.wide-page {
 
 .metric span,
 dt {
-  color: #a9b3b2;
+  color: #b4bcbb;
   font-size: 0.78rem;
   text-transform: uppercase;
 }
@@ -312,6 +424,8 @@ dt {
   margin-top: 6px;
   font-size: 1.35rem;
 }
+
+/* ── Teams ──────────────────────────────────────────── */
 
 .team-grid,
 .tool-grid {
@@ -340,6 +454,12 @@ dt {
   display: grid;
   grid-template-rows: 36px 88px 54px minmax(0, 1fr) 28px;
   gap: 14px;
+  transition: border-color 200ms ease;
+}
+
+.team-panel-active {
+  border-color: rgba(71, 191, 143, 0.5);
+  box-shadow: 0 0 0 1px rgba(71, 191, 143, 0.12);
 }
 
 .score {
@@ -365,6 +485,8 @@ dd {
   margin-top: 18px;
 }
 
+/* ── Settings & profiles ────────────────────────────── */
+
 .settings-grid,
 .profile-grid {
   display: grid;
@@ -381,7 +503,7 @@ dd {
 .settings-panel label {
   display: grid;
   gap: 7px;
-  color: #a9b3b2;
+  color: #b4bcbb;
   font-size: 0.78rem;
   font-weight: 900;
   text-transform: uppercase;
@@ -398,6 +520,7 @@ dd {
   font-size: 1rem;
   font-weight: 700;
   text-transform: none;
+  transition: border-color 120ms ease;
 }
 
 .settings-panel .checkbox-field {
@@ -453,11 +576,21 @@ dd {
   border: 2px solid rgba(255, 255, 255, 0.14);
   border-radius: 8px;
   background: #121417;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.banner-choice:hover img {
+  border-color: rgba(228, 180, 94, 0.5);
 }
 
 .banner-choice[data-selected="true"] img {
   border-color: #f0b46b;
   box-shadow: 0 0 0 3px rgba(240, 180, 107, 0.18);
+}
+
+.banner-choice input:focus-visible + img {
+  outline: 2px solid #e4b45e;
+  outline-offset: 2px;
 }
 
 .banner-choice span {
@@ -491,6 +624,8 @@ dd {
 .history-points strong {
   color: #fff7e6;
 }
+
+/* ── Player profile hero ────────────────────────────── */
 
 .profile-hero {
   min-height: 280px;
@@ -639,6 +774,8 @@ dd {
   min-height: 36px;
   padding: 0;
   border-radius: 999px;
+  font-size: 1.35rem;
+  line-height: 1;
 }
 
 .badge-settings {
@@ -665,6 +802,7 @@ dd {
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.05);
   padding: 10px;
+  transition: border-color 120ms ease, background 120ms ease;
 }
 
 .badge-settings-row[data-selected='true'] {
@@ -679,7 +817,7 @@ dd {
 .badge-settings-row small {
   display: block;
   margin-top: 3px;
-  color: #a9b3b2;
+  color: #b4bcbb;
   font-weight: 700;
 }
 
@@ -697,14 +835,23 @@ dd {
   grid-column: 1 / -1;
 }
 
+/* ── Rating chart ───────────────────────────────────── */
+
 .rating-chart {
   width: 100%;
-  height: 220px;
+  height: 280px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.04);
   padding: 12px 12px 8px;
+  transition: height 200ms ease;
 }
+
+.rating-chart-expanded {
+  height: 440px;
+}
+
+/* ── Player directory ───────────────────────────────── */
 
 .player-directory-panel {
   display: grid;
@@ -721,7 +868,7 @@ dd {
 .directory-toolbar label {
   display: grid;
   gap: 7px;
-  color: #a9b3b2;
+  color: #b4bcbb;
   font-size: 0.78rem;
   font-weight: 900;
   text-transform: uppercase;
@@ -738,6 +885,7 @@ dd {
   font-size: 1rem;
   font-weight: 700;
   text-transform: none;
+  transition: border-color 120ms ease;
 }
 
 .profile-directory-grid {
@@ -755,6 +903,7 @@ dd {
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.06);
+  transition: border-color 120ms ease, background 120ms ease;
 }
 
 .profile-directory-card:hover {
@@ -844,6 +993,16 @@ dd {
   z-index: 1;
   background: #1e2226;
 }
+
+.table-wrap tbody tr {
+  transition: background 120ms ease;
+}
+
+.table-wrap tbody tr:hover {
+  background: rgba(228, 180, 94, 0.08);
+}
+
+/* ── Draft layout ───────────────────────────────────── */
 
 .draft-layout {
   display: grid;
@@ -936,7 +1095,7 @@ dd {
 }
 
 .team-meta-row small {
-  color: #a9b3b2;
+  color: #b4bcbb;
   font-size: 0.72rem;
   font-weight: 900;
   text-transform: uppercase;
@@ -946,6 +1105,11 @@ dd {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(71, 191, 143, 0.4); }
+  50% { box-shadow: 0 0 0 4px rgba(71, 191, 143, 0.15); }
 }
 
 .pick-turn-chip {
@@ -962,6 +1126,10 @@ dd {
   font-weight: 900;
   text-transform: uppercase;
   white-space: nowrap;
+}
+
+.pick-turn-pulse {
+  animation: pulse-glow 2s ease-in-out infinite;
 }
 
 .team-panel dl {
@@ -1066,9 +1234,19 @@ dd {
   padding: 0 10px;
 }
 
+.text-button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
 .text-button.danger {
   border-color: rgba(217, 79, 61, 0.55);
   color: #f2b4ab;
+}
+
+.text-button.danger:hover:not(:disabled) {
+  background: rgba(217, 79, 61, 0.2);
+  border-color: rgba(217, 79, 61, 0.7);
 }
 
 .available-list,
@@ -1105,6 +1283,11 @@ dd {
   color: #d8dedc;
   padding: 0 12px;
   font-weight: 900;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.admin-tabs a:hover {
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .admin-tabs a.active {
@@ -1169,6 +1352,10 @@ dd {
   color: #f4f0e8;
 }
 
+.collapse-toggle:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.14);
+}
+
 .collapse-caret {
   width: 0;
   height: 0;
@@ -1224,7 +1411,7 @@ dd {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: #a9b3b2;
+  color: #b4bcbb;
   font-size: 0.76rem;
   font-weight: 900;
   text-transform: uppercase;
@@ -1251,7 +1438,7 @@ dd {
 .history-team label {
   display: grid;
   gap: 6px;
-  color: #a9b3b2;
+  color: #b4bcbb;
   font-size: 0.82rem;
   font-weight: 800;
   text-transform: uppercase;
@@ -1272,6 +1459,7 @@ dd {
   padding: 0 10px;
   text-transform: none;
   font-weight: 600;
+  transition: border-color 120ms ease;
 }
 
 .full-field textarea {
@@ -1299,7 +1487,7 @@ dd {
 .rating-adjustment-grid label {
   display: grid;
   gap: 6px;
-  color: #a9b3b2;
+  color: #b4bcbb;
   font-size: 0.82rem;
   font-weight: 800;
   text-transform: uppercase;
@@ -1317,6 +1505,7 @@ dd {
   padding: 0 10px;
   text-transform: none;
   font-weight: 600;
+  transition: border-color 120ms ease;
 }
 
 .admin-assignment-list {
@@ -1384,7 +1573,7 @@ dd {
 .assignment-card label {
   display: grid;
   gap: 6px;
-  color: #a9b3b2;
+  color: #b4bcbb;
   font-size: 0.82rem;
   font-weight: 800;
   text-transform: uppercase;
@@ -1401,6 +1590,7 @@ dd {
   padding: 0 10px;
   text-transform: none;
   font-weight: 600;
+  transition: border-color 120ms ease;
 }
 
 .button-row {
@@ -1420,6 +1610,10 @@ dd {
   color: #fff6f3;
 }
 
+.danger-button:hover:not(:disabled) {
+  background: #c94e41;
+}
+
 .danger-button:disabled {
   background: rgba(185, 65, 53, 0.34);
   color: #ffd9d1;
@@ -1436,7 +1630,7 @@ dd {
 .event-result-card p,
 .event-result-card small {
   margin: 0;
-  color: #a9b3b2;
+  color: #b4bcbb;
 }
 
 .coinflip-card label,
@@ -1444,7 +1638,7 @@ dd {
 .coinflip-field {
   display: grid;
   gap: 6px;
-  color: #a9b3b2;
+  color: #b4bcbb;
   font-size: 0.82rem;
   font-weight: 800;
   text-transform: uppercase;
@@ -1468,6 +1662,7 @@ dd {
   padding: 0 10px;
   text-transform: none;
   font-weight: 600;
+  transition: border-color 120ms ease;
 }
 
 .chip-input {
@@ -1561,6 +1756,8 @@ dd {
   padding-right: 6px;
 }
 
+/* ── Bid panel ──────────────────────────────────────── */
+
 .bid-panel {
   display: grid;
   grid-template-columns: minmax(220px, 1.5fr) minmax(150px, 1fr) minmax(120px, auto) auto;
@@ -1575,9 +1772,7 @@ dd {
 
 .active-bid-panel {
   display: grid;
-  grid-template-columns: minmax(150px, 1.3fr) minmax(120px, 1fr) minmax(100px, auto) minmax(120px, 1fr) minmax(0, auto) minmax(0, auto);
-  gap: 10px;
-  align-items: center;
+  gap: 12px;
   margin-bottom: 16px;
   border: 1px solid rgba(228, 180, 94, 0.32);
   background: rgba(228, 180, 94, 0.08);
@@ -1585,23 +1780,32 @@ dd {
   padding: 14px;
 }
 
-.active-bid-panel > div:not(.bid-actions, .admin-result) {
+.bid-info-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.bid-info-grid > div {
   display: grid;
   gap: 4px;
   min-width: 0;
 }
 
+.bid-info-grid small,
 .active-bid-panel small {
-  color: #a9b3b2;
-  font-size: 0.76rem;
+  color: #b4bcbb;
+  font-size: 0.82rem;
   font-weight: 900;
   text-transform: uppercase;
 }
 
+.bid-info-grid strong,
 .active-bid-panel strong {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 1.05rem;
 }
 
 .bid-actions {
@@ -1615,18 +1819,14 @@ dd {
 
 .bid-actions button {
   white-space: nowrap;
-  flex: 1 1 92px;
-}
-
-.bid-actions button:first-child {
-  min-width: 100px;
+  min-height: 40px;
 }
 
 .bid-panel label {
   display: grid;
   gap: 6px;
   min-width: 0;
-  color: #a9b3b2;
+  color: #b4bcbb;
   font-size: 0.78rem;
   font-weight: 900;
   text-transform: uppercase;
@@ -1641,7 +1841,7 @@ dd {
 }
 
 .locked-field small {
-  color: #a9b3b2;
+  color: #b4bcbb;
   font-size: 0.78rem;
   font-weight: 900;
   text-transform: uppercase;
@@ -1663,6 +1863,7 @@ dd {
   color: #f4f0e8;
   padding: 0 10px;
   font-weight: 700;
+  transition: border-color 120ms ease;
 }
 
 .bid-summary {
@@ -1679,7 +1880,7 @@ dd {
 }
 
 .bid-summary small {
-  color: #a9b3b2;
+  color: #b4bcbb;
   white-space: nowrap;
 }
 
@@ -1687,6 +1888,53 @@ dd {
 .active-bid-panel .admin-result {
   grid-column: 1 / -1;
   margin-bottom: 0;
+}
+
+/* ── Ratings ────────────────────────────────────────── */
+
+.rating-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.rating-legend {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 14px 16px;
+  margin-bottom: 18px;
+}
+
+.rating-legend-title {
+  color: #b4bcbb;
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.rating-legend-scale {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+}
+
+.rating-legend-scale span {
+  color: #cbd5d3;
+  font-size: 0.88rem;
+}
+
+.rating-legend-scale strong {
+  color: #e4b45e;
+  margin-right: 4px;
+}
+
+.rating-legend-note {
+  margin-top: 10px;
+  color: #f6d99f;
+  font-size: 0.85rem;
+  font-weight: 700;
 }
 
 .rating-list {
@@ -1706,6 +1954,7 @@ dd {
   background: rgba(255, 255, 255, 0.06);
   border-radius: 8px;
   padding: 12px 14px;
+  transition: border-color 120ms ease, background 120ms ease;
 }
 
 .rating-row[data-rating-state='unrated'] {
@@ -1718,6 +1967,12 @@ dd {
   color: #ffe1a3;
 }
 
+.rating-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .rating-row select {
   min-height: 38px;
   min-width: 86px;
@@ -1726,7 +1981,10 @@ dd {
   background: #121417;
   color: #f4f0e8;
   padding: 0 10px;
+  transition: border-color 120ms ease;
 }
+
+/* ── Player cards ───────────────────────────────────── */
 
 .player-card {
   display: grid;
@@ -1798,6 +2056,8 @@ dd {
   background: rgba(217, 79, 61, 0.12);
 }
 
+/* ── Tool cards & admin result ──────────────────────── */
+
 .tool-card,
 .history-card {
   padding: 18px;
@@ -1832,6 +2092,8 @@ dd {
 .ratings-result {
   min-height: 44px;
 }
+
+/* ── Hall of Legends ────────────────────────────────── */
 
 .hall-page {
   display: grid;
@@ -1911,6 +2173,11 @@ dd {
   color: #f4d59a;
   padding: 0 12px;
   font-weight: 900;
+  transition: background 120ms ease;
+}
+
+.history-links a:hover {
+  background: rgba(228, 180, 94, 0.24);
 }
 
 .history-lore {
@@ -2087,6 +2354,8 @@ dd {
   gap: 10px;
 }
 
+/* ── Overlay ────────────────────────────────────────── */
+
 .overlay-page {
   width: 100%;
   min-height: 100vh;
@@ -2136,6 +2405,8 @@ dd {
   font-size: 3rem;
 }
 
+/* ── Responsive ─────────────────────────────────────── */
+
 @media (max-width: 860px) {
   .topbar,
   .draft-layout,
@@ -2170,7 +2441,7 @@ dd {
   }
 
   .bid-panel,
-  .active-bid-panel {
+  .bid-info-grid {
     grid-template-columns: 1fr;
   }
 
@@ -2222,6 +2493,11 @@ dd {
     min-height: 420px;
     max-height: 62vh;
   }
+
+  .rating-legend-scale {
+    flex-direction: column;
+    gap: 4px;
+  }
 }
 
 @media (max-width: 560px) {
@@ -2240,6 +2516,25 @@ dd {
   }
 
   .topbar {
-    position: static;
+    position: sticky;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 12px 16px;
+  }
+
+  .brand {
+    justify-content: center;
+  }
+
+  .nav {
+    justify-content: center;
+  }
+
+  .account-actions {
+    justify-content: center;
+  }
+
+  .rating-header-actions {
+    flex-wrap: wrap;
   }
 }

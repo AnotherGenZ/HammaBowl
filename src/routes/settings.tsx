@@ -1,4 +1,4 @@
-import { createFileRoute, redirect } from '@tanstack/react-router'
+import { Link, createFileRoute, redirect } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { useState } from 'react'
 import { pageMeta } from '../lib/meta'
@@ -7,6 +7,7 @@ import type { Faction, PlayerBadge, PlayerCharacter } from '../lib/types'
 
 const FACTIONS: Faction[] = ['TR', 'VS', 'NC']
 const DEFAULT_BANNER = PROFILE_BANNERS[0]?.src ?? ''
+type SettingsMessage = { text: string; tone: 'neutral' | 'success' | 'error' }
 
 const loadPlayerSettings = createServerFn({ method: 'GET' }).handler(async () => {
   const { getDiscordSessionUser } = await import('../lib/discord.server')
@@ -41,8 +42,13 @@ function Settings() {
   const [noPersonalJaegerAccount, setNoPersonalJaegerAccount] = useState(initialProfile.noPersonalJaegerAccount)
   const [resolvedCharacters, setResolvedCharacters] = useState(initialProfile.characters)
   const [badgeDisplayOrder, setBadgeDisplayOrder] = useState(initialProfile.badgeDisplayOrder)
-  const [message, setMessage] = useState(
-    initialProfile.complete ? '' : 'Add your TR, VS, and NC Jaeger characters, or mark that you need an event assignment.',
+  const [message, setMessage] = useState<SettingsMessage | null>(
+    initialProfile.complete
+      ? null
+      : {
+          text: 'Add your TR, VS, and NC Jaeger characters, or mark that you need an event assignment.',
+          tone: 'neutral',
+        },
   )
   const [saving, setSaving] = useState<'profile' | 'characters' | null>(null)
   const jaegerReady = noPersonalJaegerAccount || FACTIONS.every((faction) =>
@@ -51,7 +57,7 @@ function Settings() {
 
   async function saveProfile() {
     setSaving('profile')
-    setMessage('')
+    setMessage(null)
     try {
       const response = await fetch('/api/profile', {
         method: 'PATCH',
@@ -61,9 +67,12 @@ function Settings() {
       if (!response.ok) throw new Error(await response.text())
       const payload = await response.json() as { profile: { bannerUrl?: string } }
       setBannerUrl(payload.profile.bannerUrl || DEFAULT_BANNER)
-      setMessage('Profile saved.')
+      setMessage({ text: 'Profile saved.', tone: 'success' })
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Unable to save profile.')
+      setMessage({
+        text: error instanceof Error ? error.message : 'Unable to save profile.',
+        tone: 'error',
+      })
     } finally {
       setSaving(null)
     }
@@ -71,7 +80,7 @@ function Settings() {
 
   async function saveJaegerPreference() {
     setSaving('characters')
-    setMessage('')
+    setMessage(null)
     try {
       const response = await fetch('/api/profile', {
         method: 'PATCH',
@@ -79,9 +88,15 @@ function Settings() {
         body: JSON.stringify({ noPersonalJaegerAccount }),
       })
       if (!response.ok) throw new Error(await response.text())
-      setMessage(noPersonalJaegerAccount ? 'Jaeger account status saved.' : 'Jaeger account status cleared.')
+      setMessage({
+        text: noPersonalJaegerAccount ? 'Jaeger account status saved.' : 'Jaeger account status cleared.',
+        tone: 'success',
+      })
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Unable to save Jaeger status.')
+      setMessage({
+        text: error instanceof Error ? error.message : 'Unable to save Jaeger status.',
+        tone: 'error',
+      })
     } finally {
       setSaving(null)
     }
@@ -89,7 +104,7 @@ function Settings() {
 
   async function resolveCharacters() {
     setSaving('characters')
-    setMessage('')
+    setMessage(null)
     try {
       const response = await fetch('/api/profile', {
         method: 'PUT',
@@ -99,9 +114,12 @@ function Settings() {
       if (!response.ok) throw new Error(await response.text())
       const payload = await response.json() as { resolved: PlayerCharacter[] }
       setResolvedCharacters(payload.resolved)
-      setMessage('Characters resolved and saved.')
+      setMessage({ text: 'Characters resolved and saved.', tone: 'success' })
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Unable to resolve characters.')
+      setMessage({
+        text: error instanceof Error ? error.message : 'Unable to resolve characters.',
+        tone: 'error',
+      })
     } finally {
       setSaving(null)
     }
@@ -114,12 +132,18 @@ function Settings() {
           <p className="eyebrow">Player settings</p>
           <h1>{initialProfile.name}</h1>
           <div className="meta-row">
-            <a href={`/players/${initialProfile.discordId}`}>View profile</a>
+            <Link to="/players/$discordId" params={{ discordId: initialProfile.discordId }}>
+              View profile
+            </Link>
           </div>
         </div>
       </section>
 
-      {message ? <div className="admin-result">{message}</div> : null}
+      {message ? (
+        <div className={`toast toast-${message.tone}`} role="status" aria-live="polite">
+          {message.text}
+        </div>
+      ) : null}
 
       <section className="settings-grid">
         <article className="panel settings-panel">
@@ -140,6 +164,7 @@ function Settings() {
             <>
               <p>Admins can assign you a Jaeger character for each event after you sign up.</p>
               <button disabled={saving === 'characters'} onClick={() => void saveJaegerPreference()}>
+                {saving === 'characters' ? <span className="spinner" aria-label="Saving" /> : null}
                 Save Jaeger status
               </button>
             </>
@@ -157,6 +182,7 @@ function Settings() {
                 </label>
               ))}
               <button disabled={saving === 'characters'} onClick={() => void resolveCharacters()}>
+                {saving === 'characters' ? <span className="spinner" aria-label="Saving" /> : null}
                 Resolve and save
               </button>
               {resolvedCharacters.length ? (
@@ -267,6 +293,7 @@ function Settings() {
             )}
           </div>
           <button disabled={saving === 'profile' || !jaegerReady} onClick={() => void saveProfile()}>
+            {saving === 'profile' ? <span className="spinner" aria-label="Saving" /> : null}
             Save profile
           </button>
         </article>

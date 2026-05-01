@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { Link, createFileRoute } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { HallOfLegendsUnderConstruction } from '../components/HallOfLegendsUnderConstruction'
 import { canViewHallOfLegends } from '../lib/featureFlags'
@@ -50,6 +50,9 @@ function HistoricalEventPage() {
       <main>
         <section className="panel empty-state">
           <h1>Event not found</h1>
+          <Link to="/hall-of-legends" className="pill">
+            Back to Hall of Legends
+          </Link>
         </section>
       </main>
     )
@@ -61,6 +64,7 @@ function HistoricalEventPage() {
         <div>
           <h1>{event.name}</h1>
           <div className="meta-row">
+            <Link to="/hall-of-legends">Back to Hall of Legends</Link>
             <span>{shortDate(event.date)}</span>
             <span>{event.server}</span>
             {event.twitchStreamUrl ? (

@@ -65,6 +65,20 @@ function HallOfLegends() {
                     </Link>
                   </h2>
                 </div>
+                {event.twitchStreamUrl || event.twitchVodUrl ? (
+                  <div className="history-links">
+                    {event.twitchStreamUrl ? (
+                      <a href={event.twitchStreamUrl} target="_blank" rel="noreferrer">
+                        Stream
+                      </a>
+                    ) : null}
+                    {event.twitchVodUrl ? (
+                      <a href={event.twitchVodUrl} target="_blank" rel="noreferrer">
+                        VOD
+                      </a>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
 
               {event.lore ? (
@@ -81,6 +95,7 @@ function HallOfLegends() {
                     className={team.winner ? 'winner' : undefined}
                     key={team.id}
                   >
+                    {team.winner ? '🏆 ' : ''}
                     {team.name}
                   </span>
                 ))}

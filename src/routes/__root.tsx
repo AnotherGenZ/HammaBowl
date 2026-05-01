@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-import { useEffect, useState, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import {
   HeadContent,
   Link,
@@ -9,8 +9,8 @@ import {
   useRouterState,
 } from '@tanstack/react-router'
 import { pageMeta } from '../lib/meta'
+import { SessionProvider, useSession } from '../lib/SessionContext'
 import appCss from '../styles.css?url'
-import type { Role } from '../lib/types'
 
 export const Route = createRootRoute({
   head: () => {
@@ -44,38 +44,8 @@ function RootComponent() {
 }
 
 function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
-  const [user, setUser] = useState<{ id: string; name: string; profileComplete: boolean; roles: Role[] } | null>(null)
-  const [hasCurrentEvent, setHasCurrentEvent] = useState(false)
   const pathname = useRouterState({ select: (state) => state.location.pathname })
   const isOverlayRoute = pathname === '/overlay'
-
-  useEffect(() => {
-    let active = true
-
-    fetch('/api/auth/session')
-      .then((response) => response.json())
-      .then((payload: { user: { id: string; name: string; profileComplete: boolean; roles: Role[] } | null }) => {
-        if (active) setUser(payload.user)
-      })
-      .catch(() => {
-        if (active) setUser(null)
-      })
-
-    fetch('/api/event/current')
-      .then((response) => (response.ok ? response.json() : null))
-      .then((event) => {
-        if (active) setHasCurrentEvent(Boolean(event))
-      })
-      .catch(() => {
-        if (active) setHasCurrentEvent(false)
-      })
-
-    return () => {
-      active = false
-    }
-  }, [])
-
-  const isAdmin = user?.roles.includes('admin')
 
   return (
     <html lang="en" className={isOverlayRoute ? 'overlay-document' : undefined}>
@@ -83,70 +53,84 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
         <HeadContent />
       </head>
       <body className={isOverlayRoute ? 'overlay-document' : undefined}>
-        <div className={isOverlayRoute ? 'shell overlay-shell' : 'shell'}>
-          {isOverlayRoute ? null : (
-            <header className="topbar">
-              <Link to="/" className="brand" aria-label="HammaBowl home">
-                <img className="brand-mark" src="/hammabowl.png" alt="" />
-                <span>
-                  <strong>HammaBowl</strong>
-                </span>
-              </Link>
-              <nav className="nav">
-                <Link to="/" activeProps={{ className: 'active' }}>
-                  Event
-                </Link>
-                {hasCurrentEvent ? (
-                  <Link to="/draft" activeProps={{ className: 'active' }}>
-                    Draft
-                  </Link>
-                ) : null}
-                {hasCurrentEvent &&
-                user?.profileComplete &&
-                user.roles.some((role) => role === 'participant' || role === 'admin') ? (
-                  <Link to="/ratings" activeProps={{ className: 'active' }}>
-                    Ratings
-                  </Link>
-                ) : null}
-                <Link to="/hall-of-legends" activeProps={{ className: 'active' }}>
-                  Hall of Legends
-                </Link>
-                <Link to="/players" activeProps={{ className: 'active' }}>
-                  Players
-                </Link>
-              </nav>
-              <div className="account-actions">
-                {isAdmin ? (
-                  <Link to="/admin" className="login" activeProps={{ className: 'login active' }}>
-                    Admin
-                  </Link>
-                ) : null}
-                {user ? (
-                  <>
-                    <Link to="/settings" className="login" activeProps={{ className: 'login active' }}>
-                      Settings
-                    </Link>
-                    <a className="login" href={`/players/${user.id}`}>
-                      {user.name}
-                    </a>
-                    <form action="/api/auth/logout" method="post">
-                      <button className="login logout-button" type="submit">
-                        Logout
-                      </button>
-                    </form>
-                  </>
-                ) : (
-                  <a className="login" href="/api/auth/discord">
-                    Discord login
-                  </a>
-                )}
-              </div>
-            </header>
-          )}
-          {children}
-        </div>
+        <SessionProvider>
+          <div className={isOverlayRoute ? 'shell overlay-shell' : 'shell'}>
+            {isOverlayRoute ? null : <TopBar />}
+            {children}
+          </div>
+        </SessionProvider>
         <Scripts />
       </body>
     </html>
+  )
+}
+
+function TopBar() {
+  const { user, hasCurrentEvent } = useSession()
+  const isAdmin = user?.roles.includes('admin')
+
+  return (
+    <header className="topbar">
+      <Link to="/" className="brand" aria-label="HammaBowl home">
+        <img className="brand-mark" src="/hammabowl.png" alt="" />
+        <span>
+          <strong>HammaBowl</strong>
+        </span>
+      </Link>
+      <nav className="nav" aria-label="Main navigation">
+        <Link to="/" activeProps={{ className: 'active' }}>
+          Event
+        </Link>
+        {hasCurrentEvent ? (
+          <Link to="/draft" activeProps={{ className: 'active' }}>
+            Draft
+          </Link>
+        ) : null}
+        {hasCurrentEvent &&
+        user?.profileComplete &&
+        user.roles.some((role) => role === 'participant' || role === 'admin') ? (
+          <Link to="/ratings" activeProps={{ className: 'active' }}>
+            Ratings
+          </Link>
+        ) : null}
+        <Link to="/hall-of-legends" activeProps={{ className: 'active' }}>
+          Hall of Legends
+        </Link>
+        <Link to="/players" activeProps={{ className: 'active' }}>
+          Players
+        </Link>
+      </nav>
+      <div className="account-actions">
+        {isAdmin ? (
+          <Link to="/admin" className="login" activeProps={{ className: 'login active' }}>
+            Admin
+          </Link>
+        ) : null}
+        {user ? (
+          <>
+            <Link to="/settings" className="login" activeProps={{ className: 'login active' }}>
+              Settings
+            </Link>
+            <Link
+              to="/players/$discordId"
+              params={{ discordId: user.id }}
+              className="login"
+              activeProps={{ className: 'login active' }}
+            >
+              {user.name}
+            </Link>
+            <form action="/api/auth/logout" method="post">
+              <button className="login logout-button" type="submit">
+                Logout
+              </button>
+            </form>
+          </>
+        ) : (
+          <a className="login" href="/api/auth/discord">
+            Discord login
+          </a>
+        )}
+      </div>
+    </header>
   )
 }

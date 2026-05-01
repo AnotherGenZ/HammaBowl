@@ -29,9 +29,10 @@ export function DraftBoard({
   const [selectedTeamId, setSelectedTeamId] = useState('')
   const [savingBid, setSavingBid] = useState(false)
   const [resettingPickId, setResettingPickId] = useState<string>()
-  const [bidMessage, setBidMessage] = useState<string>()
+  const [bidMessage, setBidMessage] = useState<{ text: string; tone: 'neutral' | 'success' | 'error' }>()
   const pickListRefs = useRef<Array<HTMLUListElement | null>>([])
   const syncingPickScroll = useRef(false)
+  const prevPickTurnRef = useRef<string | undefined>(undefined)
 
   if (!currentEvent) {
     return (
@@ -62,17 +63,25 @@ export function DraftBoard({
   const draftEligibleCount = currentEvent.players.filter((player) =>
     isDraftEligiblePlayer(currentEvent, player),
   ).length
+  const isCaptain = ledgers.some((ledger) => ledger.captain.playerId === userId)
   const allowedLedgers = canManageAll
     ? ledgers
     : ledgers.filter((ledger) => ledger.captain.playerId === userId)
   const draftReady = ledgers.length >= 2 && currentEvent.ratings.length > 0
   const draftStatus = !ledgers.length
-    ? { label: 'Teams', tone: 'blocked' }
+    ? { label: 'Waiting for teams', tone: 'blocked' }
     : !currentEvent.ratings.length
-      ? { label: 'Ratings', tone: 'pending' }
-      : { label: 'Ready', tone: 'ready' }
+      ? { label: 'Waiting for ratings', tone: 'pending' }
+      : { label: 'Ready to draft', tone: 'ready' }
   const activeBid = currentEvent.activeDraftBid
   const pickTurn = nextDraftSide(currentEvent)
+  const myCaptainLedgers = ledgers.filter((ledger) => ledger.captain.playerId === userId)
+  const isMyTurn = Boolean(
+    isCaptain &&
+      pickTurn &&
+      !activeBid &&
+      myCaptainLedgers.some((l) => l.captain.id === pickTurn.captain.id),
+  )
   const openingLedgers = pickTurn
     ? allowedLedgers.filter((ledger) => ledger.captain.id === pickTurn.captain.id)
     : []
@@ -125,6 +134,31 @@ export function DraftBoard({
     }
   }, [openingLedgers, selectedTeamId])
 
+  useEffect(() => {
+    const currentTurnId = pickTurn?.captain.id
+    if (
+      currentTurnId &&
+      prevPickTurnRef.current &&
+      currentTurnId !== prevPickTurnRef.current &&
+      isMyTurn
+    ) {
+      document.title = '🔔 Your pick! — HammaBowl Draft'
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('HammaBowl Draft', { body: "It's your turn to pick!" })
+      }
+    }
+    prevPickTurnRef.current = currentTurnId
+    if (!isMyTurn) {
+      document.title = 'Draft — HammaBowl'
+    }
+  }, [pickTurn?.captain.id, isMyTurn])
+
+  useEffect(() => {
+    if (isCaptain && 'Notification' in window && Notification.permission === 'default') {
+      void Notification.requestPermission()
+    }
+  }, [isCaptain])
+
   async function runBidAction(action: 'open' | 'bump' | 'forfeit') {
     const actionTeamId = action === 'open' ? selectedTeamId : activeBid?.nextCaptainId
     const actionPlayerId = action === 'open' ? selectedPlayerId : activeBid?.playerId
@@ -150,11 +184,11 @@ export function DraftBoard({
         event?: HammaEvent | null
       }
       if (payload.event) setCurrentEvent(payload.event)
-      setBidMessage(payload.message ?? 'Bid updated.')
+      setBidMessage({ text: payload.message ?? 'Bid updated.', tone: 'success' })
       if (action !== 'bump') setSelectedPlayerId('')
       if (action === 'open') setBidOpen(false)
     } catch (error) {
-      setBidMessage(error instanceof Error ? error.message : 'Unable to update bid.')
+      setBidMessage({ text: error instanceof Error ? error.message : 'Unable to update bid.', tone: 'error' })
     } finally {
       setSavingBid(false)
     }
@@ -171,9 +205,9 @@ export function DraftBoard({
         event?: HammaEvent | null
       }
       if (payload.event) setCurrentEvent(payload.event)
-      setBidMessage(payload.message ?? 'Bid cancelled.')
+      setBidMessage({ text: payload.message ?? 'Bid cancelled.', tone: 'success' })
     } catch (error) {
-      setBidMessage(error instanceof Error ? error.message : 'Unable to cancel bid.')
+      setBidMessage({ text: error instanceof Error ? error.message : 'Unable to cancel bid.', tone: 'error' })
     } finally {
       setSavingBid(false)
     }
@@ -195,9 +229,9 @@ export function DraftBoard({
         event?: HammaEvent | null
       }
       if (payload.event) setCurrentEvent(payload.event)
-      setBidMessage(payload.message ?? 'Pick reset.')
+      setBidMessage({ text: payload.message ?? 'Pick reset.', tone: 'success' })
     } catch (error) {
-      setBidMessage(error instanceof Error ? error.message : 'Unable to reset pick.')
+      setBidMessage({ text: error instanceof Error ? error.message : 'Unable to reset pick.', tone: 'error' })
     } finally {
       setResettingPickId(undefined)
     }
@@ -228,88 +262,92 @@ export function DraftBoard({
         </div>
         {ledgers.length ? (
           <div className="team-grid compact">
-            {ledgers.map((ledger, ledgerIndex) => (
-              <article className="team-panel" key={ledger.captain.id}>
-                <div className="team-title-row">
-                  <h2>{ledger.captain.teamName}</h2>
-                  {draftReady && !activeBid && pickTurn?.captain.id === ledger.captain.id ? (
-                    <span className="pick-turn-chip">Pick turn</span>
-                  ) : null}
-                </div>
-                <div className="team-meta-row">
-                  <span>
-                    <small>Faction</small>
-                    <strong>{ledger.captain.faction ?? 'TBD'}</strong>
-                  </span>
-                  <span>
-                    <small>Starting Side</small>
-                    <strong>{ledger.captain.startingSide ?? 'TBD'}</strong>
-                  </span>
-                </div>
-                <dl>
-                  <div>
-                    <dt>Budget left</dt>
-                    <dd>{money(ledger.budgetRemaining)}</dd>
+            {ledgers.map((ledger, ledgerIndex) => {
+              const isPickTurn = draftReady && !activeBid && pickTurn?.captain.id === ledger.captain.id
+              return (
+                <article className={`team-panel${isPickTurn ? ' team-panel-active' : ''}`} key={ledger.captain.id}>
+                  <div className="team-title-row">
+                    <h2>{ledger.captain.teamName}</h2>
+                    {isPickTurn ? (
+                      <span className="pick-turn-chip pick-turn-pulse">Pick turn</span>
+                    ) : null}
                   </div>
-                  <div>
-                    <dt>Bonus left</dt>
-                    <dd>{money(ledger.bonusRemaining)}</dd>
+                  <div className="team-meta-row">
+                    <span>
+                      <small>Faction</small>
+                      <strong>{ledger.captain.faction ?? 'TBD'}</strong>
+                    </span>
+                    <span>
+                      <small>Starting Side</small>
+                      <strong>{ledger.captain.startingSide ?? 'TBD'}</strong>
+                    </span>
                   </div>
-                  <div>
-                    <dt>Total reach</dt>
-                    <dd>{money(ledger.combinedRemaining)}</dd>
-                  </div>
-                </dl>
-                <ul
-                  className="pick-list"
-                  ref={(node) => {
-                    pickListRefs.current[ledgerIndex] = node
-                  }}
-                  onScroll={() => syncPickListScroll(ledgerIndex)}
-                >
-                  {ledger.captainPlayer ? (
-                    <li className="locked-pick">
-                      <div className="pick-main">
-                        <span className="captain-pick-name">
-                          {ledger.captainPlayer.name}
-                          <span className="captain-crown" aria-hidden="true">
-                            ♛
+                  <dl>
+                    <div>
+                      <dt>Budget left</dt>
+                      <dd>{money(ledger.budgetRemaining)}</dd>
+                    </div>
+                    <div>
+                      <dt>Bonus left</dt>
+                      <dd>{money(ledger.bonusRemaining)}</dd>
+                    </div>
+                    <div>
+                      <dt>Total reach</dt>
+                      <dd>{money(ledger.combinedRemaining)}</dd>
+                    </div>
+                  </dl>
+                  <ul
+                    className="pick-list"
+                    ref={(node) => {
+                      pickListRefs.current[ledgerIndex] = node
+                    }}
+                    onScroll={() => syncPickListScroll(ledgerIndex)}
+                  >
+                    {ledger.captainPlayer ? (
+                      <li className="locked-pick">
+                        <div className="pick-main">
+                          <span className="captain-pick-name">
+                            {ledger.captainPlayer.name}
+                            <span className="captain-crown" aria-hidden="true">
+                              ♛
+                            </span>
                           </span>
-                        </span>
-                        <small>Captain</small>
-                      </div>
-                    </li>
-                  ) : null}
-                  {ledger.picks.map((pick) => (
-                    <li key={pick.id}>
-                      <div className="pick-main">
-                        <span>{pick.player.name}</span>
-                        <small>
-                          {money(pick.salary)}
-                          {pick.bonusSpent ? ` + ${money(pick.bonusSpent)}` : ''}
-                        </small>
-                      </div>
-                      {canManageAll ? (
-                        <button
-                          className="text-button danger"
-                          type="button"
-                          disabled={resettingPickId === pick.id}
-                          onClick={() => void resetPick(pick.id)}
-                        >
-                          Reset
-                        </button>
-                      ) : null}
-                    </li>
-                  ))}
-                </ul>
-                <div className="team-count-chip">
-                  {ledger.picks.length + (ledger.captainPlayer ? 1 : 0)}{' '}
-                  {ledger.picks.length + (ledger.captainPlayer ? 1 : 0) === 1
-                    ? 'player'
-                    : 'players'}
-                </div>
-              </article>
-            ))}
+                          <small>Captain</small>
+                        </div>
+                      </li>
+                    ) : null}
+                    {ledger.picks.map((pick) => (
+                      <li key={pick.id}>
+                        <div className="pick-main">
+                          <span>{pick.player.name}</span>
+                          <small>
+                            {money(pick.salary)}
+                            {pick.bonusSpent ? ` + ${money(pick.bonusSpent)}` : ''}
+                          </small>
+                        </div>
+                        {canManageAll ? (
+                          <button
+                            className="text-button danger"
+                            type="button"
+                            disabled={resettingPickId === pick.id}
+                            onClick={() => void resetPick(pick.id)}
+                          >
+                            {resettingPickId === pick.id ? <span className="spinner" aria-label="Resetting" /> : null}
+                            Reset
+                          </button>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="team-count-chip">
+                    {ledger.picks.length + (ledger.captainPlayer ? 1 : 0)}{' '}
+                    {ledger.picks.length + (ledger.captainPlayer ? 1 : 0) === 1
+                      ? 'player'
+                      : 'players'}
+                  </div>
+                </article>
+              )
+            })}
           </div>
         ) : (
           <div className="empty-inline">
@@ -334,54 +372,65 @@ export function DraftBoard({
             </button>
           ) : null}
         </div>
+        {bidMessage ? (
+          <div className={`toast toast-${bidMessage.tone}`} role="status" aria-live="polite">
+            {bidMessage.text}
+          </div>
+        ) : null}
         {activeBid ? (
           <div className="active-bid-panel">
-            <div>
-              <small>Player</small>
-              <strong>{bidPlayer?.name ?? activeBid.playerId}</strong>
+            <div className="bid-info-grid">
+              <div>
+                <small>Player</small>
+                <strong>{bidPlayer?.name ?? activeBid.playerId}</strong>
+              </div>
+              <div>
+                <small>Leading</small>
+                <strong>{highestLedger?.captain.teamName ?? activeBid.highestCaptainId}</strong>
+              </div>
+              <div>
+                <small>Bonus bid</small>
+                <strong>{money(activeBid.currentBonus)}</strong>
+              </div>
+              <div>
+                <small>Turn</small>
+                <strong>{nextLedger?.captain.teamName ?? activeBid.nextCaptainId}</strong>
+              </div>
             </div>
-            <div>
-              <small>Leading</small>
-              <strong>{highestLedger?.captain.teamName ?? activeBid.highestCaptainId}</strong>
-            </div>
-            <div>
-              <small>Bonus bid</small>
-              <strong>{money(activeBid.currentBonus)}</strong>
-            </div>
-            <div>
-              <small>Turn</small>
-              <strong>{nextLedger?.captain.teamName ?? activeBid.nextCaptainId}</strong>
-            </div>
-            {canActOnBid ? (
+            {canActOnBid || canCancelBid ? (
               <div className="bid-actions">
-                <button
-                  type="button"
-                  disabled={savingBid || !canRaiseBid}
-                  onClick={() => void runBidAction('bump')}
-                >
-                  +{money(BID_INCREMENT)}
-                </button>
-                <button
-                  className="text-button danger"
-                  type="button"
-                  disabled={savingBid}
-                  onClick={() => void runBidAction('forfeit')}
-                >
-                  Forfeit
-                </button>
+                {canActOnBid ? (
+                  <>
+                    <button
+                      type="button"
+                      disabled={savingBid || !canRaiseBid}
+                      onClick={() => void runBidAction('bump')}
+                    >
+                      {savingBid ? <span className="spinner" aria-label="Saving" /> : null}
+                      +{money(BID_INCREMENT)}
+                    </button>
+                    <button
+                      className="text-button danger"
+                      type="button"
+                      disabled={savingBid}
+                      onClick={() => void runBidAction('forfeit')}
+                    >
+                      Forfeit
+                    </button>
+                  </>
+                ) : null}
+                {canCancelBid ? (
+                  <button
+                    className="text-button danger"
+                    type="button"
+                    disabled={savingBid}
+                    onClick={() => void cancelBid()}
+                  >
+                    Cancel bid
+                  </button>
+                ) : null}
               </div>
             ) : null}
-            {canCancelBid ? (
-              <button
-                className="text-button danger"
-                type="button"
-                disabled={savingBid}
-                onClick={() => void cancelBid()}
-              >
-                Cancel
-              </button>
-            ) : null}
-            {bidMessage ? <div className="admin-result">{bidMessage}</div> : null}
           </div>
         ) : null}
         {bidOpen ? (
@@ -428,9 +477,9 @@ export function DraftBoard({
               disabled={savingBid || !available.length || !selectedTeamId}
               onClick={() => void runBidAction('open')}
             >
+              {savingBid ? <span className="spinner" aria-label="Saving" /> : null}
               Start bid
             </button>
-            {bidMessage ? <div className="admin-result">{bidMessage}</div> : null}
           </div>
         ) : null}
         <div className="available-list">
