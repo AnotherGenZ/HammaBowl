@@ -13,6 +13,7 @@ export const events = sqliteTable('events', {
   pendingSignupCount: integer('pending_signup_count').notNull().default(0),
   availableFactions: text('available_factions').notNull().default('["VS","NC","TR"]'),
   availableSides: text('available_sides').notNull().default('["north","south"]'),
+  nextPickTeamId: text('next_pick_team_id'),
   winningTeamId: text('winning_team_id'),
   updatedAt: text('updated_at').notNull(),
 })

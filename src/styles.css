@@ -160,6 +160,7 @@ main {
 
 main.wide-page {
   width: min(1680px, calc(100% - 32px));
+  min-height: calc(100vh - 138px);
 }
 
 .event-hero {
@@ -300,7 +301,8 @@ dt {
 .team-panel {
   padding: 18px;
   display: grid;
-  gap: 16px;
+  grid-template-rows: 36px 88px 54px minmax(0, 1fr) 28px;
+  gap: 14px;
 }
 
 .score {
@@ -355,15 +357,59 @@ dd {
   display: grid;
   grid-template-columns: minmax(420px, 1fr) minmax(520px, 1.35fr);
   gap: 18px;
-  align-items: start;
+  align-items: stretch;
+  height: calc(100vh - 138px);
+  min-height: 0;
+}
+
+.draft-layout > .panel {
+  margin-top: 0;
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+.draft-teams-panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.draft-teams-panel .team-grid {
+  min-height: 0;
+  align-items: stretch;
+}
+
+.draft-teams-panel .team-panel {
+  min-height: 0;
+}
+
+.draft-teams-panel .pick-list {
+  max-height: none;
+  min-height: 0;
+}
+
+.signup-pool-panel {
+  display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+}
+
+.signup-pool-panel .available-list {
+  grid-row: 4;
+  min-height: 0;
+  max-height: none;
 }
 
 .pick-list {
   display: grid;
+  grid-auto-rows: max-content;
+  align-content: start;
   gap: 8px;
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 0 4px 0 0;
+  max-height: min(260px, 34vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .team-title-row {
@@ -371,10 +417,13 @@ dd {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  min-height: 0;
 }
 
 .team-title-row h2 {
   min-width: 0;
+  margin: 0;
+  line-height: 1.15;
 }
 
 .team-meta-row {
@@ -387,6 +436,7 @@ dd {
   display: grid;
   gap: 3px;
   min-width: 0;
+  align-content: center;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 6px;
   background: rgba(255, 255, 255, 0.05);
@@ -409,6 +459,7 @@ dd {
 .pick-turn-chip {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   min-height: 28px;
   border-radius: 999px;
   border: 1px solid rgba(71, 191, 143, 0.58);
@@ -419,6 +470,23 @@ dd {
   font-weight: 900;
   text-transform: uppercase;
   white-space: nowrap;
+}
+
+.team-panel dl {
+  gap: 12px;
+  align-self: start;
+}
+
+.team-panel dt {
+  min-height: 18px;
+  font-size: 0.68rem;
+  white-space: nowrap;
+}
+
+.team-panel dd {
+  font-size: 1.05rem;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
 }
 
 .pick-list li,
@@ -433,6 +501,38 @@ dd {
   background: rgba(255, 255, 255, 0.06);
   border-radius: 6px;
   padding: 10px 12px;
+}
+
+.heading-with-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.heading-with-chip h2 {
+  margin: 0;
+}
+
+.count-chip,
+.team-count-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  border-radius: 999px;
+  border: 1px solid rgba(228, 180, 94, 0.4);
+  background: rgba(228, 180, 94, 0.12);
+  color: #f4d59a;
+  padding: 0 10px;
+  font-size: 0.76rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.team-count-chip {
+  justify-content: center;
+  justify-self: start;
 }
 
 .pick-main {
@@ -1276,6 +1376,21 @@ dd {
 
   .player-card > span {
     text-align: left;
+  }
+
+  main.wide-page,
+  .draft-layout {
+    height: auto;
+    min-height: 0;
+  }
+
+  .signup-pool-panel {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .signup-pool-panel .available-list {
+    grid-row: auto;
   }
 
   .overlay-score {

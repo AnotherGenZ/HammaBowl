@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { money } from '../lib/format'
 import {
   buildTeamLedgers,
@@ -29,6 +29,8 @@ export function DraftBoard({
   const [savingBid, setSavingBid] = useState(false)
   const [resettingPickId, setResettingPickId] = useState<string>()
   const [bidMessage, setBidMessage] = useState<string>()
+  const pickListRefs = useRef<Array<HTMLUListElement | null>>([])
+  const syncingPickScroll = useRef(false)
 
   if (!currentEvent) {
     return (
@@ -194,9 +196,23 @@ export function DraftBoard({
     }
   }
 
+  function syncPickListScroll(index: number) {
+    if (syncingPickScroll.current) return
+    const source = pickListRefs.current[index]
+    if (!source) return
+
+    syncingPickScroll.current = true
+    for (const [listIndex, list] of pickListRefs.current.entries()) {
+      if (listIndex !== index && list) list.scrollTop = source.scrollTop
+    }
+    window.requestAnimationFrame(() => {
+      syncingPickScroll.current = false
+    })
+  }
+
   return (
     <div className="draft-layout">
-      <section className="panel">
+      <section className="panel draft-teams-panel">
         <div className="section-heading">
           <div>
             <h1>Draft</h1>
@@ -205,7 +221,7 @@ export function DraftBoard({
         </div>
         {ledgers.length ? (
           <div className="team-grid compact">
-            {ledgers.map((ledger) => (
+            {ledgers.map((ledger, ledgerIndex) => (
               <article className="team-panel" key={ledger.captain.id}>
                 <div className="team-title-row">
                   <h2>{ledger.captain.teamName}</h2>
@@ -237,7 +253,13 @@ export function DraftBoard({
                     <dd>{money(ledger.combinedRemaining)}</dd>
                   </div>
                 </dl>
-                <ul className="pick-list">
+                <ul
+                  className="pick-list"
+                  ref={(node) => {
+                    pickListRefs.current[ledgerIndex] = node
+                  }}
+                  onScroll={() => syncPickListScroll(ledgerIndex)}
+                >
                   {ledger.picks.map((pick) => (
                     <li key={pick.id}>
                       <div className="pick-main">
@@ -260,6 +282,9 @@ export function DraftBoard({
                     </li>
                   ))}
                 </ul>
+                <div className="team-count-chip">
+                  {ledger.picks.length} {ledger.picks.length === 1 ? 'player' : 'players'}
+                </div>
               </article>
             ))}
           </div>
@@ -270,10 +295,15 @@ export function DraftBoard({
         )}
       </section>
 
-      <section className="panel">
+      <section className="panel signup-pool-panel">
         <div className="section-heading">
           <div>
-            <h2>Current signup pool</h2>
+            <div className="heading-with-chip">
+              <h2>Current signup pool</h2>
+              <span className="count-chip">
+                {available.length} undrafted
+              </span>
+            </div>
           </div>
           {canOpenBid ? (
             <button type="button" onClick={() => setBidOpen((open) => !open)}>

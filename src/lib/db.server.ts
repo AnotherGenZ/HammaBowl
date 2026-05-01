@@ -183,6 +183,7 @@ export async function getDbEvent(eventId: string): Promise<HammaEvent | null> {
           updatedAt: activeBidRow.updatedAt,
         }
       : undefined,
+    nextPickCaptainId: event.nextPickTeamId ?? undefined,
     coinflip: coinflipRow
       ? {
           id: coinflipRow.id,
@@ -387,6 +388,10 @@ export async function recordCoinflipChoice(
       })
       .where(eq(coinflips.id, coinflip.id))
       .run()
+    db.update(events)
+      .set({ nextPickTeamId: null, updatedAt: now })
+      .where(eq(events.id, eventId))
+      .run()
 
     return { ok: true, message: `Coinflip winner chose ${faction}.` }
   }
@@ -420,6 +425,10 @@ export async function recordCoinflipChoice(
       updatedAt: now,
     })
     .where(eq(coinflips.id, coinflip.id))
+    .run()
+  db.update(events)
+    .set({ nextPickTeamId: coinflip.winningTeamId, updatedAt: now })
+    .where(eq(events.id, eventId))
     .run()
 
   return { ok: true, message: `Coinflip winner chose ${startingSide} side and first pick.` }
@@ -494,7 +503,10 @@ export async function resetCoinflip(eventId: string) {
   }
 
   db.delete(coinflips).where(eq(coinflips.eventId, eventId)).run()
-  db.update(events).set({ updatedAt: new Date().toISOString() }).where(eq(events.id, eventId)).run()
+  db.update(events)
+    .set({ nextPickTeamId: null, updatedAt: new Date().toISOString() })
+    .where(eq(events.id, eventId))
+    .run()
 
   return { ok: true, message: 'Coinflip reset.' }
 }
@@ -690,6 +702,7 @@ export async function bumpDraftBid(event: HammaEvent, bidId: string, teamId: str
 export async function forfeitDraftBid(event: HammaEvent, bidId: string, teamId: string) {
   const bid = getActiveBid(event.id, bidId)
   if (bid.nextTeamId !== teamId) throw new Error('It is not your turn to forfeit this bid.')
+  const nextPickTeamId = nextPickTeamAfterBidResolution(bid)
 
   const result = await confirmDraftPick(
     event,
@@ -702,9 +715,16 @@ export async function forfeitDraftBid(event: HammaEvent, bidId: string, teamId: 
   db.delete(activeDraftBids)
     .where(and(eq(activeDraftBids.eventId, event.id), eq(activeDraftBids.id, bid.id)))
     .run()
-  db.update(events).set({ updatedAt: new Date().toISOString() }).where(eq(events.id, event.id)).run()
+  db.update(events)
+    .set({ nextPickTeamId, updatedAt: new Date().toISOString() })
+    .where(eq(events.id, event.id))
+    .run()
 
   return result
+}
+
+function nextPickTeamAfterBidResolution(bid: ReturnType<typeof getActiveBid>) {
+  return bid.currentBonus > 0 ? bid.highestTeamId : bid.nextTeamId
 }
 
 export async function resetDraftPick(eventId: string, pickId: string) {
@@ -895,6 +915,7 @@ function bootstrap() {
       pending_signup_count INTEGER NOT NULL DEFAULT 0,
       available_factions TEXT NOT NULL DEFAULT '["VS","NC","TR"]',
       available_sides TEXT NOT NULL DEFAULT '["north","south"]',
+      next_pick_team_id TEXT REFERENCES teams(id) ON DELETE SET NULL,
       winning_team_id TEXT,
       updated_at TEXT NOT NULL
     );
@@ -977,6 +998,7 @@ function bootstrap() {
   addColumnIfMissing('events', 'pending_signup_count', 'INTEGER NOT NULL DEFAULT 0')
   addColumnIfMissing('events', 'available_factions', `TEXT NOT NULL DEFAULT '["VS","NC","TR"]'`)
   addColumnIfMissing('events', 'available_sides', `TEXT NOT NULL DEFAULT '["north","south"]'`)
+  addColumnIfMissing('events', 'next_pick_team_id', 'TEXT REFERENCES teams(id) ON DELETE SET NULL')
   addColumnIfMissing('coinflips', 'calling_team_id', 'TEXT REFERENCES teams(id) ON DELETE SET NULL')
   addColumnIfMissing('coinflips', 'caller_call', 'TEXT')
   addColumnIfMissing('coinflips', 'winner_choice_type', 'TEXT')

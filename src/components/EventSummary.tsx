@@ -12,9 +12,7 @@ export function EventSummary({ event }: { event: HammaEvent }) {
       <div>
         <h1>{event.name}</h1>
         <div className="meta-row">
-          <span>{event.server}</span>
           <span>{shortDate(event.startsAt)}</span>
-          {event.closingTime ? <span>Closes {shortDate(event.closingTime)}</span> : null}
         </div>
       </div>
       <Countdown target={event.closingTime} />

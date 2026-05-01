@@ -83,6 +83,7 @@ export interface HammaEvent {
   ratings: Rating[]
   draftPicks: DraftPick[]
   activeDraftBid?: ActiveDraftBid
+  nextPickCaptainId?: string
   coinflip?: Coinflip
   winningCaptainId?: string
 }

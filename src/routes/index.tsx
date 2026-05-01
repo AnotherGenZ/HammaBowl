@@ -37,9 +37,6 @@ function Home() {
           <div>
             <h2>Current signups</h2>
           </div>
-          <span className="pill">
-            {user ? `Signed in as ${user.name}` : 'Unauthenticated viewer'}
-          </span>
         </div>
         {event.players.length ? (
           <PlayerTable rows={ratings} />

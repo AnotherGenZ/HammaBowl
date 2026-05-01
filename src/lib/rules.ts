@@ -97,6 +97,13 @@ export function canAcquirePlayer(
 }
 
 export function nextDraftSide(event: HammaEvent) {
+  if (event.nextPickCaptainId) {
+    const nextPickLedger = buildTeamLedgers(event).find(
+      (ledger) => ledger.captain.id === event.nextPickCaptainId,
+    )
+    if (nextPickLedger) return nextPickLedger
+  }
+
   if (!event.draftPicks.length && event.coinflip?.firstPickCaptainId) {
     const firstPickLedger = buildTeamLedgers(event).find(
       (ledger) => ledger.captain.id === event.coinflip?.firstPickCaptainId,
