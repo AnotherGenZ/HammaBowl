@@ -1,0 +1,19 @@
+services:
+  hammabowl:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hammabowl
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: /app/data/hammabowl.sqlite
+    ports:
+      - "3000:3000"
+    volumes:
+      - hammabowl-data:/app/data
+
+volumes:
+  hammabowl-data:

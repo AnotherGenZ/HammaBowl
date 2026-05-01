@@ -1,0 +1,12 @@
+node_modules
+dist
+.output
+data
+.git
+.tanstack
+.agents
+.codex
+.env
+.env.*
+!.env.example
+npm-debug.log*
