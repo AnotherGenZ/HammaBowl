@@ -70,6 +70,7 @@ export interface HammaEvent {
   id: string
   raidHelperEventId: string
   name: string
+  nameOverride?: string
   server: string
   startsAt: string
   closingTime?: string
@@ -86,6 +87,9 @@ export interface HammaEvent {
   nextPickCaptainId?: string
   coinflip?: Coinflip
   winningCaptainId?: string
+  twitchStreamUrl?: string
+  twitchVodUrl?: string
+  lore?: string
 }
 
 export interface PlayerSalary {
@@ -110,8 +114,28 @@ export interface TeamLedger {
 export interface HistoricalEvent {
   id: string
   name: string
+  nameOverride?: string
   date: string
-  winner: string
-  captains: Array<{ name: string; teamName: string }>
-  members: string[]
+  server: string
+  twitchStreamUrl?: string
+  twitchVodUrl?: string
+  lore?: string
+  winningTeam?: {
+    id: string
+    name: string
+    members: string[]
+  }
+  teams: Array<{
+    id: string
+    name: string
+    captain?: string
+    score: number
+    members: string[]
+    winner: boolean
+  }>
+}
+
+export interface RegisteredParticipant {
+  discordId: string
+  name: string
 }

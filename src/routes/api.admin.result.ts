@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { requireAdminSession } from '../lib/discord.server'
 import { clearCurrentEventCache, requireCurrentEvent } from '../lib/services'
-import { adjustScore, setWinningTeam } from '../lib/db.server'
+import { adjustScore, getDbEvent, setWinningTeam, updateEventLinks } from '../lib/db.server'
 import { publishEventUpdate } from '../lib/realtime.server'
 
 export const Route = createFileRoute('/api/admin/result')({
@@ -13,22 +13,36 @@ export const Route = createFileRoute('/api/admin/result')({
         const event = await requireCurrentEvent()
         const teamId = String(body.teamId ?? '')
 
-        if (!teamId) throw new Response('teamId is required', { status: 400 })
+        if (!teamId && (typeof body.delta === 'number' || body.winner)) {
+          throw new Response('teamId is required', { status: 400 })
+        }
 
-        let message = 'Result saved.'
+        const messages: string[] = []
+        if ('twitchStreamUrl' in body || 'twitchVodUrl' in body) {
+          await updateEventLinks(event.id, {
+            twitchStreamUrl: String(body.twitchStreamUrl ?? ''),
+            twitchVodUrl: String(body.twitchVodUrl ?? ''),
+          })
+          messages.push('Twitch links saved.')
+        }
         if (typeof body.delta === 'number' && body.delta !== 0) {
           const result = await adjustScore(event.id, teamId, body.delta)
-          message = `${result.team} score is now ${result.score}.`
+          messages.push(`${result.team} score is now ${result.score}.`)
         }
 
         if (body.winner) {
-          await setWinningTeam(event.id, teamId)
-          message = 'Winning team recorded.'
+          const result = await setWinningTeam(event.id, teamId)
+          messages.push(
+            `Winning team recorded with ${result.winnerCount} winning member${
+              result.winnerCount === 1 ? '' : 's'
+            }.`,
+          )
         }
 
         clearCurrentEventCache()
-        publishEventUpdate(event.id, body.winner ? 'event.result.recorded' : 'event.score.updated')
-        return Response.json({ ok: true, message })
+        const updated = await getDbEvent(event.id)
+        publishEventUpdate(event.id, body.winner ? 'event.result.recorded' : 'event.updated')
+        return Response.json({ ok: true, message: messages.join(' ') || 'Result saved.', event: updated })
       },
     },
   },

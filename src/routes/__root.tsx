@@ -6,6 +6,7 @@ import {
   Outlet,
   Scripts,
   createRootRoute,
+  useRouterState,
 } from '@tanstack/react-router'
 import { pageMeta } from '../lib/meta'
 import appCss from '../styles.css?url'
@@ -45,6 +46,8 @@ function RootComponent() {
 function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
   const [user, setUser] = useState<{ name: string; roles: Role[] } | null>(null)
   const [hasCurrentEvent, setHasCurrentEvent] = useState(false)
+  const pathname = useRouterState({ select: (state) => state.location.pathname })
+  const isOverlayRoute = pathname === '/overlay'
 
   useEffect(() => {
     let active = true
@@ -75,46 +78,50 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
   const isAdmin = user?.roles.includes('admin')
 
   return (
-    <html lang="en">
+    <html lang="en" className={isOverlayRoute ? 'overlay-document' : undefined}>
       <head>
         <HeadContent />
       </head>
-      <body>
-        <div className="shell">
-          <header className="topbar">
-            <Link to="/" className="brand" aria-label="HammaBowl home">
-              <img className="brand-mark" src="/hammabowl.png" alt="" />
-              <span>
-                <strong>HammaBowl</strong>
-              </span>
-            </Link>
-            <nav className="nav">
-              <Link to="/" activeProps={{ className: 'active' }}>
-                Event
+      <body className={isOverlayRoute ? 'overlay-document' : undefined}>
+        <div className={isOverlayRoute ? 'shell overlay-shell' : 'shell'}>
+          {isOverlayRoute ? null : (
+            <header className="topbar">
+              <Link to="/" className="brand" aria-label="HammaBowl home">
+                <img className="brand-mark" src="/hammabowl.png" alt="" />
+                <span>
+                  <strong>HammaBowl</strong>
+                </span>
               </Link>
-              {hasCurrentEvent ? (
-                <Link to="/draft" activeProps={{ className: 'active' }}>
-                  Draft
+              <nav className="nav">
+                <Link to="/" activeProps={{ className: 'active' }}>
+                  Event
                 </Link>
-              ) : null}
-              {hasCurrentEvent && user?.roles.some((role) => role === 'participant' || role === 'admin') ? (
-                <Link to="/ratings" activeProps={{ className: 'active' }}>
-                  Ratings
+                {hasCurrentEvent ? (
+                  <Link to="/draft" activeProps={{ className: 'active' }}>
+                    Draft
+                  </Link>
+                ) : null}
+                {hasCurrentEvent && user?.roles.some((role) => role === 'participant' || role === 'admin') ? (
+                  <Link to="/ratings" activeProps={{ className: 'active' }}>
+                    Ratings
+                  </Link>
+                ) : null}
+                <Link to="/hall-of-legends" activeProps={{ className: 'active' }}>
+                  Hall of Legends
                 </Link>
-              ) : null}
-              {isAdmin ? (
-                <Link to="/admin" activeProps={{ className: 'active' }}>
-                  Admin
-                </Link>
-              ) : null}
-              <Link to="/hall-of-legends" activeProps={{ className: 'active' }}>
-                Hall of Legends
-              </Link>
-            </nav>
-            <a className="login" href="/api/auth/discord">
-              {user ? user.name : 'Discord login'}
-            </a>
-          </header>
+              </nav>
+              <div className="account-actions">
+                {isAdmin ? (
+                  <Link to="/admin" className="login" activeProps={{ className: 'login active' }}>
+                    Admin
+                  </Link>
+                ) : null}
+                <a className="login" href="/api/auth/discord">
+                  {user ? user.name : 'Discord login'}
+                </a>
+              </div>
+            </header>
+          )}
           {children}
         </div>
         <Scripts />

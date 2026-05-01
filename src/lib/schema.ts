@@ -5,6 +5,7 @@ export const events = sqliteTable('events', {
   id: text('id').primaryKey(),
   raidHelperEventId: text('raid_helper_event_id').notNull().unique(),
   name: text('name').notNull(),
+  nameOverride: text('name_override'),
   server: text('server').notNull(),
   startsAt: text('starts_at').notNull(),
   closingTime: text('closing_time'),
@@ -15,6 +16,15 @@ export const events = sqliteTable('events', {
   availableSides: text('available_sides').notNull().default('["north","south"]'),
   nextPickTeamId: text('next_pick_team_id'),
   winningTeamId: text('winning_team_id'),
+  twitchStreamUrl: text('twitch_stream_url'),
+  twitchVodUrl: text('twitch_vod_url'),
+  lore: text('lore'),
+  updatedAt: text('updated_at').notNull(),
+})
+
+export const participants = sqliteTable('participants', {
+  discordId: text('discord_id').primaryKey(),
+  name: text('name').notNull(),
   updatedAt: text('updated_at').notNull(),
 })
 
@@ -26,6 +36,7 @@ export const eventParticipants = sqliteTable(
     name: text('name').notNull(),
     status: text('status').notNull().default('signed_up'),
     disqualified: integer('disqualified', { mode: 'boolean' }).notNull().default(false),
+    winner: integer('winner', { mode: 'boolean' }).notNull().default(false),
     updatedAt: text('updated_at').notNull(),
   },
   (table) => [primaryKey({ columns: [table.eventId, table.discordId] })],

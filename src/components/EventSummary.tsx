@@ -13,6 +13,16 @@ export function EventSummary({ event }: { event: HammaEvent }) {
         <h1>{event.name}</h1>
         <div className="meta-row">
           <span>{shortDate(event.startsAt)}</span>
+          {event.twitchStreamUrl ? (
+            <a href={event.twitchStreamUrl} target="_blank" rel="noreferrer">
+              Stream
+            </a>
+          ) : null}
+          {event.twitchVodUrl ? (
+            <a href={event.twitchVodUrl} target="_blank" rel="noreferrer">
+              VOD
+            </a>
+          ) : null}
         </div>
       </div>
       <Countdown target={event.closingTime} />

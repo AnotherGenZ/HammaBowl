@@ -32,6 +32,8 @@ export function AdminTools({ event }: { event: HammaEvent }) {
       {message ? <div className="admin-result">{message}</div> : null}
 
       <div className="admin-stack">
+        <EventIdentityControls event={currentEvent} busy={busy} onRun={run} onEvent={setCurrentEvent} />
+
         <AdminSection
           title="Event sync"
           actions={
@@ -69,6 +71,13 @@ export function AdminTools({ event }: { event: HammaEvent }) {
           onEvent={setCurrentEvent}
         />
 
+        <EventResultControls
+          event={currentEvent}
+          busy={busy}
+          onRun={run}
+          onEvent={setCurrentEvent}
+        />
+
         <AdminSection
           title="Team composition"
           actions={
@@ -89,6 +98,55 @@ export function AdminTools({ event }: { event: HammaEvent }) {
         </AdminSection>
       </div>
     </section>
+  )
+}
+
+function EventIdentityControls({
+  event,
+  busy,
+  onRun,
+  onEvent,
+}: {
+  event: HammaEvent
+  busy?: string
+  onRun: (label: string, action: () => Promise<unknown>) => Promise<void>
+  onEvent: (event: HammaEvent) => void
+}) {
+  const [nameOverride, setNameOverride] = useState(event.nameOverride ?? '')
+
+  useEffect(() => {
+    setNameOverride(event.nameOverride ?? '')
+  }, [event])
+
+  return (
+    <AdminSection title="Event identity">
+      <div className="event-result-grid">
+        <div className="event-result-card">
+          <strong>Name override</strong>
+          <label>
+            Display name
+            <input
+              value={nameOverride}
+              placeholder={event.name}
+              onChange={(event) => setNameOverride(event.currentTarget.value)}
+            />
+          </label>
+          <button
+            type="button"
+            disabled={busy === 'event-name'}
+            onClick={() =>
+              void onRun('event-name', async () => {
+                const result = await postAdminJson('/api/admin/event', { nameOverride })
+                if (isEventResult(result) && result.event) onEvent(result.event)
+                return result
+              })
+            }
+          >
+            Save name
+          </button>
+        </div>
+      </div>
+    </AdminSection>
   )
 }
 
@@ -543,6 +601,149 @@ function CoinflipControls({
           </div>
         </div>
       ) : null}
+    </AdminSection>
+  )
+}
+
+function EventResultControls({
+  event,
+  busy,
+  onRun,
+  onEvent,
+}: {
+  event: HammaEvent
+  busy?: string
+  onRun: (label: string, action: () => Promise<unknown>) => Promise<void>
+  onEvent: (event: HammaEvent) => void
+}) {
+  const [streamUrl, setStreamUrl] = useState(event.twitchStreamUrl ?? '')
+  const [vodUrl, setVodUrl] = useState(event.twitchVodUrl ?? '')
+  const [scoreTeamId, setScoreTeamId] = useState(event.captains[0]?.id ?? '')
+  const [scoreDelta, setScoreDelta] = useState('1')
+  const [winningTeamId, setWinningTeamId] = useState(event.winningCaptainId ?? event.captains[0]?.id ?? '')
+
+  useEffect(() => {
+    setStreamUrl(event.twitchStreamUrl ?? '')
+    setVodUrl(event.twitchVodUrl ?? '')
+    if (!event.captains.some((team) => team.id === scoreTeamId)) {
+      setScoreTeamId(event.captains[0]?.id ?? '')
+    }
+    if (!event.captains.some((team) => team.id === winningTeamId)) {
+      setWinningTeamId(event.winningCaptainId ?? event.captains[0]?.id ?? '')
+    }
+  }, [event, scoreTeamId, winningTeamId])
+
+  async function postResult(body: Record<string, unknown>) {
+    const result = await postAdminJson('/api/admin/result', body)
+    if (isEventResult(result) && result.event) onEvent(result.event)
+    return result
+  }
+
+  return (
+    <AdminSection title="Streams and results">
+      <div className="event-result-grid">
+        <div className="event-result-card">
+          <strong>Twitch links</strong>
+          <label>
+            Live stream
+            <input
+              type="url"
+              value={streamUrl}
+              placeholder="https://www.twitch.tv/..."
+              onChange={(event) => setStreamUrl(event.currentTarget.value)}
+            />
+          </label>
+          <label>
+            VOD
+            <input
+              type="url"
+              value={vodUrl}
+              placeholder="https://www.twitch.tv/videos/..."
+              onChange={(event) => setVodUrl(event.currentTarget.value)}
+            />
+          </label>
+          <button
+            type="button"
+            disabled={busy === 'event-links'}
+            onClick={() =>
+              void onRun('event-links', () =>
+                postResult({ twitchStreamUrl: streamUrl, twitchVodUrl: vodUrl }),
+              )
+            }
+          >
+            Save links
+          </button>
+        </div>
+
+        <div className="event-result-card">
+          <strong>Score</strong>
+          <label>
+            Team
+            <select
+              value={scoreTeamId}
+              disabled={!event.captains.length}
+              onChange={(event) => setScoreTeamId(event.currentTarget.value)}
+            >
+              {event.captains.map((team) => (
+                <option key={team.id} value={team.id}>
+                  {team.teamName}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Adjustment
+            <input
+              type="number"
+              value={scoreDelta}
+              onChange={(event) => setScoreDelta(event.currentTarget.value)}
+            />
+          </label>
+          <button
+            type="button"
+            disabled={busy === 'score-adjust' || !scoreTeamId || Number(scoreDelta) === 0}
+            onClick={() =>
+              void onRun('score-adjust', () =>
+                postResult({ teamId: scoreTeamId, delta: Number(scoreDelta) }),
+              )
+            }
+          >
+            Apply score
+          </button>
+        </div>
+
+        <div className="event-result-card">
+          <strong>Completion</strong>
+          <label>
+            Winning team
+            <select
+              value={winningTeamId}
+              disabled={!event.captains.length}
+              onChange={(event) => setWinningTeamId(event.currentTarget.value)}
+            >
+              {event.captains.map((team) => (
+                <option key={team.id} value={team.id}>
+                  {team.teamName}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p>
+            Marking complete records the winner and marks that team&apos;s captain and drafted players as event winners.
+          </p>
+          <button
+            type="button"
+            disabled={busy === 'event-complete' || !winningTeamId}
+            onClick={() =>
+              void onRun('event-complete', () =>
+                postResult({ teamId: winningTeamId, winner: true }),
+              )
+            }
+          >
+            {event.phase === 'complete' ? 'Update winner' : 'Mark complete'}
+          </button>
+        </div>
+      </div>
     </AdminSection>
   )
 }

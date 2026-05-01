@@ -15,7 +15,9 @@ import { Route as HallOfLegendsRouteImport } from './routes/hall-of-legends'
 import { Route as DraftRouteImport } from './routes/draft'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as HallOfLegendsEventIdRouteImport } from './routes/hall-of-legends_.$eventId'
 import { Route as ApiRatingsRouteImport } from './routes/api.ratings'
+import { Route as AdminHistoryRouteImport } from './routes/admin_.history'
 import { Route as ApiEventCurrentRouteImport } from './routes/api.event.current'
 import { Route as ApiDraftPickRouteImport } from './routes/api.draft.pick'
 import { Route as ApiDraftBidRouteImport } from './routes/api.draft.bid'
@@ -23,6 +25,8 @@ import { Route as ApiAuthSessionRouteImport } from './routes/api.auth.session'
 import { Route as ApiAuthLogoutRouteImport } from './routes/api.auth.logout'
 import { Route as ApiAuthDiscordRouteImport } from './routes/api.auth.discord'
 import { Route as ApiAdminResultRouteImport } from './routes/api.admin.result'
+import { Route as ApiAdminHistoryRouteImport } from './routes/api.admin.history'
+import { Route as ApiAdminEventRouteImport } from './routes/api.admin.event'
 import { Route as ApiAdminCoinflipRouteImport } from './routes/api.admin.coinflip'
 import { Route as ApiEventCurrentStreamRouteImport } from './routes/api.event.current.stream'
 import { Route as ApiAuthDiscordCallbackRouteImport } from './routes/api.auth.discord.callback'
@@ -63,9 +67,19 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HallOfLegendsEventIdRoute = HallOfLegendsEventIdRouteImport.update({
+  id: '/hall-of-legends_/$eventId',
+  path: '/hall-of-legends/$eventId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiRatingsRoute = ApiRatingsRouteImport.update({
   id: '/api/ratings',
   path: '/api/ratings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminHistoryRoute = AdminHistoryRouteImport.update({
+  id: '/admin_/history',
+  path: '/admin/history',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiEventCurrentRoute = ApiEventCurrentRouteImport.update({
@@ -101,6 +115,16 @@ const ApiAuthDiscordRoute = ApiAuthDiscordRouteImport.update({
 const ApiAdminResultRoute = ApiAdminResultRouteImport.update({
   id: '/api/admin/result',
   path: '/api/admin/result',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminHistoryRoute = ApiAdminHistoryRouteImport.update({
+  id: '/api/admin/history',
+  path: '/api/admin/history',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminEventRoute = ApiAdminEventRouteImport.update({
+  id: '/api/admin/event',
+  path: '/api/admin/event',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAdminCoinflipRoute = ApiAdminCoinflipRouteImport.update({
@@ -159,8 +183,12 @@ export interface FileRoutesByFullPath {
   '/hall-of-legends': typeof HallOfLegendsRoute
   '/overlay': typeof OverlayRoute
   '/ratings': typeof RatingsRoute
+  '/admin/history': typeof AdminHistoryRoute
   '/api/ratings': typeof ApiRatingsRoute
+  '/hall-of-legends/$eventId': typeof HallOfLegendsEventIdRoute
   '/api/admin/coinflip': typeof ApiAdminCoinflipRoute
+  '/api/admin/event': typeof ApiAdminEventRoute
+  '/api/admin/history': typeof ApiAdminHistoryRoute
   '/api/admin/result': typeof ApiAdminResultRoute
   '/api/auth/discord': typeof ApiAuthDiscordRouteWithChildren
   '/api/auth/logout': typeof ApiAuthLogoutRoute
@@ -184,8 +212,12 @@ export interface FileRoutesByTo {
   '/hall-of-legends': typeof HallOfLegendsRoute
   '/overlay': typeof OverlayRoute
   '/ratings': typeof RatingsRoute
+  '/admin/history': typeof AdminHistoryRoute
   '/api/ratings': typeof ApiRatingsRoute
+  '/hall-of-legends/$eventId': typeof HallOfLegendsEventIdRoute
   '/api/admin/coinflip': typeof ApiAdminCoinflipRoute
+  '/api/admin/event': typeof ApiAdminEventRoute
+  '/api/admin/history': typeof ApiAdminHistoryRoute
   '/api/admin/result': typeof ApiAdminResultRoute
   '/api/auth/discord': typeof ApiAuthDiscordRouteWithChildren
   '/api/auth/logout': typeof ApiAuthLogoutRoute
@@ -210,8 +242,12 @@ export interface FileRoutesById {
   '/hall-of-legends': typeof HallOfLegendsRoute
   '/overlay': typeof OverlayRoute
   '/ratings': typeof RatingsRoute
+  '/admin_/history': typeof AdminHistoryRoute
   '/api/ratings': typeof ApiRatingsRoute
+  '/hall-of-legends_/$eventId': typeof HallOfLegendsEventIdRoute
   '/api/admin/coinflip': typeof ApiAdminCoinflipRoute
+  '/api/admin/event': typeof ApiAdminEventRoute
+  '/api/admin/history': typeof ApiAdminHistoryRoute
   '/api/admin/result': typeof ApiAdminResultRoute
   '/api/auth/discord': typeof ApiAuthDiscordRouteWithChildren
   '/api/auth/logout': typeof ApiAuthLogoutRoute
@@ -237,8 +273,12 @@ export interface FileRouteTypes {
     | '/hall-of-legends'
     | '/overlay'
     | '/ratings'
+    | '/admin/history'
     | '/api/ratings'
+    | '/hall-of-legends/$eventId'
     | '/api/admin/coinflip'
+    | '/api/admin/event'
+    | '/api/admin/history'
     | '/api/admin/result'
     | '/api/auth/discord'
     | '/api/auth/logout'
@@ -262,8 +302,12 @@ export interface FileRouteTypes {
     | '/hall-of-legends'
     | '/overlay'
     | '/ratings'
+    | '/admin/history'
     | '/api/ratings'
+    | '/hall-of-legends/$eventId'
     | '/api/admin/coinflip'
+    | '/api/admin/event'
+    | '/api/admin/history'
     | '/api/admin/result'
     | '/api/auth/discord'
     | '/api/auth/logout'
@@ -287,8 +331,12 @@ export interface FileRouteTypes {
     | '/hall-of-legends'
     | '/overlay'
     | '/ratings'
+    | '/admin_/history'
     | '/api/ratings'
+    | '/hall-of-legends_/$eventId'
     | '/api/admin/coinflip'
+    | '/api/admin/event'
+    | '/api/admin/history'
     | '/api/admin/result'
     | '/api/auth/discord'
     | '/api/auth/logout'
@@ -313,8 +361,12 @@ export interface RootRouteChildren {
   HallOfLegendsRoute: typeof HallOfLegendsRoute
   OverlayRoute: typeof OverlayRoute
   RatingsRoute: typeof RatingsRoute
+  AdminHistoryRoute: typeof AdminHistoryRoute
   ApiRatingsRoute: typeof ApiRatingsRoute
+  HallOfLegendsEventIdRoute: typeof HallOfLegendsEventIdRoute
   ApiAdminCoinflipRoute: typeof ApiAdminCoinflipRoute
+  ApiAdminEventRoute: typeof ApiAdminEventRoute
+  ApiAdminHistoryRoute: typeof ApiAdminHistoryRoute
   ApiAdminResultRoute: typeof ApiAdminResultRoute
   ApiAuthDiscordRoute: typeof ApiAuthDiscordRouteWithChildren
   ApiAuthLogoutRoute: typeof ApiAuthLogoutRoute
@@ -374,11 +426,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/hall-of-legends_/$eventId': {
+      id: '/hall-of-legends_/$eventId'
+      path: '/hall-of-legends/$eventId'
+      fullPath: '/hall-of-legends/$eventId'
+      preLoaderRoute: typeof HallOfLegendsEventIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/ratings': {
       id: '/api/ratings'
       path: '/api/ratings'
       fullPath: '/api/ratings'
       preLoaderRoute: typeof ApiRatingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin_/history': {
+      id: '/admin_/history'
+      path: '/admin/history'
+      fullPath: '/admin/history'
+      preLoaderRoute: typeof AdminHistoryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/event/current': {
@@ -428,6 +494,20 @@ declare module '@tanstack/react-router' {
       path: '/api/admin/result'
       fullPath: '/api/admin/result'
       preLoaderRoute: typeof ApiAdminResultRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/history': {
+      id: '/api/admin/history'
+      path: '/api/admin/history'
+      fullPath: '/api/admin/history'
+      preLoaderRoute: typeof ApiAdminHistoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/event': {
+      id: '/api/admin/event'
+      path: '/api/admin/event'
+      fullPath: '/api/admin/event'
+      preLoaderRoute: typeof ApiAdminEventRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/admin/coinflip': {
@@ -527,8 +607,12 @@ const rootRouteChildren: RootRouteChildren = {
   HallOfLegendsRoute: HallOfLegendsRoute,
   OverlayRoute: OverlayRoute,
   RatingsRoute: RatingsRoute,
+  AdminHistoryRoute: AdminHistoryRoute,
   ApiRatingsRoute: ApiRatingsRoute,
+  HallOfLegendsEventIdRoute: HallOfLegendsEventIdRoute,
   ApiAdminCoinflipRoute: ApiAdminCoinflipRoute,
+  ApiAdminEventRoute: ApiAdminEventRoute,
+  ApiAdminHistoryRoute: ApiAdminHistoryRoute,
   ApiAdminResultRoute: ApiAdminResultRoute,
   ApiAuthDiscordRoute: ApiAuthDiscordRouteWithChildren,
   ApiAuthLogoutRoute: ApiAuthLogoutRoute,

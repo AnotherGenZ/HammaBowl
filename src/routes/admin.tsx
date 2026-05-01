@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { Link, createFileRoute } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { AdminTools } from '../components/AdminTools'
 import { pageMeta } from '../lib/meta'
@@ -55,12 +55,18 @@ function Admin() {
           <h1>Loading admin access</h1>
         </section>
       ) : isAdmin && event ? (
-        <AdminTools event={event} />
+        <>
+          <AdminNav />
+          <AdminTools event={event} />
+        </>
       ) : isAdmin ? (
-        <section className="panel empty-state">
-          <h1>No current event</h1>
-          <p>Raid Helper does not currently have an event for admin controls.</p>
-        </section>
+        <>
+          <AdminNav />
+          <section className="panel empty-state">
+            <h1>No current event</h1>
+            <p>Raid Helper does not currently have an event for admin controls.</p>
+          </section>
+        </>
       ) : (
         <section className="panel empty-state">
           <h1>Discord admin role required</h1>
@@ -68,5 +74,18 @@ function Admin() {
         </section>
       )}
     </main>
+  )
+}
+
+export function AdminNav() {
+  return (
+    <nav className="admin-tabs" aria-label="Admin sections">
+      <Link to="/admin" activeOptions={{ exact: true }} activeProps={{ className: 'active' }}>
+        Current event
+      </Link>
+      <Link to="/admin/history" activeOptions={{ exact: true }} activeProps={{ className: 'active' }}>
+        Historical events
+      </Link>
+    </nav>
   )
 }

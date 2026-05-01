@@ -22,6 +22,11 @@ body {
     #121417;
 }
 
+html.overlay-document,
+body.overlay-document {
+  background: transparent;
+}
+
 button,
 a {
   font: inherit;
@@ -85,6 +90,10 @@ th {
   min-height: 100vh;
 }
 
+.overlay-shell {
+  background: transparent;
+}
+
 .topbar {
   display: grid;
   grid-template-columns: auto 1fr auto;
@@ -134,6 +143,13 @@ th {
   flex-wrap: wrap;
 }
 
+.account-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .nav a,
 .login,
 .pill {
@@ -147,7 +163,8 @@ th {
 
 .nav a.active,
 .nav a:hover,
-.login {
+.login,
+.login.active {
   background: rgba(255, 255, 255, 0.08);
   color: #fff7e6;
 }
@@ -167,6 +184,10 @@ main.wide-page {
   display: grid;
   gap: 24px;
   padding: clamp(24px, 5vw, 56px) 0 32px;
+}
+
+.compact-hero {
+  padding-bottom: 12px;
 }
 
 .event-hero h1 {
@@ -190,6 +211,7 @@ main.wide-page {
 }
 
 .meta-row span,
+.meta-row a,
 .metric,
 .pill {
   background: rgba(255, 255, 255, 0.08);
@@ -225,10 +247,17 @@ main.wide-page {
   color: #f2b4ab;
 }
 
-.meta-row span {
+.meta-row span,
+.meta-row a {
   border-radius: 999px;
   padding: 8px 12px;
   color: #d8dedc;
+}
+
+.meta-row a {
+  border-color: rgba(228, 180, 94, 0.42);
+  color: #f4d59a;
+  font-weight: 900;
 }
 
 .stat-strip {
@@ -596,6 +625,31 @@ dd {
   gap: 16px;
 }
 
+.admin-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.admin-tabs a {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.06);
+  color: #d8dedc;
+  padding: 0 12px;
+  font-weight: 900;
+}
+
+.admin-tabs a.active {
+  border-color: rgba(228, 180, 94, 0.42);
+  background: rgba(228, 180, 94, 0.12);
+  color: #f4d59a;
+}
+
 .admin-section,
 .team-admin-card {
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -614,6 +668,10 @@ dd {
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
+}
+
+.admin-section-header.no-toggle {
+  grid-template-columns: minmax(0, 1fr) auto;
 }
 
 .admin-section-header h2 {
@@ -668,7 +726,10 @@ dd {
   gap: 14px;
 }
 
-.team-admin-card label {
+.team-admin-card label,
+.history-admin-grid label,
+.full-field,
+.history-team label {
   display: grid;
   gap: 6px;
   color: #a9b3b2;
@@ -678,7 +739,10 @@ dd {
 }
 
 .team-admin-card input,
-.team-admin-card select {
+.team-admin-card select,
+.history-admin-grid input,
+.history-team input,
+.full-field textarea {
   min-height: 40px;
   min-width: 0;
   width: 100%;
@@ -689,6 +753,12 @@ dd {
   padding: 0 10px;
   text-transform: none;
   font-weight: 600;
+}
+
+.full-field textarea {
+  min-height: 150px;
+  padding: 10px;
+  resize: vertical;
 }
 
 .field-row {
@@ -735,7 +805,14 @@ dd {
   gap: 12px;
 }
 
-.coinflip-card {
+.event-result-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.coinflip-card,
+.event-result-card {
   display: grid;
   align-content: start;
   gap: 12px;
@@ -809,6 +886,10 @@ dd {
   gap: 8px;
 }
 
+.button-row.left {
+  justify-content: flex-start;
+}
+
 .danger-button {
   border-color: rgba(217, 79, 61, 0.9);
   background: #b94135;
@@ -821,17 +902,21 @@ dd {
   opacity: 0.75;
 }
 
-.coinflip-card strong {
+.coinflip-card strong,
+.event-result-card strong {
   color: #f4f0e8;
 }
 
 .coinflip-card p,
-.coinflip-card small {
+.coinflip-card small,
+.event-result-card p,
+.event-result-card small {
   margin: 0;
   color: #a9b3b2;
 }
 
 .coinflip-card label,
+.event-result-card label,
 .coinflip-field {
   display: grid;
   gap: 6px;
@@ -846,8 +931,12 @@ dd {
 }
 
 .coinflip-card input,
-.coinflip-card select {
+.coinflip-card select,
+.event-result-card input,
+.event-result-card select {
   min-height: 40px;
+  min-width: 0;
+  width: 100%;
   border-radius: 6px;
   border: 1px solid rgba(255, 255, 255, 0.18);
   background: #121417;
@@ -1260,10 +1349,176 @@ dd {
   gap: 14px;
 }
 
+.history-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
 .history-card time {
   color: #e4b45e;
   font-size: 0.82rem;
   font-weight: 900;
+}
+
+.history-card h2 {
+  margin-top: 6px;
+}
+
+.history-card h2 a:hover {
+  color: #f4d59a;
+}
+
+.history-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.history-links a {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(228, 180, 94, 0.42);
+  background: rgba(228, 180, 94, 0.12);
+  color: #f4d59a;
+  padding: 0 12px;
+  font-weight: 900;
+}
+
+.history-lore {
+  display: grid;
+  gap: 6px;
+  border-left: 3px solid #e4b45e;
+  padding-left: 12px;
+}
+
+.history-lore span {
+  color: #e4b45e;
+  font-size: 0.74rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.history-lore p {
+  color: #fff7e6;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.history-team-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.history-team-list span {
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: #d8dedc;
+  padding: 8px 10px;
+  font-weight: 800;
+}
+
+.history-team-list span.winner {
+  border-color: rgba(228, 180, 94, 0.78);
+  background: rgba(228, 180, 94, 0.18);
+  box-shadow: 0 0 0 1px rgba(228, 180, 94, 0.18) inset;
+  color: #fff0c4;
+}
+
+.history-team-title span {
+  color: #bff0db;
+  font-size: 0.74rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.history-team-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.history-team {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 14px;
+}
+
+.history-team.winner {
+  border-color: rgba(71, 191, 143, 0.46);
+}
+
+.history-team-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.history-team-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.history-team h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.history-admin-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.history-admin-event {
+  margin-top: 16px;
+}
+
+.add-team-row {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 14px;
+}
+
+.lore-panel {
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgba(228, 180, 94, 0.4);
+  border-radius: 8px;
+  background: rgba(228, 180, 94, 0.1);
+  padding: clamp(18px, 3vw, 28px);
+  margin-top: 18px;
+}
+
+.lore-panel span {
+  color: #e4b45e;
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.lore-panel p {
+  color: #fff7e6;
+  font-size: clamp(1.15rem, 2vw, 1.5rem);
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.event-detail-teams {
+  margin-top: 18px;
 }
 
 .captain-pair {
@@ -1365,10 +1620,21 @@ dd {
   .tool-grid,
   .team-admin-grid,
   .coinflip-grid,
+  .event-result-grid,
   .assignment-grid,
+  .history-team-grid,
+  .history-admin-grid,
   .hall-page,
   .field-row {
     grid-template-columns: 1fr;
+  }
+
+  .history-card-header {
+    display: grid;
+  }
+
+  .history-links {
+    justify-content: flex-start;
   }
 
   .bid-panel,

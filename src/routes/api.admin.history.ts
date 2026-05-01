@@ -1,0 +1,66 @@
+import { createFileRoute } from '@tanstack/react-router'
+import { requireAdminSession } from '../lib/discord.server'
+import {
+  addHistoricalTeamMember,
+  createManualHistoricalEvent,
+  getAdminHistoricalEvents,
+  setWinningTeam,
+  updateEventAdminSettings,
+  upsertHistoricalTeam,
+} from '../lib/db.server'
+
+export const Route = createFileRoute('/api/admin/history')({
+  server: {
+    handlers: {
+      POST: async ({ request }) => {
+        await requireAdminSession()
+        const body = await request.json().catch(() => ({}))
+        const action = String(body.action ?? '')
+
+        if (action === 'create-event') {
+          await createManualHistoricalEvent({
+            name: String(body.name ?? ''),
+            startsAt: String(body.startsAt ?? ''),
+            server: String(body.server ?? ''),
+          })
+        } else if (action === 'update-event') {
+          await updateEventAdminSettings(String(body.eventId ?? ''), {
+            nameOverride: String(body.nameOverride ?? ''),
+            startsAt: String(body.startsAt ?? ''),
+            server: String(body.server ?? ''),
+            lore: String(body.lore ?? ''),
+            twitchStreamUrl: String(body.twitchStreamUrl ?? ''),
+            twitchVodUrl: String(body.twitchVodUrl ?? ''),
+          })
+        } else if (action === 'upsert-team') {
+          await upsertHistoricalTeam({
+            eventId: String(body.eventId ?? ''),
+            teamId: String(body.teamId ?? '') || undefined,
+            name: String(body.name ?? ''),
+            score: Number(body.score),
+            captainDiscordId: String(body.captainDiscordId ?? ''),
+            captainName: String(body.captainName ?? ''),
+          })
+        } else if (action === 'add-member') {
+          await addHistoricalTeamMember({
+            eventId: String(body.eventId ?? ''),
+            teamId: String(body.teamId ?? ''),
+            discordId: String(body.discordId ?? ''),
+            name: String(body.name ?? ''),
+          })
+        } else if (action === 'winner') {
+          await setWinningTeam(String(body.eventId ?? ''), String(body.teamId ?? ''))
+        } else {
+          throw new Response('Unknown historical admin action', { status: 400 })
+        }
+
+        return Response.json({
+          ok: true,
+          message: 'Historical event saved.',
+          ...(await getAdminHistoricalEvents()),
+        })
+      },
+    },
+  },
+  component: () => null,
+})

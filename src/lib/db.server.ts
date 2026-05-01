@@ -12,6 +12,7 @@ import {
   draftPicks,
   eventParticipants,
   events,
+  participants,
   ratings,
   scoreAdjustments,
   teams,
@@ -25,7 +26,17 @@ import {
   canAcquirePlayer,
   isCaptainPlayer,
 } from './rules'
-import type { Captain, DraftPick, Faction, HammaEvent, Player, Rating, StartingSide } from './types'
+import type {
+  Captain,
+  DraftPick,
+  Faction,
+  HammaEvent,
+  HistoricalEvent,
+  Player,
+  Rating,
+  RegisteredParticipant,
+  StartingSide,
+} from './types'
 
 const dbPath = env('DATABASE_URL', path.join(process.cwd(), 'data', 'hammabowl.sqlite'))
 const BID_INCREMENT = 1_000_000
@@ -77,6 +88,7 @@ export async function upsertEventFromRaidHelper(event: HammaEvent) {
   if (!persistedEvent) throw new Error('Failed to persist Raid Helper event.')
 
   for (const player of event.players) {
+    upsertParticipant(player.id, player.name, now)
     db.insert(eventParticipants)
       .values({
         eventId: persistedEvent.id,
@@ -109,6 +121,7 @@ export async function getDbEvent(eventId: string): Promise<HammaEvent | null> {
     .from(eventParticipants)
     .where(eq(eventParticipants.eventId, event.id))
     .all()
+  const participantNames = getParticipantNameMap(participantRows.map((participant) => participant.discordId))
   const teamRows = db.select().from(teams).where(eq(teams.eventId, event.id)).all()
   const ratingRows = db.select().from(ratings).where(eq(ratings.eventId, event.id)).all()
   const pickRows = db.select().from(draftPicks).where(eq(draftPicks.eventId, event.id)).all()
@@ -121,7 +134,7 @@ export async function getDbEvent(eventId: string): Promise<HammaEvent | null> {
 
   const players: Player[] = participantRows.map((participant) => ({
     id: participant.discordId,
-    name: participant.name,
+    name: participantNames.get(participant.discordId) ?? participant.name,
     outfit: '',
     faction: 'NS',
     status: participant.disqualified ? 'disqualified' : 'signed_up',
@@ -159,7 +172,8 @@ export async function getDbEvent(eventId: string): Promise<HammaEvent | null> {
   return {
     id: event.id,
     raidHelperEventId: event.raidHelperEventId,
-    name: event.name,
+    name: event.nameOverride || event.name,
+    nameOverride: event.nameOverride ?? undefined,
     server: event.server,
     startsAt: event.startsAt,
     closingTime: event.closingTime ?? undefined,
@@ -201,6 +215,9 @@ export async function getDbEvent(eventId: string): Promise<HammaEvent | null> {
         }
       : undefined,
     winningCaptainId: event.winningTeamId ?? undefined,
+    twitchStreamUrl: event.twitchStreamUrl ?? undefined,
+    twitchVodUrl: event.twitchVodUrl ?? undefined,
+    lore: event.lore ?? undefined,
   }
 }
 
@@ -535,9 +552,321 @@ export async function adjustScore(eventId: string, teamId: string, delta: number
   return { team: team.name, score: team.score + delta }
 }
 
-export async function setWinningTeam(eventId: string, teamId: string) {
-  db.update(events).set({ winningTeamId: teamId, phase: 'complete' }).where(eq(events.id, eventId)).run()
+export async function updateEventLinks(eventId: string, values: { twitchStreamUrl?: string; twitchVodUrl?: string }) {
+  const twitchStreamUrl = normalizeOptionalTwitchUrl(values.twitchStreamUrl)
+  const twitchVodUrl = normalizeOptionalTwitchUrl(values.twitchVodUrl)
+
+  db.update(events)
+    .set({
+      twitchStreamUrl,
+      twitchVodUrl,
+      updatedAt: new Date().toISOString(),
+    })
+    .where(eq(events.id, eventId))
+    .run()
+
   return { ok: true }
+}
+
+export async function updateEventAdminSettings(
+  eventId: string,
+  values: {
+    nameOverride?: string
+    startsAt?: string
+    server?: string
+    lore?: string
+    twitchStreamUrl?: string
+    twitchVodUrl?: string
+  },
+) {
+  const event = db.select().from(events).where(eq(events.id, eventId)).get()
+  if (!event) throw new Error('Event not found.')
+
+  const nextStartsAt = values.startsAt?.trim()
+  if (nextStartsAt && Number.isNaN(Date.parse(nextStartsAt))) {
+    throw new Error('Event time must be a valid date.')
+  }
+
+  db.update(events)
+    .set({
+      nameOverride:
+        values.nameOverride === undefined ? event.nameOverride : values.nameOverride.trim() || null,
+      startsAt: nextStartsAt || event.startsAt,
+      server: values.server?.trim() || event.server,
+      lore: values.lore === undefined ? event.lore : values.lore.trim() || null,
+      twitchStreamUrl:
+        values.twitchStreamUrl === undefined
+          ? event.twitchStreamUrl
+          : normalizeOptionalTwitchUrl(values.twitchStreamUrl),
+      twitchVodUrl:
+        values.twitchVodUrl === undefined
+          ? event.twitchVodUrl
+          : normalizeOptionalTwitchUrl(values.twitchVodUrl),
+      updatedAt: new Date().toISOString(),
+    })
+    .where(eq(events.id, eventId))
+    .run()
+
+  return { ok: true }
+}
+
+export async function setWinningTeam(eventId: string, teamId: string) {
+  const team = db
+    .select()
+    .from(teams)
+    .where(and(eq(teams.eventId, eventId), eq(teams.id, teamId)))
+    .get()
+  if (!team) throw new Error('Team not found.')
+
+  const winningMemberIds = new Set<string>()
+  if (team.captainDiscordId) winningMemberIds.add(team.captainDiscordId)
+
+  for (const pick of db.select().from(draftPicks).where(eq(draftPicks.teamId, teamId)).all()) {
+    winningMemberIds.add(pick.playerDiscordId)
+  }
+
+  db.update(eventParticipants)
+    .set({ winner: false, updatedAt: new Date().toISOString() })
+    .where(eq(eventParticipants.eventId, eventId))
+    .run()
+
+  for (const discordId of winningMemberIds) {
+    db.update(eventParticipants)
+      .set({ winner: true, updatedAt: new Date().toISOString() })
+      .where(
+        and(
+          eq(eventParticipants.eventId, eventId),
+          eq(eventParticipants.discordId, discordId),
+        ),
+      )
+      .run()
+  }
+
+  db.update(events)
+    .set({ winningTeamId: teamId, phase: 'complete', updatedAt: new Date().toISOString() })
+    .where(eq(events.id, eventId))
+    .run()
+  return { ok: true, winnerCount: winningMemberIds.size }
+}
+
+export async function getHistoricalEvents(): Promise<HistoricalEvent[]> {
+  const eventRows = db.select().from(events).where(eq(events.phase, 'complete')).all()
+  return eventRows
+    .sort((a, b) => Date.parse(b.startsAt) - Date.parse(a.startsAt))
+    .map((event) => buildHistoricalEvent(event))
+}
+
+export async function getHistoricalEvent(eventId: string): Promise<HistoricalEvent | null> {
+  const event = db.select().from(events).where(eq(events.id, eventId)).get()
+  if (!event || event.phase !== 'complete') return null
+  return buildHistoricalEvent(event)
+}
+
+export async function getAdminHistoricalEvents(): Promise<{
+  events: HistoricalEvent[]
+  participants: RegisteredParticipant[]
+}> {
+  return {
+    events: await getHistoricalEvents(),
+    participants: getRegisteredParticipants(),
+  }
+}
+
+export async function createManualHistoricalEvent(values: {
+  name: string
+  startsAt: string
+  server?: string
+}) {
+  const name = values.name.trim()
+  if (!name) throw new Error('Event name is required.')
+  const startsAt = values.startsAt.trim()
+  if (!startsAt || Number.isNaN(Date.parse(startsAt))) {
+    throw new Error('Event time must be a valid date.')
+  }
+
+  const id = `manual-${crypto.randomUUID()}`
+  const now = new Date().toISOString()
+  db.insert(events)
+    .values({
+      id,
+      raidHelperEventId: id,
+      name,
+      server: values.server?.trim() || 'Manual',
+      startsAt: new Date(startsAt).toISOString(),
+      phase: 'complete',
+      salaryPool: SALARY_POOL,
+      pendingSignupCount: 0,
+      updatedAt: now,
+    })
+    .run()
+
+  return getHistoricalEvent(id)
+}
+
+export async function upsertHistoricalTeam(values: {
+  eventId: string
+  teamId?: string
+  name: string
+  score?: number
+  captainDiscordId?: string
+  captainName?: string
+}) {
+  const event = db.select().from(events).where(eq(events.id, values.eventId)).get()
+  if (!event) throw new Error('Event not found.')
+
+  const name = values.name.trim()
+  if (!name) throw new Error('Team name is required.')
+  const now = new Date().toISOString()
+  const teamId = values.teamId || `${values.eventId}-team-${crypto.randomUUID()}`
+  const captainDiscordId = values.captainDiscordId?.trim() || null
+  if (captainDiscordId) {
+    ensureEventParticipant(
+      values.eventId,
+      captainDiscordId,
+      values.captainName?.trim() || getParticipantName(captainDiscordId) || captainDiscordId,
+      now,
+    )
+  }
+
+  db.insert(teams)
+    .values({
+      id: teamId,
+      eventId: values.eventId,
+      name,
+      captainDiscordId,
+      budget: TEAM_BUDGET,
+      bonusCap: BONUS_CAP,
+      score: Number.isFinite(values.score) ? Number(values.score) : 0,
+    })
+    .onConflictDoUpdate({
+      target: teams.id,
+      set: {
+        name,
+        captainDiscordId,
+        score: Number.isFinite(values.score) ? Number(values.score) : 0,
+      },
+    })
+    .run()
+
+  db.update(events).set({ updatedAt: now }).where(eq(events.id, values.eventId)).run()
+  return getHistoricalEvent(values.eventId)
+}
+
+export async function addHistoricalTeamMember(values: {
+  eventId: string
+  teamId: string
+  discordId: string
+  name?: string
+}) {
+  const discordId = values.discordId.trim()
+  if (!discordId) throw new Error('Discord ID is required.')
+  const team = db
+    .select()
+    .from(teams)
+    .where(and(eq(teams.eventId, values.eventId), eq(teams.id, values.teamId)))
+    .get()
+  if (!team) throw new Error('Team not found.')
+
+  const now = new Date().toISOString()
+  ensureEventParticipant(
+    values.eventId,
+    discordId,
+    values.name?.trim() || getParticipantName(discordId) || discordId,
+    now,
+  )
+
+  const existingPick = db
+    .select()
+    .from(draftPicks)
+    .where(and(eq(draftPicks.eventId, values.eventId), eq(draftPicks.playerDiscordId, discordId)))
+    .get()
+
+  if (existingPick) {
+    db.update(draftPicks)
+      .set({ teamId: values.teamId })
+      .where(eq(draftPicks.id, existingPick.id))
+      .run()
+  } else {
+    db.insert(draftPicks)
+      .values({
+        id: crypto.randomUUID(),
+        eventId: values.eventId,
+        playerDiscordId: discordId,
+        teamId: values.teamId,
+        salary: 0,
+        bonusSpent: 0,
+        confirmedAt: now,
+      })
+      .run()
+  }
+
+  db.update(events).set({ updatedAt: now }).where(eq(events.id, values.eventId)).run()
+  return getHistoricalEvent(values.eventId)
+}
+
+function buildHistoricalEvent(event: typeof events.$inferSelect): HistoricalEvent {
+  const participantRows = db
+    .select()
+    .from(eventParticipants)
+    .where(eq(eventParticipants.eventId, event.id))
+    .all()
+  const teamRows = db.select().from(teams).where(eq(teams.eventId, event.id)).all()
+  const pickRows = db.select().from(draftPicks).where(eq(draftPicks.eventId, event.id)).all()
+  const participantName = getParticipantNameMap(participantRows.map((participant) => participant.discordId))
+
+  const historicalTeams = teamRows.map((team) => {
+    const memberIds = new Set<string>()
+    if (team.captainDiscordId) memberIds.add(team.captainDiscordId)
+    for (const pick of pickRows.filter((candidate) => candidate.teamId === team.id)) {
+      memberIds.add(pick.playerDiscordId)
+    }
+
+    return {
+      id: team.id,
+      name: team.name,
+      captain: team.captainDiscordId ? participantName.get(team.captainDiscordId) : undefined,
+      score: team.score,
+      members: Array.from(memberIds)
+        .map((discordId) => participantName.get(discordId) ?? discordId)
+        .sort((a, b) => a.localeCompare(b)),
+      winner: team.id === event.winningTeamId,
+    }
+  })
+  const winningTeam = historicalTeams.find((team) => team.winner)
+
+  return {
+    id: event.id,
+    name: event.nameOverride || event.name,
+    nameOverride: event.nameOverride ?? undefined,
+    date: event.startsAt,
+    server: event.server,
+    twitchStreamUrl: event.twitchStreamUrl ?? undefined,
+    twitchVodUrl: event.twitchVodUrl ?? undefined,
+    lore: event.lore ?? undefined,
+    winningTeam: winningTeam
+      ? {
+          id: winningTeam.id,
+          name: winningTeam.name,
+          members: participantRows
+            .filter((participant) => participant.winner)
+            .map((participant) => participantName.get(participant.discordId) ?? participant.name)
+            .sort((a, b) => a.localeCompare(b)),
+        }
+      : undefined,
+    teams: historicalTeams,
+  }
+}
+
+function getRegisteredParticipants(): RegisteredParticipant[] {
+  return db
+    .select()
+    .from(participants)
+    .all()
+    .map((participant) => ({
+      discordId: participant.discordId,
+      name: participant.name,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name))
 }
 
 export async function confirmDraftPick(
@@ -897,10 +1226,71 @@ export function isParticipantInAnyEvent(discordId: string) {
   return Boolean(
     db
       .select()
-      .from(eventParticipants)
-      .where(eq(eventParticipants.discordId, discordId))
+      .from(participants)
+      .where(eq(participants.discordId, discordId))
       .get(),
   )
+}
+
+function upsertParticipant(discordId: string, name: string, updatedAt = new Date().toISOString()) {
+  const normalizedId = discordId.trim()
+  if (!normalizedId) throw new Error('Discord ID is required.')
+  const normalizedName = name.trim() || normalizedId
+
+  db.insert(participants)
+    .values({
+      discordId: normalizedId,
+      name: normalizedName,
+      updatedAt,
+    })
+    .onConflictDoUpdate({
+      target: participants.discordId,
+      set: {
+        name: normalizedName,
+        updatedAt,
+      },
+    })
+    .run()
+}
+
+function ensureEventParticipant(eventId: string, discordId: string, name: string, updatedAt = new Date().toISOString()) {
+  upsertParticipant(discordId, name, updatedAt)
+  db.insert(eventParticipants)
+    .values({
+      eventId,
+      discordId,
+      name: name.trim() || discordId,
+      status: 'signed_up',
+      updatedAt,
+    })
+    .onConflictDoUpdate({
+      target: [eventParticipants.eventId, eventParticipants.discordId],
+      set: {
+        name: name.trim() || discordId,
+        updatedAt,
+      },
+    })
+    .run()
+}
+
+function getParticipantNameMap(discordIds: string[]) {
+  const wanted = new Set(discordIds)
+  return new Map(
+    db
+      .select()
+      .from(participants)
+      .all()
+      .filter((participant) => wanted.has(participant.discordId))
+      .map((participant) => [participant.discordId, participant.name]),
+  )
+}
+
+function getParticipantName(discordId: string) {
+  return db
+    .select()
+    .from(participants)
+    .where(eq(participants.discordId, discordId))
+    .get()?.name
 }
 
 function bootstrap() {
@@ -909,6 +1299,7 @@ function bootstrap() {
       id TEXT PRIMARY KEY,
       raid_helper_event_id TEXT NOT NULL UNIQUE,
       name TEXT NOT NULL,
+      name_override TEXT,
       server TEXT NOT NULL,
       starts_at TEXT NOT NULL,
       closing_time TEXT,
@@ -919,6 +1310,14 @@ function bootstrap() {
       available_sides TEXT NOT NULL DEFAULT '["north","south"]',
       next_pick_team_id TEXT REFERENCES teams(id) ON DELETE SET NULL,
       winning_team_id TEXT,
+      twitch_stream_url TEXT,
+      twitch_vod_url TEXT,
+      lore TEXT,
+      updated_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS participants (
+      discord_id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
     CREATE TABLE IF NOT EXISTS event_participants (
@@ -927,6 +1326,7 @@ function bootstrap() {
       name TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'signed_up',
       disqualified INTEGER NOT NULL DEFAULT 0,
+      winner INTEGER NOT NULL DEFAULT 0,
       updated_at TEXT NOT NULL,
       PRIMARY KEY (event_id, discord_id)
     );
@@ -997,10 +1397,16 @@ function bootstrap() {
       updated_at TEXT
     );
   `)
+  addColumnIfMissing('events', 'name_override', 'TEXT')
   addColumnIfMissing('events', 'pending_signup_count', 'INTEGER NOT NULL DEFAULT 0')
   addColumnIfMissing('events', 'available_factions', `TEXT NOT NULL DEFAULT '["VS","NC","TR"]'`)
   addColumnIfMissing('events', 'available_sides', `TEXT NOT NULL DEFAULT '["north","south"]'`)
   addColumnIfMissing('events', 'next_pick_team_id', 'TEXT REFERENCES teams(id) ON DELETE SET NULL')
+  addColumnIfMissing('events', 'winning_team_id', 'TEXT')
+  addColumnIfMissing('events', 'twitch_stream_url', 'TEXT')
+  addColumnIfMissing('events', 'twitch_vod_url', 'TEXT')
+  addColumnIfMissing('events', 'lore', 'TEXT')
+  addColumnIfMissing('event_participants', 'winner', 'INTEGER NOT NULL DEFAULT 0')
   addColumnIfMissing('coinflips', 'calling_team_id', 'TEXT REFERENCES teams(id) ON DELETE SET NULL')
   addColumnIfMissing('coinflips', 'caller_call', 'TEXT')
   addColumnIfMissing('coinflips', 'winner_choice_type', 'TEXT')
@@ -1008,6 +1414,15 @@ function bootstrap() {
   addColumnIfMissing('coinflips', 'winner_starting_side', 'TEXT')
   addColumnIfMissing('coinflips', 'first_pick_team_id', 'TEXT REFERENCES teams(id) ON DELETE SET NULL')
   addColumnIfMissing('coinflips', 'updated_at', 'TEXT')
+  sqlite.exec(`
+    INSERT INTO participants (discord_id, name, updated_at)
+    SELECT discord_id, name, MAX(updated_at)
+    FROM event_participants
+    GROUP BY discord_id
+    ON CONFLICT(discord_id) DO UPDATE SET
+      name = excluded.name,
+      updated_at = excluded.updated_at;
+  `)
 }
 
 function addColumnIfMissing(table: string, column: string, definition: string) {
@@ -1071,6 +1486,28 @@ function normalizeSideList(values: unknown): StartingSide[] {
     .map((value) => normalizeStartingSide(String(value)))
     .filter((value): value is StartingSide => Boolean(value))
   return Array.from(new Set(sides))
+}
+
+function normalizeOptionalTwitchUrl(value: string | undefined) {
+  const trimmed = value?.trim()
+  if (!trimmed) return null
+
+  let url: URL
+  try {
+    url = new URL(trimmed)
+  } catch {
+    throw new Error('Twitch links must be valid URLs.')
+  }
+
+  const hostname = url.hostname.toLowerCase()
+  if (
+    url.protocol !== 'https:' ||
+    (hostname !== 'twitch.tv' && !hostname.endsWith('.twitch.tv'))
+  ) {
+    throw new Error('Twitch links must use twitch.tv HTTPS URLs.')
+  }
+
+  return url.toString()
 }
 
 function formatSide(value: StartingSide) {
