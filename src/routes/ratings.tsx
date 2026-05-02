@@ -91,6 +91,13 @@ function Ratings() {
       ) ?? [],
     [event, selectedRaterId],
   )
+  const selectedRater = useMemo(
+    () => raterOptions.find((player) => player.id === selectedRaterId),
+    [raterOptions, selectedRaterId],
+  )
+  const showingOtherRaterSubmissions = Boolean(
+    isAdmin && user && selectedRaterId && selectedRaterId !== user.id,
+  )
 
   const ratedCount = useMemo(
     () => players.filter((p) => ratings[p.id] !== undefined).length,
@@ -371,6 +378,11 @@ function Ratings() {
         {message ? (
           <div className={`toast toast-${message.tone}`} role="status" aria-live="polite">
             {message.text}
+          </div>
+        ) : null}
+        {showingOtherRaterSubmissions ? (
+          <div className="rating-admin-warning" role="alert">
+            You are viewing and editing {selectedRater?.name ?? 'another rater'}'s submissions, not your own.
           </div>
         ) : null}
         {event && canRate ? (

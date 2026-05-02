@@ -2409,6 +2409,18 @@ dd {
   overflow: hidden;
 }
 
+.rating-admin-warning {
+  border: 1px solid rgba(255, 92, 92, 0.68);
+  border-radius: 8px;
+  background: rgba(142, 18, 18, 0.34);
+  color: #ffd6d6;
+  font-size: 0.9rem;
+  font-weight: 800;
+  line-height: 1.35;
+  padding: 12px 14px;
+  margin-bottom: 18px;
+}
+
 .rating-legend {
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
