@@ -113,14 +113,7 @@ type EventTime = {
 }
 
 function buildEventTimes(event: HammaEvent) {
-  const times: EventTime[] = [
-    {
-      label: 'Event start',
-      time: event.startsAt,
-      className: 'event-time-badge-start',
-      icon: CalendarClock,
-    },
-  ]
+  const times: EventTime[] = []
 
   if (event.closingTime) {
     times.push({
@@ -143,6 +136,13 @@ function buildEventTimes(event: HammaEvent) {
       })
     }
   }
+
+  times.push({
+    label: 'Event start',
+    time: event.startsAt,
+    className: 'event-time-badge-start',
+    icon: CalendarClock,
+  })
 
   return times
 }
