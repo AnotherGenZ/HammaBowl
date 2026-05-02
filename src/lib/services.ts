@@ -2,7 +2,7 @@ import { createServerOnlyFn } from '@tanstack/start-fn-stubs'
 import {
   buildTeamCompositionMessage,
   createRaidHelperClient,
-  hydrateEventFromRaidHelper,
+  hydrateCurrentEventsFromRaidHelper,
   isRaidHelperConfigured,
 } from './raidHelper'
 import type { HammaEvent, Role } from './types'
@@ -27,6 +27,18 @@ export async function getCurrentEvent(options: { force?: boolean } = {}): Promis
   }
 
   return getCurrentEventServer(options)
+}
+
+export async function getCurrentEvents(options: { force?: boolean } = {}): Promise<HammaEvent[]> {
+  if (typeof window !== 'undefined') {
+    const response = await fetch('/api/event/current/events')
+    if (!response.ok) throw new Error(await response.text())
+    return response.json()
+  }
+
+  const event = await getCurrentEvent(options)
+  const events = await getCurrentEventsFromDb()
+  return events.length ? events : event ? [event] : []
 }
 
 const getCurrentEventServer = createServerOnlyFn(
@@ -63,6 +75,16 @@ export async function requireCurrentEvent(): Promise<HammaEvent> {
   return event
 }
 
+export async function requireEventByIdOrCurrent(eventId?: string): Promise<HammaEvent> {
+  const trimmedEventId = eventId?.trim()
+  if (!trimmedEventId) return requireCurrentEvent()
+
+  const { getDbEvent } = await import('./db.server')
+  const event = await getDbEvent(trimmedEventId)
+  if (!event) throw new Response('Event not found.', { status: 404 })
+  return event
+}
+
 export async function getSessionUser(): Promise<SessionUser | null> {
   return null
 }
@@ -77,10 +99,17 @@ const getCurrentEventFromDb = createServerOnlyFn(async () => {
   return getCurrentDbEvent()
 })
 
-const upsertRaidHelperEvent = createServerOnlyFn(async (event: HammaEvent) => {
-  const { getDbEvent, upsertEventFromRaidHelper } = await import('./db.server')
-  const eventId = await upsertEventFromRaidHelper(event)
-  return (await getDbEvent(eventId)) ?? event
+const getCurrentEventsFromDb = createServerOnlyFn(async () => {
+  const { getCurrentDbEvents } = await import('./db.server')
+  return getCurrentDbEvents()
+})
+
+const upsertRaidHelperEvents = createServerOnlyFn(async (events: HammaEvent[]) => {
+  const { getCurrentDbEvent, upsertEventFromRaidHelper } = await import('./db.server')
+  for (const event of events) {
+    await upsertEventFromRaidHelper(event)
+  }
+  return getCurrentDbEvent()
 })
 
 function isRaidHelperRefreshDue() {
@@ -110,13 +139,13 @@ function refreshCurrentEventFromRaidHelper(options: {
 
   raidHelperRefreshPromise = (async () => {
     try {
-      const event = await hydrateEventFromRaidHelper()
-      if (!event) {
+      const events = await hydrateCurrentEventsFromRaidHelper()
+      if (!events.length) {
         eventCache = options.fallbackEvent ?? null
         return options.fallbackEvent ?? null
       }
 
-      const dbEvent = await upsertRaidHelperEvent(event)
+      const dbEvent = await upsertRaidHelperEvents(events)
       eventCache = dbEvent
       return dbEvent
     } catch (error) {

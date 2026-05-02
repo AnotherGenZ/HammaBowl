@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { GeneralAdminTools } from '../components/AdminTools'
 import { pageMeta } from '../lib/meta'
+import { getCurrentEvent, getCurrentEvents } from '../lib/services'
 import { AdminNav } from './admin'
 
 const requireGeneralAdmin = createServerFn({ method: 'GET' }).handler(async () => {
@@ -11,7 +12,14 @@ const requireGeneralAdmin = createServerFn({ method: 'GET' }).handler(async () =
 })
 
 export const Route = createFileRoute('/admin_/general')({
-  loader: () => requireGeneralAdmin(),
+  loader: async () => {
+    await requireGeneralAdmin()
+    const event = await getCurrentEvent()
+    return {
+      event,
+      currentEvents: await getCurrentEvents(),
+    }
+  },
   head: () =>
     pageMeta({
       title: 'General Admin',
@@ -23,10 +31,12 @@ export const Route = createFileRoute('/admin_/general')({
 })
 
 function GeneralAdmin() {
+  const { event, currentEvents } = Route.useLoaderData()
+
   return (
     <main>
       <AdminNav />
-      <GeneralAdminTools />
+      <GeneralAdminTools event={event} currentEvents={currentEvents} />
     </main>
   )
 }

@@ -73,7 +73,9 @@ export interface HammaEvent {
   nameOverride?: string
   server: string
   startsAt: string
+  endsAt?: string
   closingTime?: string
+  draftStartMinutesBefore?: number
   phase: 'signups' | 'rating' | 'draft' | 'locked' | 'complete'
   salaryPool: number
   pendingPlayerCount: number

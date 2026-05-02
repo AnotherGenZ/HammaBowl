@@ -8,7 +8,9 @@ export const events = sqliteTable('events', {
   nameOverride: text('name_override'),
   server: text('server').notNull(),
   startsAt: text('starts_at').notNull(),
+  endsAt: text('ends_at'),
   closingTime: text('closing_time'),
+  draftStartMinutesBefore: integer('draft_start_minutes_before'),
   phase: text('phase').notNull().default('signups'),
   salaryPool: integer('salary_pool').notNull().default(250_000_000),
   pendingSignupCount: integer('pending_signup_count').notNull().default(0),
@@ -19,6 +21,12 @@ export const events = sqliteTable('events', {
   twitchStreamUrl: text('twitch_stream_url'),
   twitchVodUrl: text('twitch_vod_url'),
   lore: text('lore'),
+  updatedAt: text('updated_at').notNull(),
+})
+
+export const appSettings = sqliteTable('app_settings', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
   updatedAt: text('updated_at').notNull(),
 })
 

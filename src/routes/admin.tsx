@@ -2,15 +2,21 @@ import { Link, createFileRoute } from '@tanstack/react-router'
 import { AdminTools } from '../components/AdminTools'
 import { pageMeta } from '../lib/meta'
 import { useSession } from '../lib/SessionContext'
-import { getCurrentEvent } from '../lib/services'
+import { getCurrentEvent, getCurrentEvents } from '../lib/services'
 
 export const Route = createFileRoute('/admin')({
-  loader: () => getCurrentEvent(),
+  loader: async () => {
+    const event = await getCurrentEvent()
+    return {
+      event,
+      currentEvents: await getCurrentEvents(),
+    }
+  },
   head: ({ loaderData }) =>
     pageMeta({
-      title: loaderData ? `${loaderData.name} Admin` : 'Admin',
-      description: loaderData
-        ? `Private admin controls for ${loaderData.name}.`
+      title: loaderData?.event ? `${loaderData.event.name} Admin` : 'Admin',
+      description: loaderData?.event
+        ? `Private admin controls for ${loaderData.event.name}.`
         : 'Private HammaBowl admin controls.',
       path: '/admin',
       noIndex: true,
@@ -19,7 +25,7 @@ export const Route = createFileRoute('/admin')({
 })
 
 function Admin() {
-  const event = Route.useLoaderData()
+  const { event, currentEvents } = Route.useLoaderData()
   const { user, loading } = useSession()
 
   const isAdmin = user?.roles.includes('admin')
@@ -34,7 +40,7 @@ function Admin() {
       ) : isAdmin && event ? (
         <>
           <AdminNav />
-          <AdminTools event={event} />
+          <AdminTools event={event} currentEvents={currentEvents} />
         </>
       ) : isAdmin ? (
         <>
@@ -58,7 +64,7 @@ export function AdminNav() {
   return (
     <nav className="admin-tabs" aria-label="Admin sections">
       <Link to="/admin" activeOptions={{ exact: true }} activeProps={{ className: 'active' }}>
-        Current event
+        Event Configuration
       </Link>
       <Link to="/admin/general" activeOptions={{ exact: true }} activeProps={{ className: 'active' }}>
         General

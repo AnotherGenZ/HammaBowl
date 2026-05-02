@@ -10,6 +10,7 @@ import { env } from './env'
 import { normalizeProfileBanner } from './profileBanners'
 import {
   activeDraftBids,
+  appSettings,
   badgeDefinitions,
   coinflips,
   draftPicks,
@@ -56,6 +57,7 @@ import type {
 
 const dbPath = env('DATABASE_URL', path.join(process.cwd(), 'data', 'hammabowl.sqlite'))
 const BID_INCREMENT = 1_000_000
+const ACTIVE_EVENT_SETTING_KEY = 'active_event_id'
 fs.mkdirSync(path.dirname(dbPath), { recursive: true })
 
 const sqlite = new Database(dbPath)
@@ -76,7 +78,9 @@ export async function upsertEventFromRaidHelper(event: HammaEvent) {
       name: event.name,
       server: event.server,
       startsAt: event.startsAt,
+      endsAt: event.endsAt,
       closingTime: event.closingTime,
+      draftStartMinutesBefore: event.draftStartMinutesBefore,
     phase: event.phase,
     salaryPool: event.salaryPool,
     pendingSignupCount: event.pendingPlayerCount ?? 0,
@@ -89,6 +93,7 @@ export async function upsertEventFromRaidHelper(event: HammaEvent) {
       set: {
         name: event.name,
         startsAt: event.startsAt,
+        endsAt: event.endsAt,
         closingTime: event.closingTime,
         pendingSignupCount: event.pendingPlayerCount ?? 0,
         updatedAt: now,
@@ -221,7 +226,9 @@ export async function getDbEvent(eventId: string): Promise<HammaEvent | null> {
     nameOverride: event.nameOverride ?? undefined,
     server: event.server,
     startsAt: event.startsAt,
+    endsAt: event.endsAt ?? undefined,
     closingTime: event.closingTime ?? undefined,
+    draftStartMinutesBefore: event.draftStartMinutesBefore ?? undefined,
     phase: event.phase as HammaEvent['phase'],
     salaryPool: event.salaryPool,
     pendingPlayerCount: event.pendingSignupCount,
@@ -267,34 +274,82 @@ export async function getDbEvent(eventId: string): Promise<HammaEvent | null> {
 }
 
 export async function getCurrentDbEvent(): Promise<HammaEvent | null> {
-  const eventRows = db.select().from(events).all()
-  if (!eventRows.length) return null
-
-  const configuredRaidHelperEventId = env('RAID_HELPER_EVENT_ID')
-  const configuredEvent = configuredRaidHelperEventId
-    ? eventRows.find((event) => event.raidHelperEventId === configuredRaidHelperEventId)
-    : undefined
-
-  const selected = configuredEvent ?? selectCurrentDbEventRow(eventRows)
+  const selected = await getCurrentDbEventRow()
   return selected ? getDbEvent(selected.id) : null
 }
 
-function selectCurrentDbEventRow<T extends { startsAt: string; updatedAt: string }>(eventRows: T[]) {
+export async function getCurrentDbEvents(): Promise<HammaEvent[]> {
+  const eventRows = db.select().from(events).all()
+  const currentRows = selectCurrentDbEventRows(eventRows)
+  return Promise.all(currentRows.map((event) => getDbEvent(event.id))).then((items) =>
+    items.filter((event): event is HammaEvent => Boolean(event)),
+  )
+}
+
+async function getCurrentDbEventRow() {
+  const eventRows = db.select().from(events).all()
+  if (!eventRows.length) return null
+
+  const currentRows = selectCurrentDbEventRows(eventRows)
+  const activeEventId = getActiveEventId()
+  const activeEvent = activeEventId
+    ? eventRows.find((event) => event.id === activeEventId)
+    : undefined
+  if (activeEvent) return activeEvent
+
+  const configuredRaidHelperEventId = env('RAID_HELPER_EVENT_ID')
+  const configuredEvent = configuredRaidHelperEventId
+    ? currentRows.find((event) => event.raidHelperEventId === configuredRaidHelperEventId)
+    : undefined
+
+  const selected = configuredEvent ?? currentRows[0] ?? null
+  if (selected) setActiveEventId(selected.id)
+  return selected
+}
+
+function selectCurrentDbEventRows<T extends { startsAt: string; endsAt: string | null }>(eventRows: T[]) {
   const now = Date.now()
   const byStartsAtAsc = (a: T, b: T) =>
     new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime()
-  const byStartsAtDesc = (a: T, b: T) =>
-    new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime()
-  const byUpdatedAtDesc = (a: T, b: T) =>
-    new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
 
-  return (
-    eventRows
-      .filter((event) => new Date(event.startsAt).getTime() >= now)
-      .sort(byStartsAtAsc)[0] ??
-    [...eventRows].sort(byStartsAtDesc)[0] ??
-    [...eventRows].sort(byUpdatedAtDesc)[0]
-  )
+  return eventRows
+    .filter((event) => {
+      const startsAt = new Date(event.startsAt).getTime()
+      const endsAt = event.endsAt ? new Date(event.endsAt).getTime() : Number.NaN
+      return startsAt > now && endsAt > now
+    })
+    .sort(byStartsAtAsc)
+}
+
+function getActiveEventId() {
+  return db
+    .select()
+    .from(appSettings)
+    .where(eq(appSettings.key, ACTIVE_EVENT_SETTING_KEY))
+    .get()?.value
+}
+
+function setActiveEventId(eventId: string) {
+  const now = new Date().toISOString()
+  db.insert(appSettings)
+    .values({ key: ACTIVE_EVENT_SETTING_KEY, value: eventId, updatedAt: now })
+    .onConflictDoUpdate({
+      target: appSettings.key,
+      set: { value: eventId, updatedAt: now },
+    })
+    .run()
+}
+
+export async function setActiveEvent(eventId: string): Promise<HammaEvent> {
+  const currentRows = selectCurrentDbEventRows(db.select().from(events).all())
+  const event = currentRows.find((row) => row.id === eventId)
+  if (!event) throw new Error('Active event must be one of the current events.')
+
+  setActiveEventId(event.id)
+
+  const hydrated = await getDbEvent(event.id)
+  if (!hydrated) throw new Error('Event not found.')
+  return hydrated
 }
 
 export async function ensureDefaultTeams(event: HammaEvent) {
@@ -653,6 +708,7 @@ export async function updateEventAdminSettings(
     lore?: string
     twitchStreamUrl?: string
     twitchVodUrl?: string
+    draftStartMinutesBefore?: string
   },
 ) {
   const event = db.select().from(events).where(eq(events.id, eventId)).get()
@@ -662,6 +718,10 @@ export async function updateEventAdminSettings(
   if (nextStartsAt && Number.isNaN(Date.parse(nextStartsAt))) {
     throw new Error('Event time must be a valid date.')
   }
+  const nextDraftStartMinutesBefore = normalizeDraftStartMinutesBefore(
+    values.draftStartMinutesBefore,
+    event.draftStartMinutesBefore,
+  )
 
   db.update(events)
     .set({
@@ -678,12 +738,27 @@ export async function updateEventAdminSettings(
         values.twitchVodUrl === undefined
           ? event.twitchVodUrl
           : normalizeOptionalTwitchUrl(values.twitchVodUrl),
+      draftStartMinutesBefore: nextDraftStartMinutesBefore,
       updatedAt: new Date().toISOString(),
     })
     .where(eq(events.id, eventId))
     .run()
 
   return { ok: true }
+}
+
+function normalizeDraftStartMinutesBefore(value: string | undefined, current: number | null) {
+  if (value === undefined) return current
+
+  const trimmed = value.trim()
+  if (!trimmed) return null
+
+  const minutes = Number(trimmed)
+  if (!Number.isInteger(minutes) || minutes < 0 || minutes > 24 * 60) {
+    throw new Error('Draft start offset must be a whole number of minutes from 0 to 1440.')
+  }
+
+  return minutes
 }
 
 export async function setWinningTeam(eventId: string, teamId: string) {
@@ -2182,7 +2257,9 @@ function bootstrap() {
       name_override TEXT,
       server TEXT NOT NULL,
       starts_at TEXT NOT NULL,
+      ends_at TEXT,
       closing_time TEXT,
+      draft_start_minutes_before INTEGER,
       phase TEXT NOT NULL DEFAULT 'signups',
       salary_pool INTEGER NOT NULL DEFAULT ${SALARY_POOL},
       pending_signup_count INTEGER NOT NULL DEFAULT 0,
@@ -2193,6 +2270,11 @@ function bootstrap() {
       twitch_stream_url TEXT,
       twitch_vod_url TEXT,
       lore TEXT,
+      updated_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS app_settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
     CREATE TABLE IF NOT EXISTS participants (
@@ -2327,6 +2409,8 @@ function bootstrap() {
     );
   `)
   addColumnIfMissing('events', 'name_override', 'TEXT')
+  addColumnIfMissing('events', 'ends_at', 'TEXT')
+  addColumnIfMissing('events', 'draft_start_minutes_before', 'INTEGER')
   addColumnIfMissing('events', 'pending_signup_count', 'INTEGER NOT NULL DEFAULT 0')
   addColumnIfMissing('events', 'available_factions', `TEXT NOT NULL DEFAULT '["VS","NC","TR"]'`)
   addColumnIfMissing('events', 'available_sides', `TEXT NOT NULL DEFAULT '["north","south"]'`)

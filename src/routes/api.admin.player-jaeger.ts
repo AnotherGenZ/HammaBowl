@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { requireAdminSession } from '../lib/discord.server'
 import { getAdminPlayerCharacterConfigs, savePlayerCharacters } from '../lib/db.server'
 import { resolveJaegerCharacter } from '../lib/census.server'
+import { publishEventUpdate } from '../lib/realtime.server'
 import type { Faction } from '../lib/types'
 
 const FACTIONS: Faction[] = ['TR', 'VS', 'NC']
@@ -26,6 +27,7 @@ export const Route = createFileRoute('/api/admin/player-jaeger')({
         )
 
         savePlayerCharacters(discordId, resolved)
+        publishEventUpdate('general', 'player.jaeger.updated')
         return Response.json({
           ok: true,
           message: 'Jaeger characters updated.',

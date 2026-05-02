@@ -7,6 +7,7 @@ import {
   unassignManualBadge,
   updateManualBadgeColor,
 } from '../lib/db.server'
+import { publishEventUpdate } from '../lib/realtime.server'
 
 export const Route = createFileRoute('/api/admin/badges')({
   server: {
@@ -27,7 +28,7 @@ export const Route = createFileRoute('/api/admin/badges')({
         }
 
         if (body.action === 'create') {
-          return Response.json({
+          const result = {
             ok: true,
             message: 'Badge created.',
             ...createManualBadge({
@@ -35,31 +36,39 @@ export const Route = createFileRoute('/api/admin/badges')({
               description: String(body.description ?? ''),
               color: String(body.color ?? ''),
             }),
-          })
+          }
+          publishEventUpdate('general', 'badges.updated')
+          return Response.json(result)
         }
 
         if (body.action === 'update-color') {
-          return Response.json({
+          const result = {
             ok: true,
             message: 'Badge color updated.',
             ...updateManualBadgeColor(String(body.badgeId ?? ''), String(body.color ?? '')),
-          })
+          }
+          publishEventUpdate('general', 'badges.updated')
+          return Response.json(result)
         }
 
         if (body.action === 'assign') {
-          return Response.json({
+          const result = {
             ok: true,
             message: 'Badge assigned.',
             ...assignManualBadge(String(body.badgeId ?? ''), String(body.discordId ?? '')),
-          })
+          }
+          publishEventUpdate('general', 'badges.updated')
+          return Response.json(result)
         }
 
         if (body.action === 'unassign') {
-          return Response.json({
+          const result = {
             ok: true,
             message: 'Badge assignment removed.',
             ...unassignManualBadge(String(body.badgeId ?? ''), String(body.discordId ?? '')),
-          })
+          }
+          publishEventUpdate('general', 'badges.updated')
+          return Response.json(result)
         }
 
         throw new Response('Unknown badge action.', { status: 400 })

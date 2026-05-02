@@ -6,6 +6,7 @@ import {
   resetPlayerCatchphrase,
   unassignPlayerManualBadge,
 } from '../lib/db.server'
+import { publishEventUpdate } from '../lib/realtime.server'
 
 export const Route = createFileRoute('/api/admin/player-profile')({
   server: {
@@ -26,27 +27,33 @@ export const Route = createFileRoute('/api/admin/player-profile')({
         const badgeId = String(body.badgeId ?? '')
 
         if (body.action === 'assign') {
-          return Response.json({
+          const result = {
             ok: true,
             message: 'Badge assigned.',
             ...assignPlayerManualBadge(discordId, badgeId),
-          })
+          }
+          publishEventUpdate('general', 'badges.updated')
+          return Response.json(result)
         }
 
         if (body.action === 'unassign') {
-          return Response.json({
+          const result = {
             ok: true,
             message: 'Badge removed.',
             ...unassignPlayerManualBadge(discordId, badgeId),
-          })
+          }
+          publishEventUpdate('general', 'badges.updated')
+          return Response.json(result)
         }
 
         if (body.action === 'reset-catchphrase') {
-          return Response.json({
+          const result = {
             ok: true,
             message: 'Catchphrase reset.',
             ...resetPlayerCatchphrase(discordId),
-          })
+          }
+          publishEventUpdate('general', 'player.profile.updated')
+          return Response.json(result)
         }
 
         throw new Response('Unknown profile action.', { status: 400 })

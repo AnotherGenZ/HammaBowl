@@ -25,7 +25,11 @@ export function EventSummary({ event }: { event: HammaEvent }) {
           ) : null}
         </div>
       </div>
-      <Countdown target={event.closingTime} />
+      <Countdown
+        closingTime={event.closingTime}
+        startsAt={event.startsAt}
+        draftStartMinutesBefore={event.draftStartMinutesBefore}
+      />
       <div className="stat-strip">
         <Metric label="Salary pool" value={money(event.salaryPool)} />
         <Metric label="Signups" value={event.players.length.toString()} />

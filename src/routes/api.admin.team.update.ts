@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { requireAdminSession } from '../lib/discord.server'
-import { clearCurrentEventCache, requireCurrentEvent } from '../lib/services'
+import { clearCurrentEventCache, requireEventByIdOrCurrent } from '../lib/services'
 import { getDbEvent, updateTeamSettings } from '../lib/db.server'
 import { publishEventUpdate } from '../lib/realtime.server'
 
@@ -9,8 +9,8 @@ export const Route = createFileRoute('/api/admin/team/update')({
     handlers: {
       POST: async ({ request }) => {
         await requireAdminSession()
-        const event = await requireCurrentEvent()
         const body = await request.json()
+        const event = await requireEventByIdOrCurrent(String(body.eventId ?? ''))
 
         await updateTeamSettings(event.id, String(body.teamId ?? ''), {
           name: String(body.name ?? ''),

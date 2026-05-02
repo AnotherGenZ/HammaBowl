@@ -7,6 +7,7 @@ import {
 } from '../lib/db.server'
 import { resolveJaegerCharacter } from '../lib/census.server'
 import { isProfileBanner } from '../lib/profileBanners'
+import { publishEventUpdate } from '../lib/realtime.server'
 import type { Faction } from '../lib/types'
 
 const FACTIONS: Faction[] = ['TR', 'VS', 'NC']
@@ -41,15 +42,15 @@ export const Route = createFileRoute('/api/profile')({
         if ('bannerUrl' in body && body.bannerUrl && !isProfileBanner(body.bannerUrl)) {
           throw new Response('Choose one of the available profile banners.', { status: 400 })
         }
-        return Response.json({
-          profile: updatePlayerProfile(user.id, {
+        const profile = updatePlayerProfile(user.id, {
             bannerUrl: 'bannerUrl' in body ? String(body.bannerUrl ?? '') : undefined,
             catchphrase: 'catchphrase' in body ? String(body.catchphrase ?? '') : undefined,
             noPersonalJaegerAccount:
               'noPersonalJaegerAccount' in body ? Boolean(body.noPersonalJaegerAccount) : undefined,
             badgeDisplayOrder: Array.isArray(body.badgeDisplayOrder) ? body.badgeDisplayOrder : undefined,
-          }),
-        })
+          })
+        publishEventUpdate('general', 'player.profile.updated')
+        return Response.json({ profile })
       },
       PUT: async ({ request }) => {
         const user = await requireUser()
@@ -57,7 +58,9 @@ export const Route = createFileRoute('/api/profile')({
         const resolved = await Promise.all(
           FACTIONS.map((faction) => resolveJaegerCharacter(faction, String(body[faction] ?? ''))),
         )
-        return Response.json({ profile: savePlayerCharacters(user.id, resolved), resolved })
+        const profile = savePlayerCharacters(user.id, resolved)
+        publishEventUpdate('general', 'player.jaeger.updated')
+        return Response.json({ profile, resolved })
       },
     },
   },

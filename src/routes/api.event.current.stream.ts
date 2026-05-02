@@ -7,6 +7,8 @@ export const Route = createFileRoute('/api/event/current/stream')({
   server: {
     handlers: {
       GET: async ({ request }) => {
+        const url = new URL(request.url)
+        const eventId = url.searchParams.get('eventId')
         const stream = new ReadableStream({
           start(controller) {
             const send = (event: string, data: unknown) => {
@@ -18,6 +20,7 @@ export const Route = createFileRoute('/api/event/current/stream')({
             send('connected', { at: new Date().toISOString() })
 
             const unsubscribe = subscribeToEventUpdates((message) => {
+              if (eventId && message.eventId !== eventId) return
               send('event-update', message)
             })
             const heartbeat = setInterval(() => {

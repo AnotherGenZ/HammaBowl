@@ -1,16 +1,39 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { requireAdminSession } from '../lib/discord.server'
-import { getDbEvent, updateEventAdminSettings } from '../lib/db.server'
+import { getDbEvent, setActiveEvent, updateEventAdminSettings } from '../lib/db.server'
 import { publishEventUpdate } from '../lib/realtime.server'
-import { clearCurrentEventCache, requireCurrentEvent } from '../lib/services'
+import { clearCurrentEventCache, getCurrentEvent, getCurrentEvents, requireCurrentEvent } from '../lib/services'
 
 export const Route = createFileRoute('/api/admin/event')({
   server: {
     handlers: {
+      GET: async ({ request }) => {
+        await requireAdminSession()
+        const url = new URL(request.url)
+        const eventId = url.searchParams.get('eventId')?.trim()
+        const event = eventId ? await getDbEvent(eventId) : await getCurrentEvent()
+
+        return Response.json({
+          event,
+          currentEvents: await getCurrentEvents(),
+        })
+      },
       POST: async ({ request }) => {
         await requireAdminSession()
-        const currentEvent = await requireCurrentEvent()
         const body = await request.json()
+
+        if ('activeEventId' in body) {
+          const event = await setActiveEvent(String(body.activeEventId ?? ''))
+          clearCurrentEventCache()
+          publishEventUpdate(event.id, 'event.active.updated')
+          return Response.json({
+            ok: true,
+            message: 'Active event updated.',
+            event,
+          })
+        }
+
+        const currentEvent = await requireCurrentEvent()
         const eventId = String(body.eventId || currentEvent.id)
 
         await updateEventAdminSettings(eventId, {
@@ -21,6 +44,10 @@ export const Route = createFileRoute('/api/admin/event')({
           twitchStreamUrl:
             'twitchStreamUrl' in body ? String(body.twitchStreamUrl ?? '') : undefined,
           twitchVodUrl: 'twitchVodUrl' in body ? String(body.twitchVodUrl ?? '') : undefined,
+          draftStartMinutesBefore:
+            'draftStartMinutesBefore' in body
+              ? String(body.draftStartMinutesBefore ?? '')
+              : undefined,
         })
 
         clearCurrentEventCache()

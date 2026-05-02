@@ -975,6 +975,30 @@ dd {
   margin-bottom: 20px;
 }
 
+.admin-heading-control {
+  display: grid;
+  gap: 6px;
+  min-width: min(360px, 100%);
+  color: #b4bcbb;
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.admin-heading-control select {
+  min-height: 40px;
+  min-width: 0;
+  width: 100%;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: #121417;
+  color: #f4f0e8;
+  padding: 0 10px;
+  text-transform: none;
+  font-weight: 600;
+  transition: border-color 120ms ease;
+}
+
 .table-wrap {
   overflow-x: auto;
   max-height: min(540px, 60vh);

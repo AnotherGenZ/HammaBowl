@@ -29,7 +29,10 @@ export function useRealtimeCurrentEvent(initialEvent: HammaEvent | null, enabled
       }
     }
 
-    const source = new EventSource('/api/event/current/stream')
+    const streamUrl = event?.id
+      ? `/api/event/current/stream?eventId=${encodeURIComponent(event.id)}`
+      : '/api/event/current/stream'
+    const source = new EventSource(streamUrl)
     source.addEventListener('event-update', () => {
       void refresh()
     })
@@ -38,7 +41,7 @@ export function useRealtimeCurrentEvent(initialEvent: HammaEvent | null, enabled
       active = false
       source.close()
     }
-  }, [enabled])
+  }, [enabled, event?.id])
 
   return [event, setEvent] as const
 }

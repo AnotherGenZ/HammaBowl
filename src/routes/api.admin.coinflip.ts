@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { requireAdminSession } from '../lib/discord.server'
-import { clearCurrentEventCache, requireCurrentEvent } from '../lib/services'
+import { clearCurrentEventCache, requireEventByIdOrCurrent } from '../lib/services'
 import {
   completeCoinflip,
   ensureDefaultTeams,
@@ -18,8 +18,8 @@ export const Route = createFileRoute('/api/admin/coinflip')({
     handlers: {
       POST: async ({ request }) => {
         await requireAdminSession()
-        const event = await requireCurrentEvent()
         const body = await request.json().catch(() => ({}))
+        const event = await requireEventByIdOrCurrent(String(body.eventId ?? ''))
         const action = String(body.action ?? 'select-caller')
 
         await ensureDefaultTeams(event)

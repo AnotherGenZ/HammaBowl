@@ -1,7 +1,22 @@
 import { useEffect, useMemo, useState } from 'react'
 
-export function Countdown({ target }: { target?: string }) {
-  const targetTime = useMemo(() => (target ? new Date(target).getTime() : 0), [target])
+type CountdownTarget =
+  | { label: string; time: number; inProgress?: false }
+  | { inProgress: true }
+
+export function Countdown({
+  closingTime,
+  startsAt,
+  draftStartMinutesBefore,
+}: {
+  closingTime?: string
+  startsAt: string
+  draftStartMinutesBefore?: number
+}) {
+  const schedule = useMemo(
+    () => buildCountdownSchedule({ closingTime, startsAt, draftStartMinutesBefore }),
+    [closingTime, startsAt, draftStartMinutesBefore],
+  )
   const [now, setNow] = useState(() => Date.now())
 
   useEffect(() => {
@@ -9,9 +24,19 @@ export function Countdown({ target }: { target?: string }) {
     return () => window.clearInterval(id)
   }, [])
 
-  if (!target || !Number.isFinite(targetTime)) return null
+  const target = selectCountdownTarget(schedule, now)
+  if (!target) return null
 
-  const remaining = Math.max(0, targetTime - now)
+  if (target.inProgress) {
+    return (
+      <div className="countdown">
+        <span>Event status</span>
+        <strong>Event in progress</strong>
+      </div>
+    )
+  }
+
+  const remaining = Math.max(0, target.time - now)
   const totalSeconds = Math.floor(remaining / 1000)
   const days = Math.floor(totalSeconds / 86400)
   const hours = Math.floor((totalSeconds % 86400) / 3600)
@@ -20,7 +45,7 @@ export function Countdown({ target }: { target?: string }) {
 
   return (
     <div className="countdown">
-      <span>Signups close in</span>
+      <span>{target.label}</span>
       <strong>
         {days ? `${days}d ` : ''}
         {hours.toString().padStart(2, '0')}:
@@ -29,4 +54,52 @@ export function Countdown({ target }: { target?: string }) {
       </strong>
     </div>
   )
+}
+
+function buildCountdownSchedule({
+  closingTime,
+  startsAt,
+  draftStartMinutesBefore,
+}: {
+  closingTime?: string
+  startsAt: string
+  draftStartMinutesBefore?: number
+}) {
+  const startTime = new Date(startsAt).getTime()
+  const signupCloseTime = closingTime ? new Date(closingTime).getTime() : Number.NaN
+  const hasDraftOffset = typeof draftStartMinutesBefore === 'number'
+  const draftStartTime =
+    Number.isFinite(startTime) && hasDraftOffset
+      ? startTime - draftStartMinutesBefore * 60_000
+      : Number.NaN
+
+  return {
+    signupCloseTime,
+    draftStartTime,
+    startTime,
+    hasDraftOffset,
+  }
+}
+
+function selectCountdownTarget(
+  schedule: ReturnType<typeof buildCountdownSchedule>,
+  now: number,
+): CountdownTarget | null {
+  if (Number.isFinite(schedule.signupCloseTime) && now < schedule.signupCloseTime) {
+    return { label: 'Signups close in', time: schedule.signupCloseTime }
+  }
+
+  if (schedule.hasDraftOffset && Number.isFinite(schedule.draftStartTime)) {
+    return { label: 'Draft starts in', time: schedule.draftStartTime }
+  }
+
+  if (Number.isFinite(schedule.startTime) && now < schedule.startTime) {
+    return { label: 'Event starts in', time: schedule.startTime }
+  }
+
+  if (Number.isFinite(schedule.startTime)) {
+    return { inProgress: true }
+  }
+
+  return null
 }

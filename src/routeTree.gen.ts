@@ -39,6 +39,7 @@ import { Route as ApiAdminEventRouteImport } from './routes/api.admin.event'
 import { Route as ApiAdminCoinflipRouteImport } from './routes/api.admin.coinflip'
 import { Route as ApiAdminBadgesRouteImport } from './routes/api.admin.badges'
 import { Route as ApiEventCurrentStreamRouteImport } from './routes/api.event.current.stream'
+import { Route as ApiEventCurrentEventsRouteImport } from './routes/api.event.current.events'
 import { Route as ApiAuthDiscordCallbackRouteImport } from './routes/api.auth.discord.callback'
 import { Route as ApiAdminTeamsEnsureRouteImport } from './routes/api.admin.teams.ensure'
 import { Route as ApiAdminTeamUpdateRouteImport } from './routes/api.admin.team.update'
@@ -198,6 +199,11 @@ const ApiEventCurrentStreamRoute = ApiEventCurrentStreamRouteImport.update({
   path: '/stream',
   getParentRoute: () => ApiEventCurrentRoute,
 } as any)
+const ApiEventCurrentEventsRoute = ApiEventCurrentEventsRouteImport.update({
+  id: '/events',
+  path: '/events',
+  getParentRoute: () => ApiEventCurrentRoute,
+} as any)
 const ApiAuthDiscordCallbackRoute = ApiAuthDiscordCallbackRouteImport.update({
   id: '/callback',
   path: '/callback',
@@ -274,6 +280,7 @@ export interface FileRoutesByFullPath {
   '/api/admin/team/update': typeof ApiAdminTeamUpdateRoute
   '/api/admin/teams/ensure': typeof ApiAdminTeamsEnsureRoute
   '/api/auth/discord/callback': typeof ApiAuthDiscordCallbackRoute
+  '/api/event/current/events': typeof ApiEventCurrentEventsRoute
   '/api/event/current/stream': typeof ApiEventCurrentStreamRoute
 }
 export interface FileRoutesByTo {
@@ -313,6 +320,7 @@ export interface FileRoutesByTo {
   '/api/admin/team/update': typeof ApiAdminTeamUpdateRoute
   '/api/admin/teams/ensure': typeof ApiAdminTeamsEnsureRoute
   '/api/auth/discord/callback': typeof ApiAuthDiscordCallbackRoute
+  '/api/event/current/events': typeof ApiEventCurrentEventsRoute
   '/api/event/current/stream': typeof ApiEventCurrentStreamRoute
 }
 export interface FileRoutesById {
@@ -353,6 +361,7 @@ export interface FileRoutesById {
   '/api/admin/team/update': typeof ApiAdminTeamUpdateRoute
   '/api/admin/teams/ensure': typeof ApiAdminTeamsEnsureRoute
   '/api/auth/discord/callback': typeof ApiAuthDiscordCallbackRoute
+  '/api/event/current/events': typeof ApiEventCurrentEventsRoute
   '/api/event/current/stream': typeof ApiEventCurrentStreamRoute
 }
 export interface FileRouteTypes {
@@ -394,6 +403,7 @@ export interface FileRouteTypes {
     | '/api/admin/team/update'
     | '/api/admin/teams/ensure'
     | '/api/auth/discord/callback'
+    | '/api/event/current/events'
     | '/api/event/current/stream'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -433,6 +443,7 @@ export interface FileRouteTypes {
     | '/api/admin/team/update'
     | '/api/admin/teams/ensure'
     | '/api/auth/discord/callback'
+    | '/api/event/current/events'
     | '/api/event/current/stream'
   id:
     | '__root__'
@@ -472,6 +483,7 @@ export interface FileRouteTypes {
     | '/api/admin/team/update'
     | '/api/admin/teams/ensure'
     | '/api/auth/discord/callback'
+    | '/api/event/current/events'
     | '/api/event/current/stream'
   fileRoutesById: FileRoutesById
 }
@@ -725,6 +737,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiEventCurrentStreamRouteImport
       parentRoute: typeof ApiEventCurrentRoute
     }
+    '/api/event/current/events': {
+      id: '/api/event/current/events'
+      path: '/events'
+      fullPath: '/api/event/current/events'
+      preLoaderRoute: typeof ApiEventCurrentEventsRouteImport
+      parentRoute: typeof ApiEventCurrentRoute
+    }
     '/api/auth/discord/callback': {
       id: '/api/auth/discord/callback'
       path: '/callback'
@@ -790,10 +809,12 @@ const ApiAuthDiscordRouteWithChildren = ApiAuthDiscordRoute._addFileChildren(
 )
 
 interface ApiEventCurrentRouteChildren {
+  ApiEventCurrentEventsRoute: typeof ApiEventCurrentEventsRoute
   ApiEventCurrentStreamRoute: typeof ApiEventCurrentStreamRoute
 }
 
 const ApiEventCurrentRouteChildren: ApiEventCurrentRouteChildren = {
+  ApiEventCurrentEventsRoute: ApiEventCurrentEventsRoute,
   ApiEventCurrentStreamRoute: ApiEventCurrentStreamRoute,
 }
 

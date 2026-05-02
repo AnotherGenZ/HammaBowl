@@ -15,12 +15,14 @@ interface RaidHelperRemoteEvent {
   id: string
   title: string
   startsAt: string
+  endsAt?: string
   closingTime?: string
   signups: RaidHelperSignup[]
 }
 
 export interface RaidHelperClient {
   getCurrentEvent(): Promise<RaidHelperRemoteEvent>
+  getCurrentEvents(): Promise<RaidHelperRemoteEvent[]>
   getSignups(eventId: string): Promise<RaidHelperSignup[]>
   postComposition(eventId: string, content: string): Promise<void>
 }
@@ -36,6 +38,13 @@ export function createRaidHelperClient(): RaidHelperClient {
         apiKey,
       )
       return selectCurrentEvent(payload)
+    },
+    async getCurrentEvents() {
+      const payload = await requestUnknown(
+        `${RAID_HELPER_API_BASE_URL}/servers/${serverId}/events`,
+        apiKey,
+      )
+      return selectCurrentEvents(payload)
     },
     async getSignups(eventId) {
       const payload = await requestUnknown(
@@ -67,6 +76,21 @@ export async function hydrateEventFromRaidHelper(): Promise<HammaEvent | null> {
 
   const client = createRaidHelperClient()
   const remoteEvent = await client.getCurrentEvent()
+  return hydrateRemoteEvent(client, remoteEvent)
+}
+
+export async function hydrateCurrentEventsFromRaidHelper(): Promise<HammaEvent[]> {
+  if (!isRaidHelperConfigured()) return []
+
+  const client = createRaidHelperClient()
+  const remoteEvents = await client.getCurrentEvents()
+  return Promise.all(remoteEvents.map((remoteEvent) => hydrateRemoteEvent(client, remoteEvent)))
+}
+
+async function hydrateRemoteEvent(
+  client: RaidHelperClient,
+  remoteEvent: RaidHelperRemoteEvent,
+): Promise<HammaEvent> {
   const signups = remoteEvent.signups.length
     ? remoteEvent.signups
     : await client.getSignups(remoteEvent.id)
@@ -77,7 +101,9 @@ export async function hydrateEventFromRaidHelper(): Promise<HammaEvent | null> {
     name: stripMarkdown(remoteEvent.title),
     server: env('HAMMABOWL_SERVER_NAME', 'Jaeger'),
     startsAt: remoteEvent.startsAt,
+    endsAt: remoteEvent.endsAt,
     closingTime: remoteEvent.closingTime,
+    draftStartMinutesBefore: undefined,
     phase: 'signups' as const,
     salaryPool: SALARY_POOL,
     pendingPlayerCount: signups.filter(isMaybeSignup).length,
@@ -158,35 +184,58 @@ async function requestUnknown(
 }
 
 function selectCurrentEvent(payload: unknown): RaidHelperRemoteEvent {
-  const events = normalizeScheduledEvents(payload)
   const configuredEventId = env('RAID_HELPER_EVENT_ID')
-  const nameFilter = env('RAID_HELPER_EVENT_NAME_CONTAINS').toLowerCase()
 
   if (configuredEventId) {
     return selectEventById(payload, configuredEventId)
   }
 
-  const filtered = nameFilter
-    ? events.filter((event) => event.title.toLowerCase().includes(nameFilter))
-    : events
-
-  const upcoming = filtered
-    .filter((event) => new Date(event.startsAt).getTime() >= Date.now())
-    .sort(
-      (a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime(),
-    )
-
-  const selected =
-    upcoming[0] ??
-    filtered.sort(
-      (a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime(),
-    )[0]
+  const filtered = filterNamedEvents(normalizeScheduledEvents(payload))
+  const selected = selectFirstCurrentEvent(filtered) ?? selectLatestEvent(filtered)
 
   if (!selected) {
     throw new Error('Raid Helper scheduled events response did not include any events')
   }
 
   return selected
+}
+
+function selectCurrentEvents(payload: unknown): RaidHelperRemoteEvent[] {
+  return selectCurrentEventList(filterNamedEvents(normalizeScheduledEvents(payload)))
+}
+
+function filterNamedEvents(events: RaidHelperRemoteEvent[]) {
+  const nameFilter = env('RAID_HELPER_EVENT_NAME_CONTAINS').toLowerCase()
+  const filtered = nameFilter
+    ? events.filter((event) => event.title.toLowerCase().includes(nameFilter))
+    : events
+  return filtered
+}
+
+function selectCurrentEventList(events: RaidHelperRemoteEvent[]) {
+  const now = Date.now()
+  return events
+    .filter((event) => {
+      const startsAt = new Date(event.startsAt).getTime()
+      const endsAt = event.endsAt ? new Date(event.endsAt).getTime() : Number.NaN
+      return startsAt > now && endsAt > now
+    })
+    .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())
+}
+
+function selectFirstCurrentEvent(events: RaidHelperRemoteEvent[]) {
+  return selectCurrentEventList(events)[0]
+}
+
+function selectLatestEvent(events: RaidHelperRemoteEvent[]) {
+  return events
+    .filter((event) => new Date(event.startsAt).getTime() >= Date.now())
+    .sort(
+      (a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime(),
+    )[0] ??
+    events.sort(
+      (a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime(),
+    )[0]
 }
 
 function selectEventById(payload: unknown, eventId: string) {
@@ -236,6 +285,17 @@ function normalizeRemoteEvent(payload: unknown): RaidHelperRemoteEvent {
       source.date ??
       source.timestamp,
   )
+  const endsAt = dateValue(
+    source.endsAt ??
+      source.endAt ??
+      source.endTime ??
+      source.end_time ??
+      source.end ??
+      source.endDate ??
+      source.end_date ??
+      source.endTimestamp ??
+      source.end_timestamp,
+  )
   const closingTime = dateValue(
     source.closingTime ??
       source.closeTime ??
@@ -251,6 +311,7 @@ function normalizeRemoteEvent(payload: unknown): RaidHelperRemoteEvent {
     id,
     title,
     startsAt,
+    endsAt: endsAt || undefined,
     closingTime: closingTime || undefined,
     signups: normalizeSignups(
       source.signups ??
@@ -339,10 +400,21 @@ function stringValue(value: unknown) {
 
 function dateValue(value: unknown) {
   if (typeof value === 'number') {
-    return new Date(value < 10_000_000_000 ? value * 1000 : value).toISOString()
+    const date = new Date(value < 10_000_000_000 ? value * 1000 : value)
+    return Number.isNaN(date.getTime()) ? '' : date.toISOString()
   }
 
-  return stringValue(value)
+  const text = stringValue(value).trim()
+  if (!text) return ''
+
+  if (/^\d+$/.test(text)) {
+    const numeric = Number(text)
+    const date = new Date(numeric < 10_000_000_000 ? numeric * 1000 : numeric)
+    return Number.isNaN(date.getTime()) ? '' : date.toISOString()
+  }
+
+  const parsed = Date.parse(text)
+  return Number.isNaN(parsed) ? '' : new Date(parsed).toISOString()
 }
 
 function stripMarkdown(value: string) {

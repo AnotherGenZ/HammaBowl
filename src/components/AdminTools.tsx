@@ -10,11 +10,68 @@ import type {
   RegisteredParticipant,
   StartingSide,
 } from '../lib/types'
+import { shortDate } from '../lib/format'
 
-export function AdminTools({ event }: { event: HammaEvent }) {
+interface RealtimeAdminUpdate {
+  type: string
+  eventId: string
+  at: string
+}
+
+export function AdminTools({
+  event,
+  currentEvents,
+}: {
+  event: HammaEvent
+  currentEvents: HammaEvent[]
+}) {
   const [currentEvent, setCurrentEvent] = useState(event)
+  const [currentEventOptions, setCurrentEventOptions] = useState(currentEvents)
+  const [realtimeRefreshKey, setRealtimeRefreshKey] = useState(0)
   const [message, setMessage] = useState<string>()
   const [busy, setBusy] = useState<string>()
+
+  function setConfiguredEvent(event: HammaEvent) {
+    setCurrentEvent(event)
+    setCurrentEventOptions((options) => mergeEventOptions(options, event))
+  }
+
+  useEffect(() => {
+    setCurrentEvent((current) => currentEvents.find((option) => option.id === current.id) ?? event)
+    setCurrentEventOptions(currentEvents)
+  }, [event, currentEvents])
+
+  useEffect(() => {
+    if (typeof EventSource === 'undefined') return
+
+    let active = true
+    const source = new EventSource('/api/event/current/stream')
+    source.addEventListener('event-update', (eventMessage) => {
+      const update = parseRealtimeAdminUpdate(eventMessage)
+      if (!update) return
+
+      void fetch(`/api/admin/event?eventId=${encodeURIComponent(currentEvent.id)}`)
+        .then(async (response) => {
+          if (!response.ok) throw new Error(await response.text())
+          return response.json() as Promise<{
+            event: HammaEvent | null
+            currentEvents: HammaEvent[]
+          }>
+        })
+        .then((payload) => {
+          if (!active) return
+          setCurrentEventOptions(payload.currentEvents)
+          if (payload.event) setCurrentEvent(payload.event)
+          setRealtimeRefreshKey((key) => key + 1)
+        })
+        .catch((error) => console.warn('Admin event refresh failed', error))
+    })
+
+    return () => {
+      active = false
+      source.close()
+    }
+  }, [currentEvent.id])
 
   async function run(label: string, action: () => Promise<unknown>) {
     setBusy(label)
@@ -23,7 +80,12 @@ export function AdminTools({ event }: { event: HammaEvent }) {
       const result = await action()
       const summary = summarizeResult(result)
       setMessage(summary)
-      if (isEventResult(result)) setCurrentEvent(result.event)
+      if (isEventResult(result)) {
+        setCurrentEventOptions((options) => mergeEventOptions(options, result.event))
+      }
+      if (isCurrentEventsResult(result)) {
+        setCurrentEventOptions(result.currentEvents)
+      }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Action failed.')
     } finally {
@@ -37,57 +99,46 @@ export function AdminTools({ event }: { event: HammaEvent }) {
         <div>
           <h1>Event controls</h1>
         </div>
+        <EventTargetControls
+          event={currentEvent}
+          currentEvents={currentEventOptions}
+          onEvent={setConfiguredEvent}
+        />
       </div>
 
       {message ? <div className="admin-result">{message}</div> : null}
 
       <div className="admin-stack">
-        <EventIdentityControls event={currentEvent} busy={busy} onRun={run} onEvent={setCurrentEvent} />
-
-        <AdminSection
-          title="Event sync"
-          actions={
-            <button
-              type="button"
-              disabled={busy === 'refresh'}
-              onClick={() =>
-                void run('refresh', async () => {
-                  const result = await postAdminAction('/api/admin/raid-helper/refresh')
-                  window.location.reload()
-                  return result
-                })
-              }
-            >
-              {busy === 'refresh' ? 'Refreshing' : 'Force refresh'}
-            </button>
-          }
-        >
-          <p>Pull the current event, closing time, and accepted signups from Raid Helper.</p>
-        </AdminSection>
+        <EventIdentityControls event={currentEvent} busy={busy} onRun={run} onEvent={setConfiguredEvent} />
 
         <TeamEditor
           event={currentEvent}
           busy={busy}
           onRun={run}
-          onEvent={setCurrentEvent}
+          onEvent={setConfiguredEvent}
         />
 
-        <EventJaegerAssignments event={currentEvent} busy={busy} onRun={run} />
+        <EventJaegerAssignments
+          event={currentEvent}
+          busy={busy}
+          onRun={run}
+          refreshKey={realtimeRefreshKey}
+        />
 
-        <CoinflipControls event={currentEvent} busy={busy} onRun={run} onEvent={setCurrentEvent} />
+        <CoinflipControls event={currentEvent} busy={busy} onRun={run} onEvent={setConfiguredEvent} />
 
         <RatingAdjustments
           event={currentEvent}
           busy={busy}
           onRun={run}
-          onEvent={setCurrentEvent}
+          onEvent={setConfiguredEvent}
         />
 
         <EventResultControls
           event={currentEvent}
           busy={busy}
           onRun={run}
-          onEvent={setCurrentEvent}
+          onEvent={setConfiguredEvent}
         />
 
         <AdminSection
@@ -98,7 +149,9 @@ export function AdminTools({ event }: { event: HammaEvent }) {
               disabled={busy === 'post'}
               onClick={() =>
                 void run('post', () =>
-                  postAdminAction('/api/admin/raid-helper/post-composition'),
+                  postAdminJson('/api/admin/raid-helper/post-composition', {
+                    eventId: currentEvent.id,
+                  }),
                 )
               }
             >
@@ -113,9 +166,149 @@ export function AdminTools({ event }: { event: HammaEvent }) {
   )
 }
 
-export function GeneralAdminTools() {
+function EventTargetControls({
+  event,
+  currentEvents,
+  onEvent,
+}: {
+  event: HammaEvent
+  currentEvents: HammaEvent[]
+  onEvent: (event: HammaEvent) => void
+}) {
+  const options = mergeEventOptions(currentEvents, event)
+
+  return (
+    <label className="admin-heading-control">
+      Configure event
+      <select
+        value={event.id}
+        onChange={(changeEvent) => {
+          const nextEvent = options.find((option) => option.id === changeEvent.currentTarget.value)
+          if (nextEvent) onEvent(nextEvent)
+        }}
+      >
+        {options.map((option) => (
+          <option key={option.id} value={option.id}>
+            {option.name} - {shortDate(option.startsAt)}
+          </option>
+        ))}
+      </select>
+    </label>
+  )
+}
+
+function ActiveEventControls({
+  event,
+  currentEvents,
+  busy,
+  onRun,
+  onEvent,
+}: {
+  event: HammaEvent
+  currentEvents: HammaEvent[]
+  busy?: string
+  onRun: (label: string, action: () => Promise<unknown>) => Promise<void>
+  onEvent: (event: HammaEvent) => void
+}) {
+  const [activeEventId, setActiveEventId] = useState(event.id)
+  const options = mergeEventOptions(currentEvents, event)
+
+  useEffect(() => {
+    setActiveEventId(event.id)
+  }, [event.id])
+
+  return (
+    <AdminSection title="Active event">
+      <div className="event-result-grid">
+        <div className="event-result-card">
+          <strong>Admin target</strong>
+          <label>
+            Active event
+            <select
+              value={activeEventId}
+              onChange={(event) => setActiveEventId(event.currentTarget.value)}
+            >
+              {options.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.name} - {shortDate(option.startsAt)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            disabled={busy === 'active-event' || activeEventId === event.id}
+            onClick={() =>
+              void onRun('active-event', async () => {
+                const result = await postAdminJson('/api/admin/event', { activeEventId })
+                if (isEventResult(result) && result.event) onEvent(result.event)
+                return result
+              })
+            }
+          >
+            Set active event
+          </button>
+          <small>{options.length} current event{options.length === 1 ? '' : 's'} available</small>
+        </div>
+      </div>
+    </AdminSection>
+  )
+}
+
+export function GeneralAdminTools({
+  event,
+  currentEvents,
+}: {
+  event: HammaEvent | null
+  currentEvents: HammaEvent[]
+}) {
+  const [activeEvent, setActiveEvent] = useState(event)
+  const [currentEventOptions, setCurrentEventOptions] = useState(currentEvents)
+  const [realtimeRefreshKey, setRealtimeRefreshKey] = useState(0)
   const [message, setMessage] = useState<string>()
   const [busy, setBusy] = useState<string>()
+
+  useEffect(() => {
+    setActiveEvent(event)
+    setCurrentEventOptions(currentEvents)
+  }, [event, currentEvents])
+
+  function setActiveEventSelection(event: HammaEvent) {
+    setActiveEvent(event)
+    setCurrentEventOptions((options) => mergeEventOptions(options, event))
+  }
+
+  useEffect(() => {
+    if (typeof EventSource === 'undefined') return
+
+    let active = true
+    const source = new EventSource('/api/event/current/stream')
+    source.addEventListener('event-update', (eventMessage) => {
+      const update = parseRealtimeAdminUpdate(eventMessage)
+      if (!update) return
+
+      void fetch('/api/admin/event')
+        .then(async (response) => {
+          if (!response.ok) throw new Error(await response.text())
+          return response.json() as Promise<{
+            event: HammaEvent | null
+            currentEvents: HammaEvent[]
+          }>
+        })
+        .then((payload) => {
+          if (!active) return
+          setActiveEvent(payload.event)
+          setCurrentEventOptions(payload.currentEvents)
+          setRealtimeRefreshKey((key) => key + 1)
+        })
+        .catch((error) => console.warn('Admin general refresh failed', error))
+    })
+
+    return () => {
+      active = false
+      source.close()
+    }
+  }, [])
 
   async function run(label: string, action: () => Promise<unknown>) {
     setBusy(label)
@@ -123,6 +316,13 @@ export function GeneralAdminTools() {
     try {
       const result = await action()
       setMessage(summarizeResult(result))
+      if (isEventResult(result)) {
+        setActiveEvent(result.event)
+        setCurrentEventOptions((options) => mergeEventOptions(options, result.event))
+      }
+      if (isCurrentEventsResult(result)) {
+        setCurrentEventOptions(result.currentEvents)
+      }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Action failed.')
     } finally {
@@ -141,9 +341,39 @@ export function GeneralAdminTools() {
       {message ? <div className="admin-result">{message}</div> : null}
 
       <div className="admin-stack">
-        <PlayerRenameManager busy={busy} onRun={run} />
-        <PlayerJaegerManager busy={busy} onRun={run} />
-        <BadgeManager busy={busy} onRun={run} />
+        {activeEvent ? (
+          <ActiveEventControls
+            event={activeEvent}
+            currentEvents={currentEventOptions}
+            busy={busy}
+            onRun={run}
+            onEvent={setActiveEventSelection}
+          />
+        ) : null}
+
+        <AdminSection
+          title="Event sync"
+          actions={
+            <button
+              type="button"
+              disabled={busy === 'refresh'}
+              onClick={() =>
+                void run('refresh', async () => {
+                  const result = await postAdminAction('/api/admin/raid-helper/refresh')
+                  return result
+                })
+              }
+            >
+              {busy === 'refresh' ? 'Refreshing' : 'Force refresh'}
+            </button>
+          }
+        >
+          <p>Pull current events, closing times, and accepted signups from Raid Helper.</p>
+        </AdminSection>
+
+        <PlayerRenameManager busy={busy} onRun={run} refreshKey={realtimeRefreshKey} />
+        <PlayerJaegerManager busy={busy} onRun={run} refreshKey={realtimeRefreshKey} />
+        <BadgeManager busy={busy} onRun={run} refreshKey={realtimeRefreshKey} />
       </div>
     </section>
   )
@@ -171,9 +401,13 @@ function EventIdentityControls({
   onEvent: (event: HammaEvent) => void
 }) {
   const [nameOverride, setNameOverride] = useState(event.nameOverride ?? '')
+  const [draftStartMinutesBefore, setDraftStartMinutesBefore] = useState(
+    event.draftStartMinutesBefore?.toString() ?? '',
+  )
 
   useEffect(() => {
     setNameOverride(event.nameOverride ?? '')
+    setDraftStartMinutesBefore(event.draftStartMinutesBefore?.toString() ?? '')
   }, [event])
 
   return (
@@ -194,7 +428,10 @@ function EventIdentityControls({
             disabled={busy === 'event-name'}
             onClick={() =>
               void onRun('event-name', async () => {
-                const result = await postAdminJson('/api/admin/event', { nameOverride })
+                const result = await postAdminJson('/api/admin/event', {
+                  eventId: event.id,
+                  nameOverride,
+                })
                 if (isEventResult(result) && result.event) onEvent(result.event)
                 return result
               })
@@ -202,6 +439,39 @@ function EventIdentityControls({
           >
             Save name
           </button>
+        </div>
+
+        <div className="event-result-card">
+          <strong>Draft timing</strong>
+          <label>
+            Minutes before event start
+            <input
+              type="number"
+              min="0"
+              max="1440"
+              step="1"
+              value={draftStartMinutesBefore}
+              placeholder="Use event start"
+              onChange={(event) => setDraftStartMinutesBefore(event.currentTarget.value)}
+            />
+          </label>
+          <button
+            type="button"
+            disabled={busy === 'draft-start'}
+            onClick={() =>
+              void onRun('draft-start', async () => {
+                const result = await postAdminJson('/api/admin/event', {
+                  eventId: event.id,
+                  draftStartMinutesBefore,
+                })
+                if (isEventResult(result) && result.event) onEvent(result.event)
+                return result
+              })
+            }
+          >
+            Save draft timing
+          </button>
+          <small>Leave blank to count down to the event start after signups close.</small>
         </div>
       </div>
     </AdminSection>
@@ -261,8 +531,8 @@ function TeamEditor({
           disabled={busy === 'teams'}
           onClick={() =>
             void onRun('teams', async () => {
-              const result = await postAdminAction('/api/admin/teams/ensure')
-              window.location.reload()
+              const result = await postAdminJson('/api/admin/teams/ensure', { eventId: event.id })
+              if (isEventResult(result) && result.event) onEvent(result.event)
               return result
             })
           }
@@ -277,6 +547,7 @@ function TeamEditor({
           {event.captains.map((team) => (
             <TeamForm
               key={team.id}
+              eventId={event.id}
               team={team}
               players={event.players}
               busy={busy === team.id}
@@ -295,10 +566,12 @@ function EventJaegerAssignments({
   event,
   busy,
   onRun,
+  refreshKey,
 }: {
   event: HammaEvent
   busy?: string
   onRun: (label: string, action: () => Promise<unknown>) => Promise<void>
+  refreshKey: number
 }) {
   const [assignments, setAssignments] = useState<EventPlayerCharacterAssignment[]>([])
   const [selectedDiscordId, setSelectedDiscordId] = useState('')
@@ -309,7 +582,7 @@ function EventJaegerAssignments({
   useEffect(() => {
     let active = true
     setLoaded(false)
-    fetch('/api/admin/player-characters')
+    fetch(`/api/admin/player-characters?eventId=${encodeURIComponent(event.id)}`)
       .then((response) => {
         if (!response.ok) throw new Error('Unable to load event Jaeger assignments.')
         return response.json() as Promise<{ assignments: EventPlayerCharacterAssignment[] }>
@@ -327,7 +600,7 @@ function EventJaegerAssignments({
     return () => {
       active = false
     }
-  }, [event.id])
+  }, [event.id, refreshKey])
 
   useEffect(() => {
     if (selectedDiscordId && assignments.some((assignment) => assignment.discordId === selectedDiscordId)) return
@@ -336,6 +609,7 @@ function EventJaegerAssignments({
 
   async function assignCharacter() {
     const result = await postAdminJson('/api/admin/player-characters', {
+      eventId: event.id,
       discordId: selectedDiscordId,
       faction,
       characterName,
@@ -415,9 +689,11 @@ function EventJaegerAssignments({
 function PlayerRenameManager({
   busy,
   onRun,
+  refreshKey,
 }: {
   busy?: string
   onRun: (label: string, action: () => Promise<unknown>) => Promise<void>
+  refreshKey: number
 }) {
   const [players, setPlayers] = useState<RegisteredParticipant[]>([])
   const [discordId, setDiscordId] = useState('')
@@ -436,9 +712,13 @@ function PlayerRenameManager({
       .then((payload) => {
         if (!active) return
         setPlayers(payload.players)
-        const firstPlayer = payload.players[0]
-        setDiscordId((current) => current || firstPlayer?.discordId || '')
-        setName((current) => current || firstPlayer?.name || '')
+        setDiscordId((current) =>
+          current && payload.players.some((player) => player.discordId === current) ? current : '',
+        )
+        setName((current) => {
+          const selectedPlayer = payload.players.find((player) => player.discordId === discordId)
+          return selectedPlayer ? current || selectedPlayer.name : ''
+        })
         setLoaded(true)
       })
       .catch(() => {
@@ -448,7 +728,7 @@ function PlayerRenameManager({
     return () => {
       active = false
     }
-  }, [ready])
+  }, [ready, refreshKey])
 
   function choosePlayer(nextDiscordId: string) {
     setDiscordId(nextDiscordId)
@@ -516,9 +796,11 @@ function PlayerRenameManager({
 function PlayerJaegerManager({
   busy,
   onRun,
+  refreshKey,
 }: {
   busy?: string
   onRun: (label: string, action: () => Promise<unknown>) => Promise<void>
+  refreshKey: number
 }) {
   const [players, setPlayers] = useState<AdminPlayerCharacterConfig[]>([])
   const [discordId, setDiscordId] = useState('')
@@ -537,12 +819,13 @@ function PlayerJaegerManager({
       .then((payload) => {
         if (!active) return
         setPlayers(payload.players)
-        const firstPlayer = payload.players[0]
-        if (firstPlayer) {
-          const nextDiscordId = discordId || firstPlayer.discordId
-          setDiscordId(nextDiscordId)
-          setNames(namesFromPlayer(payload.players.find((player) => player.discordId === nextDiscordId) ?? firstPlayer))
-        }
+        setDiscordId((current) =>
+          current && payload.players.some((player) => player.discordId === current) ? current : '',
+        )
+        setNames((current) => {
+          const selectedPlayer = payload.players.find((player) => player.discordId === discordId)
+          return selectedPlayer ? namesFromPlayer(selectedPlayer) : current
+        })
         setLoaded(true)
       })
       .catch(() => {
@@ -552,7 +835,7 @@ function PlayerJaegerManager({
     return () => {
       active = false
     }
-  }, [ready])
+  }, [ready, refreshKey])
 
   function choosePlayer(nextDiscordId: string) {
     setDiscordId(nextDiscordId)
@@ -658,9 +941,11 @@ function namesFromPlayer(player?: AdminPlayerCharacterConfig): Record<Faction, s
 function BadgeManager({
   busy,
   onRun,
+  refreshKey,
 }: {
   busy?: string
   onRun: (label: string, action: () => Promise<unknown>) => Promise<void>
+  refreshKey: number
 }) {
   const [data, setData] = useState<AdminBadgeManagerData>({
     badges: [],
@@ -695,7 +980,7 @@ function BadgeManager({
     return () => {
       active = false
     }
-  }, [ready])
+  }, [ready, refreshKey])
 
   async function createBadge() {
     const result = await postAdminJson('/api/admin/badges', {
@@ -867,7 +1152,7 @@ function CoinflipControls({
   }
 
   async function runCoinflipAction(body: Record<string, unknown>) {
-    const result = await postAdminJson('/api/admin/coinflip', body)
+    const result = await postAdminJson('/api/admin/coinflip', { eventId: event.id, ...body })
     if (isEventResult(result)) onEvent(result.event)
     return result
   }
@@ -1188,7 +1473,7 @@ function EventResultControls({
   }, [event, scoreTeamId, winningTeamId])
 
   async function postResult(body: Record<string, unknown>) {
-    const result = await postAdminJson('/api/admin/result', body)
+    const result = await postAdminJson('/api/admin/result', { eventId: event.id, ...body })
     if (isEventResult(result) && result.event) onEvent(result.event)
     return result
   }
@@ -1363,7 +1648,10 @@ function RatingAdjustments({
   }, [fromDiscordId, raters])
 
   async function resetSubmittedRatings() {
-    const result = await postAdminJson('/api/admin/ratings/reset', { fromDiscordId })
+    const result = await postAdminJson('/api/admin/ratings/reset', {
+      eventId: event.id,
+      fromDiscordId,
+    })
     if (isEventResult(result)) onEvent(result.event)
     return result
   }
@@ -1411,12 +1699,22 @@ function mergeOptions<T extends string>(options: T[], current?: T) {
   return [...options, current]
 }
 
+function mergeEventOptions(options: HammaEvent[], event: HammaEvent) {
+  const byId = new Map(options.map((option) => [option.id, option]))
+  byId.set(event.id, event)
+  return [...byId.values()].sort(
+    (a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime(),
+  )
+}
+
 function TeamForm({
+  eventId,
   team,
   players,
   busy,
   onSaved,
 }: {
+  eventId: string
   team: Captain
   players: Player[]
   busy: boolean
@@ -1427,9 +1725,17 @@ function TeamForm({
   const [score, setScore] = useState(team.score.toString())
   const [message, setMessage] = useState<string>()
 
+  useEffect(() => {
+    setName(team.teamName)
+    setCaptainDiscordId(team.playerId)
+    setScore(team.score.toString())
+    setMessage(undefined)
+  }, [team])
+
   async function save() {
     setMessage(undefined)
     const result = await postAdminJson('/api/admin/team/update', {
+      eventId,
       teamId: team.id,
       name,
       captainDiscordId,
@@ -1495,6 +1801,33 @@ async function postAdminJson(url: string, body: unknown) {
 
 function isEventResult(result: unknown): result is { event: HammaEvent } {
   return Boolean(result && typeof result === 'object' && 'event' in result)
+}
+
+function isCurrentEventsResult(result: unknown): result is { currentEvents: HammaEvent[] } {
+  return Boolean(
+    result &&
+      typeof result === 'object' &&
+      'currentEvents' in result &&
+      Array.isArray((result as { currentEvents?: unknown }).currentEvents),
+  )
+}
+
+function parseRealtimeAdminUpdate(eventMessage: MessageEvent): RealtimeAdminUpdate | null {
+  try {
+    const parsed = JSON.parse(eventMessage.data) as RealtimeAdminUpdate
+    if (
+      parsed &&
+      typeof parsed === 'object' &&
+      typeof parsed.type === 'string' &&
+      typeof parsed.eventId === 'string'
+    ) {
+      return parsed
+    }
+  } catch {
+    return null
+  }
+
+  return null
 }
 
 function summarizeResult(result: unknown) {

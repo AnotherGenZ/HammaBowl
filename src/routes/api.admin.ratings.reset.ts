@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { requireAdminSession } from '../lib/discord.server'
 import { getDbEvent, resetRatingsFromPlayer } from '../lib/db.server'
 import { publishEventUpdate } from '../lib/realtime.server'
-import { clearCurrentEventCache, requireCurrentEvent } from '../lib/services'
+import { clearCurrentEventCache, requireEventByIdOrCurrent } from '../lib/services'
 
 export const Route = createFileRoute('/api/admin/ratings/reset')({
   server: {
@@ -10,7 +10,7 @@ export const Route = createFileRoute('/api/admin/ratings/reset')({
       POST: async ({ request }) => {
         await requireAdminSession()
         const body = await request.json()
-        const event = await requireCurrentEvent()
+        const event = await requireEventByIdOrCurrent(String(body.eventId ?? ''))
         const result = await resetRatingsFromPlayer(event.id, String(body.fromDiscordId ?? ''))
 
         clearCurrentEventCache()
