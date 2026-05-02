@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 
 type CountdownTarget =
-  | { label: string; time: number; inProgress?: false }
+  | { label: string; time: number; variant: 'signups' | 'draft' | 'start'; inProgress?: false }
   | { inProgress: true }
 
 export function Countdown({
@@ -29,7 +29,7 @@ export function Countdown({
 
   if (target.inProgress) {
     return (
-      <div className="countdown">
+      <div className="countdown countdown-start">
         <span>Event status</span>
         <strong>Event in progress</strong>
       </div>
@@ -44,7 +44,7 @@ export function Countdown({
   const seconds = totalSeconds % 60
 
   return (
-    <div className="countdown">
+    <div className={`countdown countdown-${target.variant}`}>
       <span>{target.label}</span>
       <strong>
         {days ? `${days}d ` : ''}
@@ -86,15 +86,15 @@ function selectCountdownTarget(
   now: number,
 ): CountdownTarget | null {
   if (Number.isFinite(schedule.signupCloseTime) && now < schedule.signupCloseTime) {
-    return { label: 'Signups close in', time: schedule.signupCloseTime }
+    return { label: 'Signups close in', time: schedule.signupCloseTime, variant: 'signups' }
   }
 
   if (schedule.hasDraftOffset && Number.isFinite(schedule.draftStartTime)) {
-    return { label: 'Draft starts in', time: schedule.draftStartTime }
+    return { label: 'Draft starts in', time: schedule.draftStartTime, variant: 'draft' }
   }
 
   if (Number.isFinite(schedule.startTime) && now < schedule.startTime) {
-    return { label: 'Event starts in', time: schedule.startTime }
+    return { label: 'Event starts in', time: schedule.startTime, variant: 'start' }
   }
 
   if (Number.isFinite(schedule.startTime)) {

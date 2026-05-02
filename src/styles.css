@@ -484,7 +484,7 @@ main.draft-page {
 }
 
 .event-link-badges a,
-.event-start-badge {
+.event-time-badge {
   display: inline-flex;
   align-items: center;
   gap: 7px;
@@ -496,10 +496,39 @@ main.draft-page {
   font-weight: 900;
 }
 
-.event-start-badge {
-  border: 1px solid rgba(71, 191, 143, 0.5);
-  background: rgba(71, 191, 143, 0.12);
-  color: #bff0db;
+.event-time-badge {
+  --event-time-accent: #8de2bd;
+  --event-time-text: #dff8ed;
+  border: 1px solid color-mix(in srgb, var(--event-time-accent) 55%, transparent);
+  background: color-mix(in srgb, var(--event-time-accent) 14%, transparent);
+  color: var(--event-time-text);
+  padding-left: 10px;
+}
+
+.event-time-badge-start {
+  --event-time-accent: #8de2bd;
+  --event-time-text: #dff8ed;
+}
+
+.event-time-badge-signups {
+  --event-time-accent: #f0c36b;
+  --event-time-text: #fae6ba;
+}
+
+.event-time-badge-draft {
+  --event-time-accent: #84bdf5;
+  --event-time-text: #d7ebff;
+}
+
+.event-time-badge svg {
+  flex: 0 0 auto;
+  color: var(--event-time-accent);
+}
+
+.event-time-badge strong {
+  color: var(--event-time-text);
+  font-size: 0.86rem;
+  white-space: nowrap;
 }
 
 .event-link-badges a {
@@ -600,15 +629,32 @@ main.draft-page {
 }
 
 .countdown {
-  border: 1px solid rgba(228, 180, 94, 0.38);
-  background: rgba(228, 180, 94, 0.1);
+  --countdown-accent: #8de2bd;
+  --countdown-text: #dff8ed;
+  border: 1px solid color-mix(in srgb, var(--countdown-accent) 42%, transparent);
+  background: color-mix(in srgb, var(--countdown-accent) 12%, transparent);
   border-radius: 8px;
   padding: clamp(18px, 3vw, 28px);
 }
 
+.countdown-start {
+  --countdown-accent: #8de2bd;
+  --countdown-text: #dff8ed;
+}
+
+.countdown-signups {
+  --countdown-accent: #f0c36b;
+  --countdown-text: #fae6ba;
+}
+
+.countdown-draft {
+  --countdown-accent: #84bdf5;
+  --countdown-text: #d7ebff;
+}
+
 .countdown span {
   display: block;
-  color: #e4b45e;
+  color: var(--countdown-accent);
   font-size: 0.85rem;
   font-weight: 900;
   text-transform: uppercase;
@@ -617,6 +663,7 @@ main.draft-page {
 .countdown strong {
   display: block;
   margin-top: 6px;
+  color: var(--countdown-text);
   font-size: clamp(2.4rem, 8vw, 5.8rem);
   line-height: 0.95;
 }

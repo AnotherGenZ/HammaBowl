@@ -1,4 +1,5 @@
-import { money, percent, shortDate } from '../lib/format'
+import { CalendarClock, Swords, UserCheck, type LucideIcon } from 'lucide-react'
+import { money, percent, shortDateWithTimeZone } from '../lib/format'
 import { buildTeamLedgers } from '../lib/rules'
 import type { HammaEvent } from '../lib/types'
 import { Countdown } from './Countdown'
@@ -8,6 +9,7 @@ export function EventSummary({ event }: { event: HammaEvent }) {
   const ledgers = buildTeamLedgers(event)
   const drafted = event.draftPicks.length
   const eventStarted = Date.now() >= Date.parse(event.startsAt)
+  const eventTimes = buildEventTimes(event)
 
   return (
     <section className="event-hero">
@@ -17,7 +19,22 @@ export function EventSummary({ event }: { event: HammaEvent }) {
           <p className="event-description">{event.eventDescription}</p>
         ) : null}
         <div className="event-link-badges" aria-label="Event details and links">
-          <span className="event-start-badge">{shortDate(event.startsAt)}</span>
+          {eventTimes.map((item) => {
+            const Icon = item.icon
+            const formattedTime = shortDateWithTimeZone(item.time)
+
+            return (
+              <span
+                className={`event-time-badge ${item.className}`}
+                key={item.label}
+                title={`${item.label}: ${formattedTime}`}
+                aria-label={`${item.label}: ${formattedTime}`}
+              >
+                <Icon size={16} aria-hidden="true" />
+                <strong>{formattedTime}</strong>
+              </span>
+            )
+          })}
           {event.eventLinks.map((link) => (
             <a key={`${link.url}-${link.name}`} href={link.url} target="_blank" rel="noreferrer">
               <EventLinkIcon name={link.icon} />
@@ -86,6 +103,48 @@ export function EventSummary({ event }: { event: HammaEvent }) {
       ) : null}
     </section>
   )
+}
+
+type EventTime = {
+  label: string
+  time: string
+  className: string
+  icon: LucideIcon
+}
+
+function buildEventTimes(event: HammaEvent) {
+  const times: EventTime[] = [
+    {
+      label: 'Event start',
+      time: event.startsAt,
+      className: 'event-time-badge-start',
+      icon: CalendarClock,
+    },
+  ]
+
+  if (event.closingTime) {
+    times.push({
+      label: 'Signups close',
+      time: event.closingTime,
+      className: 'event-time-badge-signups',
+      icon: UserCheck,
+    })
+  }
+
+  if (typeof event.draftStartMinutesBefore === 'number') {
+    const startTime = Date.parse(event.startsAt)
+
+    if (Number.isFinite(startTime)) {
+      times.push({
+        label: 'Draft start',
+        time: new Date(startTime - event.draftStartMinutesBefore * 60_000).toISOString(),
+        className: 'event-time-badge-draft',
+        icon: Swords,
+      })
+    }
+  }
+
+  return times
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
