@@ -55,11 +55,11 @@ function Ratings() {
   const raterOptions = useMemo(
     () => {
       const submittedRaterIds = new Set(event?.ratings.map((rating) => rating.fromPlayerId) ?? [])
-      return [...(event?.players ?? [])]
-        .filter((player) => submittedRaterIds.has(player.id))
+      return (event?.players ?? [])
+        .filter((player) => submittedRaterIds.has(player.id) || player.id === user?.id)
         .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
     },
-    [event],
+    [event, user],
   )
   const [selectedRaterId, setSelectedRaterId] = useState('')
   const players = useMemo(
