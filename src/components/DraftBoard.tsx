@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { money } from '../lib/format'
+import { compactMoney, money } from '../lib/format'
 import {
   acquisitionCost,
   buildTeamLedgers,
@@ -8,6 +8,8 @@ import {
   getDraftReadiness,
   isDraftEligiblePlayer,
   nextDraftSide,
+  salaryBudgetAdvantageWinner,
+  salaryBudgetContestWinner,
 } from '../lib/rules'
 import type { HammaEvent } from '../lib/types'
 import { useRealtimeCurrentEvent } from '../lib/useRealtimeCurrentEvent'
@@ -23,7 +25,7 @@ export function DraftBoard({
   canManageAll?: boolean
   userId?: string
 }) {
-  const [currentEvent, setCurrentEvent] = useRealtimeCurrentEvent(event)
+  const [currentEvent, setCurrentEvent, lastRealtimeUpdate] = useRealtimeCurrentEvent(event)
   const [savingBid, setSavingBid] = useState(false)
   const [pickingPlayerId, setPickingPlayerId] = useState<string>()
   const [resettingPickId, setResettingPickId] = useState<string>()
@@ -43,6 +45,8 @@ export function DraftBoard({
 
   const canCancelBid = canManageAll
   const ledgers = buildTeamLedgers(currentEvent)
+  const latestPickId = [...currentEvent.draftPicks]
+    .sort((a, b) => Date.parse(b.confirmedAt) - Date.parse(a.confirmedAt))[0]?.id
   const draftedIds = new Set(currentEvent.draftPicks.map((pick) => pick.playerId))
   const salaries = calculatePlayerSalaries(currentEvent)
   const salaryByPlayer = new Map(
@@ -93,11 +97,33 @@ export function DraftBoard({
     activeBid &&
       nextLedger &&
       canActOnBid &&
-      canAcquirePlayer(
+      (salaryBudgetContestWinner(
         currentEvent,
         nextLedger.team.id,
+        activeBid.highestTeamId,
         activeBid.playerId,
-        activeBid.currentBonus + currentEvent.bidIncrement,
+      ) ||
+        (!salaryBudgetAdvantageWinner(
+          currentEvent,
+          nextLedger.team.id,
+          activeBid.highestTeamId,
+          activeBid.playerId,
+        ) &&
+          canAcquirePlayer(
+            currentEvent,
+            nextLedger.team.id,
+            activeBid.playerId,
+            activeBid.currentBonus + currentEvent.bidIncrement,
+          ))),
+  )
+  const contestWinsPlayer = Boolean(
+    activeBid &&
+      nextLedger &&
+      salaryBudgetContestWinner(
+        currentEvent,
+        nextLedger.team.id,
+        activeBid.highestTeamId,
+        activeBid.playerId,
       ),
   )
 
@@ -125,6 +151,14 @@ export function DraftBoard({
       void Notification.requestPermission()
     }
   }, [isCaptain])
+
+  useEffect(() => {
+    if (!lastRealtimeUpdate?.message || !lastRealtimeUpdate.type.startsWith('draft.')) return
+    setBidMessage({
+      text: lastRealtimeUpdate.message,
+      tone: lastRealtimeUpdate.tone ?? 'neutral',
+    })
+  }, [lastRealtimeUpdate])
 
   async function runBidAction(action: 'bump' | 'forfeit') {
     const actionTeamId = activeBid?.nextTeamId
@@ -280,15 +314,15 @@ export function DraftBoard({
                   <dl>
                     <div>
                       <dt>Budget left</dt>
-                      <dd>{money(ledger.budgetRemaining)}</dd>
+                      <dd title={money(ledger.budgetRemaining)}>{compactMoney(ledger.budgetRemaining)}</dd>
                     </div>
                     <div>
                       <dt>Bonus left</dt>
-                      <dd>{money(ledger.bonusRemaining)}</dd>
+                      <dd title={money(ledger.bonusRemaining)}>{compactMoney(ledger.bonusRemaining)}</dd>
                     </div>
                     <div>
                       <dt>Total reach</dt>
-                      <dd>{money(ledger.combinedRemaining)}</dd>
+                      <dd title={money(ledger.combinedRemaining)}>{compactMoney(ledger.combinedRemaining)}</dd>
                     </div>
                   </dl>
                   <ul
@@ -316,19 +350,24 @@ export function DraftBoard({
                         <div className="pick-main">
                           <span>{pick.player.name}</span>
                           <small>
-                            {money(pick.salary)}
-                            {pick.bonusSpent ? ` + ${money(pick.bonusSpent)}` : ''}
+                            <span title={money(pick.salary)}>{compactMoney(pick.salary)}</span>
+                            {pick.bonusSpent ? (
+                              <>
+                                {' + '}
+                                <span title={money(pick.bonusSpent)}>{compactMoney(pick.bonusSpent)}</span>
+                              </>
+                            ) : null}
                           </small>
                         </div>
-                        {canManageAll ? (
+                        {canManageAll && pick.id === latestPickId ? (
                           <button
                             className="text-button danger"
                             type="button"
-                            disabled={resettingPickId === pick.id}
+                            disabled={Boolean(activeBid) || resettingPickId === pick.id}
                             onClick={() => void resetPick(pick.id)}
                           >
                             {resettingPickId === pick.id ? <span className="spinner" aria-label="Resetting" /> : null}
-                            Reset
+                            Undo
                           </button>
                         ) : null}
                       </li>
@@ -397,7 +436,7 @@ export function DraftBoard({
                       onClick={() => void runBidAction('bump')}
                     >
                       {savingBid ? <span className="spinner" aria-label="Saving" /> : null}
-                      +{money(currentEvent.bidIncrement)}
+                      {contestWinsPlayer ? 'Contest' : `+${money(currentEvent.bidIncrement)}`}
                     </button>
                     <button
                       className="text-button danger"
@@ -423,11 +462,11 @@ export function DraftBoard({
             ) : null}
           </div>
         ) : null}
-        <div className="available-list">
+        <div className={`available-list${!available.length ? ' available-list-empty' : ''}`}>
           {!draftEligibleCount ? (
             <div className="empty-inline">No draft-eligible signups are available for this event yet.</div>
           ) : !available.length ? (
-            <div className="empty-inline">Every draft-eligible signup has already been drafted.</div>
+            <div className="empty-inline">Every player has been drafted.</div>
           ) : available.map((player) => {
             const salary = salaryByPlayer.get(player.id) ?? 0
             const pickCost = pickTurn

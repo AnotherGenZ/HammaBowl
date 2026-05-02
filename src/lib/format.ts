@@ -6,6 +6,18 @@ export function money(value: number) {
   return `$${value.toLocaleString()}`
 }
 
+export function compactMoney(value: number) {
+  if (Math.abs(value) >= 1_000_000) {
+    return `$${(value / 1_000_000).toFixed(value % 1_000_000 === 0 ? 0 : 1)}m`
+  }
+
+  if (Math.abs(value) >= 1_000) {
+    return `$${(value / 1_000).toFixed(value % 1_000 === 0 ? 0 : 1)}k`
+  }
+
+  return `$${value.toLocaleString()}`
+}
+
 export function percent(value: number) {
   return `${(value * 100).toFixed(1)}%`
 }

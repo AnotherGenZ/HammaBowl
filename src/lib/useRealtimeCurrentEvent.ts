@@ -1,8 +1,17 @@
 import { useEffect, useState } from 'react'
 import type { HammaEvent } from './types'
 
+export interface RealtimeEventUpdate {
+  type: string
+  eventId: string
+  at: string
+  message?: string
+  tone?: 'neutral' | 'success' | 'error'
+}
+
 export function useRealtimeCurrentEvent(initialEvent: HammaEvent | null, enabled = true) {
   const [event, setEvent] = useState(initialEvent)
+  const [lastUpdate, setLastUpdate] = useState<RealtimeEventUpdate>()
 
   useEffect(() => {
     setEvent(initialEvent)
@@ -33,7 +42,12 @@ export function useRealtimeCurrentEvent(initialEvent: HammaEvent | null, enabled
       ? `/api/event/current/stream?eventId=${encodeURIComponent(event.id)}`
       : '/api/event/current/stream'
     const source = new EventSource(streamUrl)
-    source.addEventListener('event-update', () => {
+    source.addEventListener('event-update', (messageEvent) => {
+      try {
+        setLastUpdate(JSON.parse(messageEvent.data) as RealtimeEventUpdate)
+      } catch (error) {
+        console.warn('Realtime event message parse failed', error)
+      }
       void refresh()
     })
 
@@ -43,5 +57,5 @@ export function useRealtimeCurrentEvent(initialEvent: HammaEvent | null, enabled
     }
   }, [enabled, event?.id])
 
-  return [event, setEvent] as const
+  return [event, setEvent, lastUpdate] as const
 }

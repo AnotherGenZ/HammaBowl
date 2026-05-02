@@ -1,9 +1,11 @@
 import '@tanstack/react-start/server-only'
 
-interface EventUpdate {
+export interface EventUpdate {
   type: string
   eventId: string
   at: string
+  message?: string
+  tone?: 'neutral' | 'success' | 'error'
 }
 
 type Listener = (message: EventUpdate) => void
@@ -17,11 +19,16 @@ export function subscribeToEventUpdates(listener: Listener) {
   }
 }
 
-export function publishEventUpdate(eventId: string, type: string) {
+export function publishEventUpdate(
+  eventId: string,
+  type: string,
+  options: Pick<EventUpdate, 'message' | 'tone'> = {},
+) {
   const message = {
     type,
     eventId,
     at: new Date().toISOString(),
+    ...options,
   }
 
   for (const listener of listeners) {

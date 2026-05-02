@@ -153,6 +153,7 @@ export const draftPicks = sqliteTable('draft_picks', {
   eventId: text('event_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
   playerDiscordId: text('player_discord_id').notNull(),
   teamId: text('team_id').notNull().references(() => teams.id, { onDelete: 'cascade' }),
+  openedByTeamId: text('opened_by_team_id').references(() => teams.id, { onDelete: 'set null' }),
   salary: integer('salary').notNull().default(0),
   bonusSpent: integer('bonus_spent').notNull().default(0),
   contestedByTeamId: text('contested_by_team_id'),

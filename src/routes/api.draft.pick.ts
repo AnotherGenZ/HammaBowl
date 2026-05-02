@@ -32,13 +32,14 @@ export const Route = createFileRoute('/api/draft/pick')({
 
         clearCurrentEventCache()
         const updated = await getDbEvent(event.id)
-        publishEventUpdate(event.id, 'draft.pick.selected')
+        const message = 'directAward' in result && result.directAward
+          ? `${result.player} automatically awarded to ${result.team}.`
+          : `${result.team} opened bidding on ${result.player}.`
+        publishEventUpdate(event.id, 'draft.pick.selected', { message, tone: 'success' })
 
         return Response.json({
           ok: true,
-          message: 'directAward' in result && result.directAward
-            ? `${result.player} automatically awarded to ${result.team}.`
-            : `${result.team} opened bidding on ${result.player}.`,
+          message,
           event: updated,
         })
       },
@@ -50,11 +51,12 @@ export const Route = createFileRoute('/api/draft/pick')({
 
         clearCurrentEventCache()
         const updated = await getDbEvent(event.id)
-        publishEventUpdate(event.id, 'draft.pick.reset')
+        const message = `${result.player} returned to the signup pool.`
+        publishEventUpdate(event.id, 'draft.pick.reset', { message, tone: 'success' })
 
         return Response.json({
           ok: true,
-          message: `${result.player} returned to the signup pool.`,
+          message,
           event: updated,
         })
       },

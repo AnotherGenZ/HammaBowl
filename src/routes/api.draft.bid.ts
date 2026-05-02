@@ -36,7 +36,9 @@ export const Route = createFileRoute('/api/draft/bid')({
             : `${result.team} opened bidding on ${result.player}.`
         } else if (action === 'bump') {
           const result = await bumpDraftBid(event, String(body.bidId ?? ''), teamId)
-          message = `${result.team} raised the bid on ${result.player}.`
+          message = 'directAward' in result && result.directAward
+            ? `${result.player} added to ${result.team}.`
+            : `${result.team} raised the bid on ${result.player}.`
         } else if (action === 'forfeit') {
           const result = await forfeitDraftBid(event, String(body.bidId ?? ''), teamId)
           message = `${result.player} added to ${result.team}.`
@@ -46,7 +48,7 @@ export const Route = createFileRoute('/api/draft/bid')({
 
         clearCurrentEventCache()
         const updated = await getDbEvent(event.id)
-        publishEventUpdate(event.id, `draft.bid.${action}`)
+        publishEventUpdate(event.id, `draft.bid.${action}`, { message, tone: 'success' })
 
         return Response.json({ ok: true, message, event: updated })
       },
@@ -57,9 +59,10 @@ export const Route = createFileRoute('/api/draft/bid')({
         await cancelActiveDraftBid(event.id)
         clearCurrentEventCache()
         const updated = await getDbEvent(event.id)
-        publishEventUpdate(event.id, 'draft.bid.cancelled')
+        const message = 'Active bid cancelled.'
+        publishEventUpdate(event.id, 'draft.bid.cancelled', { message, tone: 'success' })
 
-        return Response.json({ ok: true, message: 'Active bid cancelled.', event: updated })
+        return Response.json({ ok: true, message, event: updated })
       },
     },
   },

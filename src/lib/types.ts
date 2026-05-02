@@ -35,6 +35,7 @@ export interface DraftPick {
   id: string
   playerId: string
   teamId: string
+  openedByTeamId?: string
   salary: number
   bonusSpent: number
   contestedByTeamId?: string

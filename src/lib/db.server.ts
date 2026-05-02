@@ -4,7 +4,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import Database from 'better-sqlite3'
-import { and, eq } from 'drizzle-orm'
+import { and, desc, eq } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { env } from './env'
 import { normalizeProfileBanner } from './profileBanners'
@@ -41,6 +41,7 @@ import {
   isCaptainPlayer,
   oppositeTeamId,
   reachAwardWinner,
+  salaryBudgetAdvantageWinner,
 } from './rules'
 import type {
   AdminBadgeManagerData,
@@ -223,6 +224,7 @@ export async function getDbEvent(eventId: string): Promise<HammaEvent | null> {
       id: pick.id,
       playerId: pick.playerDiscordId,
       teamId: pick.teamId,
+      openedByTeamId: pick.openedByTeamId ?? undefined,
       salary: pick.salary,
       bonusSpent: pick.bonusSpent,
       contestedByTeamId: pick.contestedByTeamId ?? undefined,
@@ -1005,7 +1007,7 @@ export async function addHistoricalTeamMember(values: {
 
   if (existingPick) {
     db.update(draftPicks)
-      .set({ teamId: values.teamId })
+      .set({ teamId: values.teamId, openedByTeamId: values.teamId })
       .where(eq(draftPicks.id, existingPick.id))
       .run()
   } else {
@@ -1015,6 +1017,7 @@ export async function addHistoricalTeamMember(values: {
         eventId: values.eventId,
         playerDiscordId: discordId,
         teamId: values.teamId,
+        openedByTeamId: values.teamId,
         salary: 0,
         bonusSpent: 0,
         confirmedAt: now,
@@ -1097,6 +1100,7 @@ export async function confirmDraftPick(
   playerDiscordId: string,
   bidBonus: number,
   contestedByTeamId?: string,
+  openedByTeamId?: string,
 ) {
   const team = event.teams.find((captain) => captain.id === teamId)
   if (!team) throw new Error('Team not found.')
@@ -1129,6 +1133,7 @@ export async function confirmDraftPick(
       eventId: event.id,
       playerDiscordId,
       teamId,
+      openedByTeamId: openedByTeamId || teamId,
       salary: cost.salary,
       bonusSpent: cost.bonusSpent,
       contestedByTeamId: contestedByTeamId || null,
@@ -1198,7 +1203,7 @@ export async function pickDraftPlayer(event: HammaEvent, teamId: string, playerD
 
   const reachWinner = reachAwardWinner(event, teamId, playerDiscordId)
   if (reachWinner) {
-    const result = await confirmDraftPick(event, reachWinner.team.id, playerDiscordId, 0)
+    const result = await confirmDraftPick(event, reachWinner.team.id, playerDiscordId, 0, undefined, teamId)
     db.update(events)
       .set({
         nextPickTeamId: oppositeTeamId(event, teamId) ?? null,
@@ -1218,6 +1223,40 @@ export async function pickDraftPlayer(event: HammaEvent, teamId: string, playerD
 export async function bumpDraftBid(event: HammaEvent, bidId: string, teamId: string) {
   const bid = getActiveBid(event.id, bidId)
   if (bid.nextTeamId !== teamId) throw new Error('It is not your turn to raise this bid.')
+
+  const budgetAdvantageWinner = salaryBudgetAdvantageWinner(
+    event,
+    teamId,
+    bid.highestTeamId,
+    bid.playerDiscordId,
+  )
+  if (budgetAdvantageWinner) {
+    const contestedByTeamId =
+      budgetAdvantageWinner.team.id === teamId ? bid.highestTeamId : teamId
+    const result = await confirmDraftPick(
+      event,
+      budgetAdvantageWinner.team.id,
+      bid.playerDiscordId,
+      0,
+      contestedByTeamId,
+      bid.openedByTeamId,
+    )
+    db.delete(activeDraftBids)
+      .where(and(eq(activeDraftBids.eventId, event.id), eq(activeDraftBids.id, bid.id)))
+      .run()
+    db.update(events)
+      .set({
+        nextPickTeamId: oppositeTeamId(event, bid.openedByTeamId) ?? null,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(events.id, event.id))
+      .run()
+
+    return {
+      ...result,
+      directAward: true,
+    }
+  }
 
   const nextBonus = bid.currentBonus + event.bidIncrement
   if (!canAcquirePlayer(event, teamId, bid.playerDiscordId, nextBonus)) {
@@ -1257,6 +1296,7 @@ export async function forfeitDraftBid(event: HammaEvent, bidId: string, teamId: 
     bid.playerDiscordId,
     bid.currentBonus,
     bid.currentBonus > 0 ? teamId : undefined,
+    bid.openedByTeamId,
   )
 
   db.delete(activeDraftBids)
@@ -1271,12 +1311,30 @@ export async function forfeitDraftBid(event: HammaEvent, bidId: string, teamId: 
 }
 
 export async function resetDraftPick(eventId: string, pickId: string) {
+  const activeBid = db
+    .select()
+    .from(activeDraftBids)
+    .where(and(eq(activeDraftBids.eventId, eventId), eq(activeDraftBids.status, 'active')))
+    .get()
+  if (activeBid) throw new Error('Cancel or finish the active bid before resetting a pick.')
+
   const pick = db
     .select()
     .from(draftPicks)
     .where(and(eq(draftPicks.eventId, eventId), eq(draftPicks.id, pickId)))
     .get()
   if (!pick) throw new Error('Draft pick not found.')
+
+  const latestPick = db
+    .select()
+    .from(draftPicks)
+    .where(eq(draftPicks.eventId, eventId))
+    .orderBy(desc(draftPicks.confirmedAt))
+    .limit(1)
+    .get()
+  if (latestPick?.id !== pick.id) {
+    throw new Error('Only the most recent pick can be undone.')
+  }
 
   const player = db
     .select()
@@ -1293,7 +1351,13 @@ export async function resetDraftPick(eventId: string, pickId: string) {
     .where(and(eq(draftPicks.eventId, eventId), eq(draftPicks.id, pickId)))
     .run()
 
-  db.update(events).set({ updatedAt: new Date().toISOString() }).where(eq(events.id, eventId)).run()
+  db.update(events)
+    .set({
+      nextPickTeamId: pick.openedByTeamId ?? pick.teamId,
+      updatedAt: new Date().toISOString(),
+    })
+    .where(eq(events.id, eventId))
+    .run()
 
   return { player: getParticipantName(pick.playerDiscordId) ?? player?.name ?? pick.playerDiscordId }
 }
@@ -2474,6 +2538,7 @@ function bootstrap() {
       event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
       player_discord_id TEXT NOT NULL,
       team_id TEXT NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+      opened_by_team_id TEXT REFERENCES teams(id) ON DELETE SET NULL,
       salary INTEGER NOT NULL DEFAULT 0,
       bonus_spent INTEGER NOT NULL DEFAULT 0,
       contested_by_team_id TEXT,
@@ -2544,6 +2609,7 @@ function bootstrap() {
   addColumnIfMissing('coinflips', 'winner_starting_side', 'TEXT')
   addColumnIfMissing('coinflips', 'first_pick_team_id', 'TEXT REFERENCES teams(id) ON DELETE SET NULL')
   addColumnIfMissing('coinflips', 'updated_at', 'TEXT')
+  addColumnIfMissing('draft_picks', 'opened_by_team_id', 'TEXT REFERENCES teams(id) ON DELETE SET NULL')
   sqlite.exec(`
     INSERT INTO participants (discord_id, name, updated_at)
     SELECT discord_id, name, MAX(updated_at)

@@ -1919,6 +1919,10 @@ function TeamForm({
     setMessage(summarizeResult(result))
   }
 
+  const sortedPlayers = [...players].sort(
+    (a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }) || a.id.localeCompare(b.id),
+  )
+
   return (
     <article className="team-admin-card">
       <label>
@@ -1932,7 +1936,7 @@ function TeamForm({
           onChange={(event) => setCaptainDiscordId(event.currentTarget.value)}
         >
           <option value="">Unassigned</option>
-          {players.map((player) => (
+          {sortedPlayers.map((player) => (
             <option key={player.id} value={player.id}>
               {player.name}
             </option>

@@ -1310,11 +1310,19 @@ dd {
 
 .signup-pool-panel {
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+}
+
+.signup-pool-panel .active-bid-panel {
+  grid-row: 2;
+}
+
+.signup-pool-panel > .toast {
+  grid-row: 3;
 }
 
 .signup-pool-panel .available-list {
-  grid-row: 3;
+  grid-row: 4;
   min-height: 0;
   max-height: none;
 }
@@ -2148,6 +2156,17 @@ dd {
   min-height: 520px;
   overflow-y: auto;
   padding-right: 6px;
+}
+
+.available-list-empty {
+  align-content: center;
+  justify-items: center;
+}
+
+.available-list-empty .empty-inline {
+  justify-content: center;
+  max-width: 440px;
+  text-align: center;
 }
 
 /* ── Bid panel ──────────────────────────────────────── */

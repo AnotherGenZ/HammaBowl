@@ -226,6 +226,30 @@ export function requiresTotalReach(event: HammaEvent, teamId: string, playerId: 
   return (acquisitionCost(event, teamId, playerId, 0)?.salaryShortfall ?? 0) > 0
 }
 
+export function salaryBudgetContestWinner(
+  event: HammaEvent,
+  contestingTeamId: string,
+  leadingTeamId: string,
+  playerId: string,
+) {
+  const winner = salaryBudgetAdvantageWinner(event, contestingTeamId, leadingTeamId, playerId)
+  return winner?.team.id === contestingTeamId ? winner : undefined
+}
+
+export function salaryBudgetAdvantageWinner(
+  event: HammaEvent,
+  firstTeamId: string,
+  secondTeamId: string,
+  playerId: string,
+) {
+  const firstCost = acquisitionCost(event, firstTeamId, playerId, 0)
+  const secondCost = acquisitionCost(event, secondTeamId, playerId, 0)
+  if (!firstCost?.affordable || !secondCost?.affordable) return undefined
+  if (firstCost.usesReach === secondCost.usesReach) return undefined
+
+  return firstCost.usesReach ? secondCost.ledger : firstCost.ledger
+}
+
 export function reachAwardWinner(event: HammaEvent, initiatingTeamId: string, playerId: string) {
   const ledgers = buildTeamLedgers(event)
   if (ledgers.length !== 2) return undefined
