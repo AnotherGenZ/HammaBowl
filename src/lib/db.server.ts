@@ -1753,6 +1753,11 @@ export function savePlayerCharacters(discordId: string, characters: PlayerCharac
 
 export function getEventPlayerCharacterAssignments(eventId: string): EventPlayerCharacterAssignment[] {
   const rows = sqlite.prepare(`
+    WITH player_character_counts AS (
+      SELECT discord_id, COUNT(*) AS characterCount
+      FROM player_characters
+      GROUP BY discord_id
+    )
     SELECT
       ep.event_id AS eventId,
       ep.discord_id AS discordId,
@@ -1763,11 +1768,18 @@ export function getEventPlayerCharacterAssignments(eventId: string): EventPlayer
       ec.character_name AS characterName,
       ec.assigned_at AS assignedAt
     FROM event_participants ep
-    JOIN player_profiles pp ON pp.discord_id = ep.discord_id
+    LEFT JOIN player_profiles pp ON pp.discord_id = ep.discord_id
+    LEFT JOIN player_character_counts pcc ON pcc.discord_id = ep.discord_id
     LEFT JOIN participants p ON p.discord_id = ep.discord_id
     LEFT JOIN event_player_characters ec
       ON ec.event_id = ep.event_id AND ec.discord_id = ep.discord_id
-    WHERE ep.event_id = ? AND pp.no_personal_jaeger_account = 1 AND ep.disqualified = 0
+    WHERE
+      ep.event_id = ?
+      AND ep.disqualified = 0
+      AND (
+        COALESCE(pp.no_personal_jaeger_account, 0) = 1
+        OR COALESCE(pcc.characterCount, 0) = 0
+      )
     ORDER BY playerName COLLATE NOCASE
   `).all(eventId) as Array<{
     eventId: string
@@ -1839,12 +1851,16 @@ export function getEventPlayerCharacterExportRows(eventId: string): Array<{
       COALESCE(p.name, ep.name, tm.discordId) AS playerName,
       COALESCE(
         CASE
-          WHEN COALESCE(pp.no_personal_jaeger_account, 0) = 1
+          WHEN (
+              COALESCE(pp.no_personal_jaeger_account, 0) = 1
+              OR COALESCE(pcc.characterCount, 0) = 0
+            )
             AND ec.faction = tm.currentFaction
           THEN ec.character_id
         END,
         CASE
           WHEN COALESCE(pp.no_personal_jaeger_account, 0) = 0
+            AND COALESCE(pcc.characterCount, 0) > 0
           THEN pc.character_id
         END,
         ''
@@ -1856,6 +1872,11 @@ export function getEventPlayerCharacterExportRows(eventId: string): Array<{
       AND ep.disqualified = 0
     LEFT JOIN participants p ON p.discord_id = tm.discordId
     LEFT JOIN player_profiles pp ON pp.discord_id = tm.discordId
+    LEFT JOIN (
+      SELECT discord_id, COUNT(*) AS characterCount
+      FROM player_characters
+      GROUP BY discord_id
+    ) pcc ON pcc.discord_id = tm.discordId
     LEFT JOIN event_player_characters ec
       ON ec.event_id = tm.eventId
       AND ec.discord_id = tm.discordId
@@ -1898,8 +1919,8 @@ export function saveEventPlayerCharacterAssignments(
   }
 
   const profile = db.select().from(playerProfiles).where(eq(playerProfiles.discordId, discordId)).get()
-  if (!profile?.noPersonalJaegerAccount) {
-    throw new Error('Player has not marked that they need an assigned Jaeger character.')
+  if (!profile?.noPersonalJaegerAccount && getPlayerCharacters(discordId).length > 0) {
+    throw new Error('Player has configured personal Jaeger characters.')
   }
 
   const seen = new Set<Faction>()
