@@ -73,7 +73,7 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
 }
 
 function TopBar() {
-  const { user, hasCurrentEvent } = useSession()
+  const { user, hasCurrentEvent, canRateCurrentEvent } = useSession()
   const isAdmin = user?.roles.includes('admin')
 
   return (
@@ -93,9 +93,7 @@ function TopBar() {
             Draft
           </Link>
         ) : null}
-        {hasCurrentEvent &&
-        user?.profileComplete &&
-        user.roles.some((role) => role === 'participant' || role === 'admin') ? (
+        {canRateCurrentEvent ? (
           <Link to="/ratings" activeProps={{ className: 'active' }}>
             Ratings
           </Link>

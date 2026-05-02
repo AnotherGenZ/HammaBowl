@@ -4,20 +4,30 @@ import { useEffect, useMemo, useState } from 'react'
 import { pageMeta } from '../lib/meta'
 import { isCaptainPlayer } from '../lib/rules'
 import { useSession } from '../lib/SessionContext'
-import { getCurrentEvent } from '../lib/services'
 
 type RatingsSortMode = 'name' | 'rating-desc' | 'rating-asc'
 
-const requireCompleteProfile = createServerFn({ method: 'GET' }).handler(async () => {
+const requireRatingsAccess = createServerFn({ method: 'GET' }).handler(async () => {
   const { getDiscordSessionUser } = await import('../lib/discord.server')
+  const { isEventParticipant } = await import('../lib/db.server')
+  const { getCurrentEvent } = await import('../lib/services')
+
   const user = await getDiscordSessionUser()
+  const event = await getCurrentEvent()
+
+  if (!user) throw redirect({ to: '/' })
   if (user && !user.profileComplete) throw redirect({ to: '/settings' })
+
+  if (!user.roles.includes('admin') && (!event || !isEventParticipant(event.id, user.id))) {
+    throw redirect({ to: '/' })
+  }
+
+  return event
 })
 
 export const Route = createFileRoute('/ratings')({
   loader: async () => {
-    await requireCompleteProfile()
-    return getCurrentEvent()
+    return requireRatingsAccess()
   },
   head: ({ loaderData }) =>
     pageMeta({
@@ -40,13 +50,24 @@ function Ratings() {
   const [sortMode, setSortMode] = useState<RatingsSortMode>('name')
   const [message, setMessage] = useState<{ text: string; tone: 'neutral' | 'success' | 'error' }>()
 
+  const isAdmin = Boolean(user?.roles.includes('admin'))
   const canRate = user?.roles.some((role) => role === 'participant' || role === 'admin')
+  const raterOptions = useMemo(
+    () => {
+      const submittedRaterIds = new Set(event?.ratings.map((rating) => rating.fromPlayerId) ?? [])
+      return [...(event?.players ?? [])]
+        .filter((player) => submittedRaterIds.has(player.id))
+        .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
+    },
+    [event],
+  )
+  const [selectedRaterId, setSelectedRaterId] = useState('')
   const players = useMemo(
     () =>
       event?.players.filter(
-        (player) => player.id !== user?.id && !isCaptainPlayer(event, player.id),
+        (player) => player.id !== selectedRaterId && !isCaptainPlayer(event, player.id),
       ) ?? [],
-    [event, user?.id],
+    [event, selectedRaterId],
   )
 
   const ratedCount = useMemo(
@@ -75,15 +96,43 @@ function Ratings() {
   }, [players, ratings, sortMode])
 
   useEffect(() => {
+    if (!user) {
+      setSelectedRaterId('')
+      return
+    }
+
+    if (!isAdmin) {
+      setSelectedRaterId(user.id)
+      return
+    }
+
+    if (!raterOptions.length) {
+      setSelectedRaterId('')
+      return
+    }
+
+    if (!raterOptions.some((player) => player.id === selectedRaterId)) {
+      setSelectedRaterId(raterOptions[0].id)
+    }
+  }, [isAdmin, raterOptions, selectedRaterId, user])
+
+  useEffect(() => {
     if (!event || !canRate) {
       setRatings({})
       setRatingsLoaded(false)
       return
     }
 
+    if (!selectedRaterId) {
+      setRatings({})
+      setRatingsLoaded(Boolean(user))
+      return
+    }
+
     let active = true
     setRatingsLoaded(false)
-    fetch('/api/ratings')
+    const params = isAdmin ? `?fromDiscordId=${encodeURIComponent(selectedRaterId)}` : ''
+    fetch(`/api/ratings${params}`)
       .then(async (response) => {
         if (!response.ok) throw new Error(await response.text())
         return response.json() as Promise<{
@@ -109,7 +158,7 @@ function Ratings() {
     return () => {
       active = false
     }
-  }, [event, canRate])
+  }, [event, canRate, isAdmin, selectedRaterId, user])
 
   async function rate(toDiscordId: string, score: number) {
     setSaving(toDiscordId)
@@ -118,7 +167,7 @@ function Ratings() {
       const response = await fetch('/api/ratings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ toDiscordId, score }),
+        body: JSON.stringify({ fromDiscordId: selectedRaterId, toDiscordId, score }),
       })
       if (!response.ok) throw new Error(await response.text())
       const result = await response.json()
@@ -138,7 +187,7 @@ function Ratings() {
       const response = await fetch('/api/ratings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ toDiscordId, score: null }),
+        body: JSON.stringify({ fromDiscordId: selectedRaterId, toDiscordId, score: null }),
       })
       if (!response.ok) throw new Error(await response.text())
       const result = await response.json()
@@ -168,7 +217,28 @@ function Ratings() {
                 {ratedCount}/{players.length} rated
               </span>
             ) : null}
-            <span className="pill">{user ? user.name : 'Discord login required'}</span>
+            <label className="rating-rater-select">
+              <span>Ratings by</span>
+              <select
+                value={selectedRaterId}
+                disabled={!isAdmin || !raterOptions.length}
+                onChange={(event) => setSelectedRaterId(event.currentTarget.value)}
+              >
+                {isAdmin ? (
+                  raterOptions.length ? (
+                    raterOptions.map((player) => (
+                      <option key={player.id} value={player.id}>
+                        {player.name}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="">No raters available</option>
+                  )
+                ) : (
+                  <option value={user?.id ?? ''}>{user ? user.name : 'Discord login required'}</option>
+                )}
+              </select>
+            </label>
           </div>
         </div>
         {!event ? (
@@ -192,7 +262,8 @@ function Ratings() {
                 <span><strong>10</strong> Exceptional</span>
               </div>
               <p className="rating-legend-note">
-                Only rate players you have played with. Leave unknown players unrated.
+                Only rate players you have played with. Leave unknown players unrated. Do not troll,
+                coordinate, or otherwise attempt to manipulate ratings.
               </p>
             </div>
             <div className="rating-list-toolbar" aria-label="Rating list controls">

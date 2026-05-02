@@ -2328,6 +2328,33 @@ dd {
   gap: 10px;
 }
 
+.rating-rater-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #b4bcbb;
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.rating-rater-select select {
+  min-height: 34px;
+  min-width: 180px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff7e6;
+  font: inherit;
+  text-transform: none;
+  padding: 0 34px 0 12px;
+}
+
+.rating-rater-select select:disabled {
+  color: #d8dedc;
+  opacity: 1;
+}
+
 .ratings-page .panel {
   display: flex;
   flex-direction: column;
@@ -3065,6 +3092,15 @@ dd {
 
   .rating-header-actions {
     flex-wrap: wrap;
+  }
+
+  .rating-rater-select {
+    width: 100%;
+  }
+
+  .rating-rater-select select {
+    min-width: 0;
+    flex: 1;
   }
 
   .rating-list-toolbar {
