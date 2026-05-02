@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 import type { HammaEvent, Role } from './types'
 
 export interface SessionUser {
@@ -14,6 +14,7 @@ interface SessionContextValue {
   loading: boolean
   hasCurrentEvent: boolean
   canRateCurrentEvent: boolean
+  refreshSession: () => Promise<void>
 }
 
 const SessionContext = createContext<SessionContextValue>({
@@ -21,6 +22,7 @@ const SessionContext = createContext<SessionContextValue>({
   loading: true,
   hasCurrentEvent: false,
   canRateCurrentEvent: false,
+  refreshSession: async () => {},
 })
 
 export function SessionProvider({
@@ -31,41 +33,43 @@ export function SessionProvider({
   const [hasCurrentEvent, setHasCurrentEvent] = useState(false)
   const [canRateCurrentEvent, setCanRateCurrentEvent] = useState(false)
 
-  useEffect(() => {
-    let active = true
-
-    Promise.all([
+  const refreshSession = useCallback(async () => {
+    const [sessionPayload, event]: [{ user: SessionUser | null }, HammaEvent | null] = await Promise.all([
       fetch('/api/auth/session')
         .then((r) => r.json())
         .catch(() => ({ user: null })),
       fetch('/api/event/current')
         .then((r) => (r.ok ? r.json() : null))
         .catch(() => null),
-    ]).then(([sessionPayload, event]: [{ user: SessionUser | null }, HammaEvent | null]) => {
-      if (!active) return
+    ])
 
-      const sessionUser = sessionPayload.user
-      setUser(sessionUser)
-      setHasCurrentEvent(Boolean(event))
-      setCanRateCurrentEvent(Boolean(
-        event &&
-        sessionUser?.profileComplete &&
-        (
-          sessionUser.roles.includes('admin') ||
-          event.players.some((player) => player.id === sessionUser.id)
-        ),
-      ))
-    }).finally(() => {
+    const sessionUser = sessionPayload.user
+    setUser(sessionUser)
+    setHasCurrentEvent(Boolean(event))
+    setCanRateCurrentEvent(Boolean(
+      event &&
+      sessionUser?.profileComplete &&
+      (
+        sessionUser.roles.includes('admin') ||
+        event.players.some((player) => player.id === sessionUser.id)
+      ),
+    ))
+  }, [])
+
+  useEffect(() => {
+    let active = true
+
+    refreshSession().finally(() => {
       if (active) setLoading(false)
     })
 
     return () => {
       active = false
     }
-  }, [])
+  }, [refreshSession])
 
   return (
-    <SessionContext value={{ user, loading, hasCurrentEvent, canRateCurrentEvent }}>
+    <SessionContext value={{ user, loading, hasCurrentEvent, canRateCurrentEvent, refreshSession }}>
       {children}
     </SessionContext>
   )

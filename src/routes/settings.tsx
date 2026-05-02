@@ -3,6 +3,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { useState } from 'react'
 import { pageMeta } from '../lib/meta'
 import { PROFILE_BANNERS } from '../lib/profileBanners'
+import { useSession } from '../lib/SessionContext'
 import type { Faction, PlayerBadge, PlayerCharacter } from '../lib/types'
 
 const FACTIONS: Faction[] = ['TR', 'VS', 'NC']
@@ -31,6 +32,7 @@ export const Route = createFileRoute('/settings')({
 
 function Settings() {
   const initialProfile = Route.useLoaderData()
+  const { refreshSession } = useSession()
   const [bannerUrl, setBannerUrl] = useState(initialProfile.bannerUrl || DEFAULT_BANNER)
   const [catchphrase, setCatchphrase] = useState(initialProfile.catchphrase)
   const [characters, setCharacters] = useState(
@@ -88,6 +90,7 @@ function Settings() {
         body: JSON.stringify({ noPersonalJaegerAccount }),
       })
       if (!response.ok) throw new Error(await response.text())
+      await refreshSession()
       setMessage({
         text: noPersonalJaegerAccount ? 'Jaeger account status saved.' : 'Jaeger account status cleared.',
         tone: 'success',
@@ -113,6 +116,7 @@ function Settings() {
       })
       if (!response.ok) throw new Error(await response.text())
       const payload = await response.json() as { resolved: PlayerCharacter[] }
+      await refreshSession()
       setResolvedCharacters(payload.resolved)
       setMessage({ text: 'Characters resolved and saved.', tone: 'success' })
     } catch (error) {
