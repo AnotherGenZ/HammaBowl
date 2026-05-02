@@ -1,10 +1,11 @@
 import { createServerOnlyFn } from '@tanstack/start-fn-stubs'
 import {
-  buildTeamCompositionMessage,
+  buildRaidHelperCompUpdate,
   createRaidHelperClient,
   hydrateCurrentEventsFromRaidHelper,
   isRaidHelperConfigured,
 } from './raidHelper'
+import { undraftedDraftEligiblePlayers } from './rules'
 import type { HammaEvent, Role } from './types'
 
 const RAID_HELPER_REFRESH_INTERVAL_MS = 10 * 60 * 1000
@@ -163,17 +164,98 @@ function refreshCurrentEventFromRaidHelper(options: {
 
 ensureRaidHelperAutoRefresh()
 
-export async function postTeamCompositionToDiscord(event: HammaEvent) {
-  if (isRaidHelperConfigured()) {
-    const client = createRaidHelperClient()
-    await client.postComposition(
-      event.raidHelperEventId,
-      buildTeamCompositionMessage(event),
-    )
+export async function syncTeamCompositionToRaidHelper(event: HammaEvent) {
+  const undraftedPlayers = undraftedDraftEligiblePlayers(event)
+  if (undraftedPlayers.length) {
+    throw new Response('Cannot sync Raid Helper comp while players remain undrafted.', {
+      status: 400,
+    })
   }
+
+  const nameSync = await syncEventParticipantNameOverridesToRaidHelper(event)
+  const body = buildRaidHelperCompUpdate(event)
+  console.debug('Syncing team composition to Raid Helper', JSON.stringify({
+    eventId: event.id,
+    raidHelperEventId: event.raidHelperEventId,
+    syncedNameOverrideCount: nameSync.synced,
+    teamCount: event.teams.length,
+    draftPickCount: event.draftPicks.length,
+    payload: body,
+  }, null, 2))
+
+  const client = createRaidHelperClient()
+  await client.updateComp(event.raidHelperEventId, body)
 
   return {
     ok: true,
-    message: `${event.name} teams posted through Raid Helper event ${event.raidHelperEventId}`,
+    message: `${event.name} teams synced to Raid Helper comp ${event.raidHelperEventId}`,
   }
+}
+
+export async function syncParticipantNameOverrideToRaidHelper(
+  discordId: string,
+  name: string,
+) {
+  const normalizedDiscordId = discordId.trim()
+  const normalizedName = name.trim()
+  if (!normalizedDiscordId || !normalizedName || !isRaidHelperConfigured()) {
+    return { synced: 0 }
+  }
+
+  const currentEvents = await getCurrentEvents()
+  const raidHelperEvents = currentEvents.filter((event) =>
+    event.raidHelperEventId &&
+    event.players.some((player) => player.id === normalizedDiscordId),
+  )
+  if (!raidHelperEvents.length) return { synced: 0 }
+
+  const client = createRaidHelperClient()
+  let synced = 0
+
+  for (const event of raidHelperEvents) {
+    const signups = await client.getSignups(event.raidHelperEventId)
+    const signup = signups.find((item) => item.discordId === normalizedDiscordId)
+    if (!signup?.signupId) {
+      console.warn('Raid Helper signup not found for player rename', {
+        eventId: event.id,
+        raidHelperEventId: event.raidHelperEventId,
+        discordId: normalizedDiscordId,
+      })
+      continue
+    }
+
+    await client.updateSignupName(event.raidHelperEventId, signup.signupId, normalizedName)
+    synced += 1
+  }
+
+  return { synced }
+}
+
+export async function syncEventParticipantNameOverridesToRaidHelper(event: HammaEvent) {
+  if (!event.raidHelperEventId || !isRaidHelperConfigured()) return { synced: 0 }
+
+  const { getEventParticipantNameOverrides } = await import('./db.server')
+  const overrides = getEventParticipantNameOverrides(event.id)
+  if (!overrides.length) return { synced: 0 }
+
+  const client = createRaidHelperClient()
+  const signups = await client.getSignups(event.raidHelperEventId)
+  let synced = 0
+
+  for (const override of overrides) {
+    const signup = signups.find((item) => item.discordId === override.discordId)
+    if (!signup?.signupId) {
+      console.warn('Raid Helper signup not found for event name override sync', {
+        eventId: event.id,
+        raidHelperEventId: event.raidHelperEventId,
+        discordId: override.discordId,
+      })
+      continue
+    }
+
+    await client.updateSignupName(event.raidHelperEventId, signup.signupId, override.name)
+    synced += 1
+  }
+
+  return { synced }
 }

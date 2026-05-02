@@ -5,6 +5,7 @@ import { BID_INCREMENT, BONUS_POOL, MAX_PLAYER_BONUS, SALARY_POOL } from './rule
 const RAID_HELPER_API_BASE_URL = 'https://raid-helper.xyz/api/v4'
 
 export interface RaidHelperSignup {
+  signupId: string
   discordId: string
   name: string
   className?: string
@@ -24,7 +25,28 @@ export interface RaidHelperClient {
   getCurrentEvent(): Promise<RaidHelperRemoteEvent>
   getCurrentEvents(): Promise<RaidHelperRemoteEvent[]>
   getSignups(eventId: string): Promise<RaidHelperSignup[]>
-  postComposition(eventId: string, content: string): Promise<void>
+  updateComp(compId: string, body: RaidHelperCompUpdate): Promise<void>
+  updateSignupName(eventId: string, signupId: string, name: string): Promise<void>
+}
+
+interface RaidHelperCompUpdate {
+  title: string
+  showRoles: false
+  showClasses: false
+  groupCount: number
+  slotCount: number
+  groups: Array<{
+    name: string
+    position: number
+  }>
+  slots: Array<{
+    name: string
+    className: 'Accepted'
+    specName: 'Accepted'
+    groupNumber: number
+    slotNumber: number
+    isConfirmed: 'confirmed'
+  }>
 }
 
 export function createRaidHelperClient(): RaidHelperClient {
@@ -53,14 +75,41 @@ export function createRaidHelperClient(): RaidHelperClient {
       )
       return normalizeRemoteEvent(payload).signups
     },
-    async postComposition(eventId, content) {
+    async updateComp(compId, body) {
+      const url = `${RAID_HELPER_API_BASE_URL}/comps/${encodeURIComponent(compId)}`
+      const requestBody = JSON.stringify(body)
+      console.debug('Raid Helper comp PATCH payload', JSON.stringify({
+        compId,
+        url,
+        body,
+      }, null, 2))
       await requestUnknown(
-        `${RAID_HELPER_API_BASE_URL}/events/${encodeURIComponent(eventId)}/composition`,
+        url,
         apiKey,
         {
-          method: 'POST',
+          method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content }),
+          body: requestBody,
+        },
+      )
+    },
+    async updateSignupName(eventId, signupId, name) {
+      const url = `${RAID_HELPER_API_BASE_URL}/events/${encodeURIComponent(eventId)}/signups/${encodeURIComponent(signupId)}`
+      const body = { name }
+      const requestBody = JSON.stringify(body)
+      console.debug('Raid Helper signup PATCH payload', JSON.stringify({
+        eventId,
+        signupId,
+        url,
+        body,
+      }, null, 2))
+      await requestUnknown(
+        url,
+        apiKey,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: requestBody,
         },
       )
     },
@@ -120,20 +169,45 @@ async function hydrateRemoteEvent(
   }
 }
 
-export function buildTeamCompositionMessage(event: HammaEvent) {
+export function buildRaidHelperCompUpdate(event: HammaEvent): RaidHelperCompUpdate {
   const playerById = new Map(event.players.map((player) => [player.id, player]))
-  const lines = [`**${event.name} teams**`]
+  const compTeams = event.teams.slice(0, 2)
+  const teamMembers = compTeams.map((team) => {
+    const members = team.captainDiscordId
+      ? [playerById.get(team.captainDiscordId)?.name ?? team.captainDiscordId]
+      : []
+    const draftedPlayers = event.draftPicks
+      .filter((pick) => pick.teamId === team.id && pick.playerId !== team.captainDiscordId)
+      .sort((a, b) => Date.parse(a.confirmedAt) - Date.parse(b.confirmedAt))
 
-  for (const captain of event.teams) {
-    lines.push('', `__${captain.teamName}__`)
-    const picks = event.draftPicks.filter((pick) => pick.teamId === captain.id)
-    for (const pick of picks) {
+    for (const pick of draftedPlayers) {
       const player = playerById.get(pick.playerId)
-      if (player) lines.push(`- ${player.name}`)
+      if (player) members.push(player.name)
     }
-  }
+    return members
+  })
 
-  return lines.join('\n')
+  return {
+    title: event.name,
+    showRoles: false,
+    showClasses: false,
+    groupCount: compTeams.length,
+    slotCount: Math.max(0, ...teamMembers.map((members) => members.length)),
+    groups: compTeams.map((team, index) => ({
+      name: team.teamName,
+      position: index + 1,
+    })),
+    slots: teamMembers.flatMap((members, teamIndex) =>
+      members.map((name, memberIndex) => ({
+        name,
+        className: 'Accepted',
+        specName: 'Accepted',
+        groupNumber: teamIndex + 1,
+        slotNumber: memberIndex + 1,
+        isConfirmed: 'confirmed',
+      })),
+    ),
+  }
 }
 
 function signupPlayers(signups: RaidHelperSignup[]): Player[] {
@@ -178,6 +252,14 @@ async function requestUnknown(
   const response = await fetch(url, { ...init, headers })
   if (!response.ok) {
     const detail = await response.text().catch(() => '')
+    console.error('Raid Helper request failed', {
+      method: init.method ?? 'GET',
+      url,
+      status: response.status,
+      statusText: response.statusText,
+      detail,
+      requestBody: typeof init.body === 'string' ? init.body : undefined,
+    })
     throw new Error(
       `Raid Helper request failed: ${response.status} ${url}${detail ? ` - ${detail}` : ''}`,
     )
@@ -352,6 +434,12 @@ function normalizeSignups(payload: unknown): RaidHelperSignup[] {
     const signup = asRecord(item)
     const user = asRecord(signup.user ?? signup.member ?? {})
     return {
+      signupId: stringValue(
+        signup.id ??
+          signup.signupId ??
+          signup.signupID ??
+          signup.signup_id,
+      ),
       discordId: stringValue(
         signup.discordId ??
           signup.discord_id ??

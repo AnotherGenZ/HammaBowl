@@ -10,6 +10,7 @@ import {
   nextDraftSide,
   salaryBudgetAdvantageWinner,
   salaryBudgetContestWinner,
+  undraftedDraftEligiblePlayers,
 } from '../lib/rules'
 import type { HammaEvent } from '../lib/types'
 import { useRealtimeCurrentEvent } from '../lib/useRealtimeCurrentEvent'
@@ -47,16 +48,11 @@ export function DraftBoard({
   const ledgers = buildTeamLedgers(currentEvent)
   const latestPickId = [...currentEvent.draftPicks]
     .sort((a, b) => Date.parse(b.confirmedAt) - Date.parse(a.confirmedAt))[0]?.id
-  const draftedIds = new Set(currentEvent.draftPicks.map((pick) => pick.playerId))
   const salaries = calculatePlayerSalaries(currentEvent)
   const salaryByPlayer = new Map(
     salaries.map((salary) => [salary.player.id, salary.salary]),
   )
-  const available = currentEvent.players
-    .filter(
-      (player) =>
-        isDraftEligiblePlayer(currentEvent, player) && !draftedIds.has(player.id),
-    )
+  const available = undraftedDraftEligiblePlayers(currentEvent)
     .sort((a, b) => {
       const salaryDelta =
         (salaryByPlayer.get(b.id) ?? 0) - (salaryByPlayer.get(a.id) ?? 0)

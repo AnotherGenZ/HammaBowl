@@ -1537,6 +1537,29 @@ export function getRegisteredPlayerList(): RegisteredParticipant[] {
   return getRegisteredParticipants()
 }
 
+export function getEventParticipantNameOverrides(eventId: string): RegisteredParticipant[] {
+  const participantRows = db
+    .select()
+    .from(eventParticipants)
+    .where(and(eq(eventParticipants.eventId, eventId), eq(eventParticipants.disqualified, false)))
+    .all()
+  const participantIds = new Set(participantRows.map((participant) => participant.discordId))
+
+  return db
+    .select()
+    .from(participants)
+    .all()
+    .filter(
+      (participant) =>
+        participantIds.has(participant.discordId) &&
+        Boolean(participant.nameOverridden),
+    )
+    .map((participant) => ({
+      discordId: participant.discordId,
+      name: participant.name,
+    }))
+}
+
 export function getAdminPlayerCharacterConfigs(): AdminPlayerCharacterConfig[] {
   return getRegisteredPlayerList().map((player) => {
     const profile = db.select().from(playerProfiles).where(eq(playerProfiles.discordId, player.discordId)).get()

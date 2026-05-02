@@ -12,6 +12,7 @@ import type {
   StartingSide,
 } from '../lib/types'
 import { shortDate } from '../lib/format'
+import { undraftedDraftEligiblePlayers } from '../lib/rules'
 import { EVENT_LINK_ICON_OPTIONS, EventLinkIcon } from './EventLinkIcons'
 
 interface RealtimeAdminUpdate {
@@ -32,6 +33,8 @@ export function AdminTools({
   const [realtimeRefreshKey, setRealtimeRefreshKey] = useState(0)
   const [message, setMessage] = useState<string>()
   const [busy, setBusy] = useState<string>()
+  const undraftedPlayers = undraftedDraftEligiblePlayers(currentEvent)
+  const canSyncTeams = undraftedPlayers.length === 0
 
   function setConfiguredEvent(event: HammaEvent) {
     setCurrentEvent(event)
@@ -148,7 +151,12 @@ export function AdminTools({
           actions={
             <button
               type="button"
-              disabled={busy === 'post'}
+              disabled={busy === 'post' || !canSyncTeams}
+              title={
+                canSyncTeams
+                  ? undefined
+                  : `${undraftedPlayers.length} draft-eligible players remain undrafted.`
+              }
               onClick={() =>
                 void run('post', () =>
                   postAdminJson('/api/admin/raid-helper/post-composition', {
@@ -157,11 +165,15 @@ export function AdminTools({
                 )
               }
             >
-              Post teams
+              Sync teams
             </button>
           }
         >
-          <p>Posts the current persisted teams to Raid Helper/Discord.</p>
+          <p>
+            {canSyncTeams
+              ? 'Updates the Raid Helper comp with the current persisted teams.'
+              : `Finish the draft before syncing. ${undraftedPlayers.length} draft-eligible players remain undrafted.`}
+          </p>
         </AdminSection>
       </div>
     </section>

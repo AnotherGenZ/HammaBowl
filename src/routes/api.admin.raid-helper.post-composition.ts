@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { requireAdminSession } from '../lib/discord.server'
 import {
   requireEventByIdOrCurrent,
-  postTeamCompositionToDiscord,
+  syncTeamCompositionToRaidHelper,
 } from '../lib/services'
 
 export const Route = createFileRoute('/api/admin/raid-helper/post-composition')({
@@ -12,7 +12,7 @@ export const Route = createFileRoute('/api/admin/raid-helper/post-composition')(
         await requireAdminSession()
         const body = await request.json().catch(() => ({}))
         const event = await requireEventByIdOrCurrent(String(body.eventId ?? ''))
-        const result = await postTeamCompositionToDiscord(event)
+        const result = await syncTeamCompositionToRaidHelper(event)
 
         return Response.json(result)
       },

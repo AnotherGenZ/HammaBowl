@@ -8,7 +8,7 @@ export const MAX_PLAYER_BONUS = 10_000_000
 export const BID_INCREMENT = 1_000_000
 
 export function isCaptainPlayer(event: HammaEvent, playerId: string) {
-  return event.teams.some((team) => team.captainDiscordId === playerId)
+  return event.teams.filter(Boolean).some((team) => team.captainDiscordId === playerId)
 }
 
 export function isDraftEligiblePlayer(
@@ -34,6 +34,13 @@ export function unratedDraftEligiblePlayers(event: HammaEvent) {
     (player) =>
       isDraftEligiblePlayer(event, player) &&
       receivedRatingCount(event, player.id) === 0,
+  )
+}
+
+export function undraftedDraftEligiblePlayers(event: HammaEvent) {
+  const draftedIds = new Set(event.draftPicks.map((pick) => pick.playerId))
+  return event.players.filter(
+    (player) => isDraftEligiblePlayer(event, player) && !draftedIds.has(player.id),
   )
 }
 
@@ -126,7 +133,7 @@ export function buildTeamLedgers(event: HammaEvent): TeamLedger[] {
   )
   const playerById = new Map(event.players.map((player) => [player.id, player]))
 
-  return event.teams.map((team) => {
+  return event.teams.filter(Boolean).map((team) => {
     const picks = event.draftPicks
       .filter((pick) => pick.teamId === team.id)
       .sort((a, b) => Date.parse(a.confirmedAt) - Date.parse(b.confirmedAt))
@@ -152,6 +159,7 @@ export function buildTeamLedgers(event: HammaEvent): TeamLedger[] {
     const bonusSpent = picks.reduce((sum, pick) => sum + pick.bonusSpent, 0)
     const budgetRemaining = salaryRemaining
     const bonusRemaining = captainBonusCap - bonusSpent
+    const usableBonusRemaining = Math.min(bonusRemaining, event.maxPlayerBonus)
 
     return {
       team: {
@@ -165,7 +173,7 @@ export function buildTeamLedgers(event: HammaEvent): TeamLedger[] {
       bonusSpent,
       budgetRemaining,
       bonusRemaining,
-      combinedRemaining: budgetRemaining + bonusRemaining,
+      combinedRemaining: budgetRemaining + usableBonusRemaining,
     }
   })
 }
