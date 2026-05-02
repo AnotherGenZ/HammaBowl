@@ -201,6 +201,7 @@ export interface EventPlayerCharacterAssignment {
   discordId: string
   playerName: string
   noPersonalJaegerAccount: boolean
+  assignments: PlayerCharacter[]
   assignment?: PlayerCharacter
 }
 

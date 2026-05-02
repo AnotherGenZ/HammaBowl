@@ -761,9 +761,9 @@ function EventJaegerAssignments({
 }) {
   const [assignments, setAssignments] = useState<EventPlayerCharacterAssignment[]>([])
   const [selectedDiscordId, setSelectedDiscordId] = useState('')
-  const [faction, setFaction] = useState<Faction>('TR')
-  const [characterName, setCharacterName] = useState('')
+  const [accountPrefix, setAccountPrefix] = useState('')
   const [loaded, setLoaded] = useState(false)
+  const ready = useClientReady()
 
   useEffect(() => {
     let active = true
@@ -797,29 +797,56 @@ function EventJaegerAssignments({
     const result = await postAdminJson('/api/admin/player-characters', {
       eventId: event.id,
       discordId: selectedDiscordId,
-      faction,
-      characterName,
+      accountPrefix,
     }) as { assignments?: EventPlayerCharacterAssignment[] }
     if (result.assignments) {
       setAssignments(result.assignments)
       setSelectedDiscordId(result.assignments[0]?.discordId ?? '')
     }
-    setFaction('TR')
-    setCharacterName('')
+    setAccountPrefix('')
     return result
+  }
+
+  async function copyCsv() {
+    const response = await fetch(`/api/admin/player-characters?eventId=${encodeURIComponent(event.id)}&format=csv`)
+    if (!response.ok) throw new Error(await response.text())
+    await navigator.clipboard.writeText(await response.text())
+    return { ok: true, message: 'Character CSV copied to clipboard.' }
   }
 
   return (
     <AdminSection
       title="Event Jaeger assignments"
       actions={
-        <button
-          type="button"
-          disabled={busy === 'event-jaeger' || !selectedDiscordId || !characterName.trim()}
-          onClick={() => void onRun('event-jaeger', assignCharacter)}
-        >
-          Resolve and assign
-        </button>
+        <>
+          <button
+            type="button"
+            className="secondary"
+            disabled={
+              busy === 'event-jaeger-copy' ||
+              !ready ||
+              typeof navigator === 'undefined' ||
+              !navigator.clipboard
+            }
+            onClick={() => void onRun('event-jaeger-copy', copyCsv)}
+          >
+            Copy CSV
+          </button>
+          <a
+            className="button-link secondary"
+            href={`/api/admin/player-characters?eventId=${encodeURIComponent(event.id)}&format=csv`}
+            download
+          >
+            Export CSV
+          </a>
+          <button
+            type="button"
+            disabled={busy === 'event-jaeger' || !selectedDiscordId || !accountPrefix.trim()}
+            onClick={() => void onRun('event-jaeger', assignCharacter)}
+          >
+            Resolve and assign all
+          </button>
+        </>
       }
     >
       <div className="rating-adjustment-grid">
@@ -842,19 +869,12 @@ function EventJaegerAssignments({
           </select>
         </label>
         <label>
-          Faction
-          <select value={faction} onChange={(event) => setFaction(event.currentTarget.value as Faction)}>
-            <option value="TR">TR</option>
-            <option value="VS">VS</option>
-            <option value="NC">NC</option>
-          </select>
-        </label>
-        <label>
           Character
           <input
-            value={characterName}
+            value={accountPrefix}
             disabled={!assignments.length}
-            onChange={(event) => setCharacterName(event.currentTarget.value)}
+            placeholder="TAGxCHARACTER"
+            onChange={(event) => setAccountPrefix(event.currentTarget.value)}
           />
         </label>
       </div>
@@ -862,8 +882,10 @@ function EventJaegerAssignments({
         {assignments.map((assignment) => (
           <span key={assignment.discordId}>
             <strong>{assignment.playerName}</strong>
-            {assignment.assignment
-              ? `${assignment.assignment.faction} ${assignment.assignment.characterName} #${assignment.assignment.characterId}`
+            {assignment.assignments.length
+              ? assignment.assignments
+                .map((character) => `${character.faction} ${character.characterName} #${character.characterId}`)
+                .join(', ')
               : 'Needs an event character'}
           </span>
         ))}

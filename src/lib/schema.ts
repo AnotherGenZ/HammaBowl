@@ -86,7 +86,7 @@ export const eventPlayerCharacters = sqliteTable(
     characterName: text('character_name').notNull(),
     assignedAt: text('assigned_at').notNull(),
   },
-  (table) => [primaryKey({ columns: [table.eventId, table.discordId] })],
+  (table) => [primaryKey({ columns: [table.eventId, table.discordId, table.faction] })],
 )
 
 export const badgeDefinitions = sqliteTable('badge_definitions', {

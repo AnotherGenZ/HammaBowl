@@ -36,7 +36,8 @@ a {
   font: inherit;
 }
 
-button {
+button,
+.button-link {
   border: 1px solid #e4b45e;
   background: #e4b45e;
   color: #16130f;
@@ -52,7 +53,8 @@ button {
   transition: background 120ms ease, border-color 120ms ease, opacity 120ms ease;
 }
 
-button:hover:not(:disabled) {
+button:hover:not(:disabled),
+.button-link:hover {
   background: #f0c878;
   border-color: #f0c878;
 }
@@ -60,6 +62,19 @@ button:hover:not(:disabled) {
 button:disabled {
   cursor: not-allowed;
   opacity: 0.55;
+}
+
+.button-link.secondary,
+button.secondary {
+  border-color: rgba(228, 180, 94, 0.42);
+  background: rgba(228, 180, 94, 0.08);
+  color: #f3d99d;
+}
+
+.button-link.secondary:hover,
+button.secondary:hover:not(:disabled) {
+  border-color: rgba(240, 200, 120, 0.72);
+  background: rgba(228, 180, 94, 0.16);
 }
 
 a {
@@ -1625,6 +1640,8 @@ dd {
 .admin-section-actions {
   display: flex;
   justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
   min-width: 0;
 }
 

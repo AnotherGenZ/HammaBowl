@@ -1786,19 +1786,98 @@ export function getEventPlayerCharacterAssignments(eventId: string): EventPlayer
     assignedAt: string | null
   }>
 
+  const assignments = new Map<string, EventPlayerCharacterAssignment>()
+  for (const row of rows) {
+    const item = assignments.get(row.discordId) ?? {
+      eventId: row.eventId,
+      discordId: row.discordId,
+      playerName: row.playerName,
+      noPersonalJaegerAccount: Boolean(row.noPersonalJaegerAccount),
+      assignments: [],
+    }
+    if (row.faction && row.characterId && row.characterName && row.assignedAt) {
+      item.assignments.push({
+        faction: normalizeRequiredFaction(row.faction),
+        characterId: row.characterId,
+        characterName: row.characterName,
+        resolvedAt: row.assignedAt,
+      })
+    }
+    assignments.set(row.discordId, item)
+  }
+
+  return Array.from(assignments.values()).map((item) => {
+    const sorted = item.assignments.sort((a, b) => factionOrder(a.faction) - factionOrder(b.faction))
+    return { ...item, assignments: sorted, assignment: sorted[0] }
+  })
+}
+
+export function getEventPlayerCharacterExportRows(eventId: string): Array<{
+  playerName: string
+  characterId: string
+}> {
+  const rows = sqlite.prepare(`
+    WITH team_members AS (
+      SELECT
+        t.event_id AS eventId,
+        t.id AS teamId,
+        t.name AS teamName,
+        t.faction AS currentFaction,
+        t.captain_discord_id AS discordId
+      FROM teams t
+      WHERE
+        t.event_id = ?
+        AND t.faction IS NOT NULL
+        AND t.captain_discord_id IS NOT NULL
+        AND t.captain_discord_id != ''
+      UNION
+      SELECT
+        t.event_id AS eventId,
+        t.id AS teamId,
+        t.name AS teamName,
+        t.faction AS currentFaction,
+        dp.player_discord_id AS discordId
+      FROM draft_picks dp
+      JOIN teams t ON t.id = dp.team_id
+      WHERE t.event_id = ? AND t.faction IS NOT NULL
+    )
+    SELECT
+      COALESCE(p.name, ep.name, tm.discordId) AS playerName,
+      COALESCE(
+        CASE
+          WHEN COALESCE(pp.no_personal_jaeger_account, 0) = 1
+            AND ec.faction = tm.currentFaction
+          THEN ec.character_id
+        END,
+        CASE
+          WHEN COALESCE(pp.no_personal_jaeger_account, 0) = 0
+          THEN pc.character_id
+        END,
+        ''
+      ) AS characterId
+    FROM team_members tm
+    JOIN event_participants ep
+      ON ep.event_id = tm.eventId
+      AND ep.discord_id = tm.discordId
+      AND ep.disqualified = 0
+    LEFT JOIN participants p ON p.discord_id = tm.discordId
+    LEFT JOIN player_profiles pp ON pp.discord_id = tm.discordId
+    LEFT JOIN event_player_characters ec
+      ON ec.event_id = tm.eventId
+      AND ec.discord_id = tm.discordId
+      AND ec.faction = tm.currentFaction
+    LEFT JOIN player_characters pc
+      ON pc.discord_id = tm.discordId
+      AND pc.faction = tm.currentFaction
+    ORDER BY tm.teamName COLLATE NOCASE, playerName COLLATE NOCASE
+  `).all(eventId, eventId) as Array<{
+    playerName: string
+    characterId: string | null
+  }>
+
   return rows.map((row) => ({
-    eventId: row.eventId,
-    discordId: row.discordId,
     playerName: row.playerName,
-    noPersonalJaegerAccount: Boolean(row.noPersonalJaegerAccount),
-    assignment: row.faction && row.characterId && row.characterName && row.assignedAt
-      ? {
-          faction: normalizeRequiredFaction(row.faction),
-          characterId: row.characterId,
-          characterName: row.characterName,
-          resolvedAt: row.assignedAt,
-        }
-      : undefined,
+    characterId: row.characterId ?? '',
   }))
 }
 
@@ -1806,6 +1885,14 @@ export function saveEventPlayerCharacterAssignment(
   eventId: string,
   discordId: string,
   character: PlayerCharacter,
+) {
+  return saveEventPlayerCharacterAssignments(eventId, discordId, [character])
+}
+
+export function saveEventPlayerCharacterAssignments(
+  eventId: string,
+  discordId: string,
+  characters: PlayerCharacter[],
 ) {
   const participant = db
     .select()
@@ -1821,26 +1908,34 @@ export function saveEventPlayerCharacterAssignment(
     throw new Error('Player has not marked that they need an assigned Jaeger character.')
   }
 
+  const seen = new Set<Faction>()
   const assignedAt = new Date().toISOString()
-  db.insert(eventPlayerCharacters)
-    .values({
-      eventId,
-      discordId,
-      faction: character.faction,
-      characterId: character.characterId,
-      characterName: character.characterName,
-      assignedAt,
-    })
-    .onConflictDoUpdate({
-      target: [eventPlayerCharacters.eventId, eventPlayerCharacters.discordId],
-      set: {
+  for (const character of characters) {
+    if (seen.has(character.faction)) throw new Error(`Duplicate ${character.faction} character.`)
+    seen.add(character.faction)
+    db.insert(eventPlayerCharacters)
+      .values({
+        eventId,
+        discordId,
         faction: character.faction,
         characterId: character.characterId,
         characterName: character.characterName,
         assignedAt,
-      },
-    })
-    .run()
+      })
+      .onConflictDoUpdate({
+        target: [
+          eventPlayerCharacters.eventId,
+          eventPlayerCharacters.discordId,
+          eventPlayerCharacters.faction,
+        ],
+        set: {
+          characterId: character.characterId,
+          characterName: character.characterName,
+          assignedAt,
+        },
+      })
+      .run()
+  }
 
   return getEventPlayerCharacterAssignments(eventId)
 }
@@ -2509,7 +2604,7 @@ function bootstrap() {
       character_id TEXT NOT NULL,
       character_name TEXT NOT NULL,
       assigned_at TEXT NOT NULL,
-      PRIMARY KEY (event_id, discord_id)
+      PRIMARY KEY (event_id, discord_id, faction)
     );
     CREATE TABLE IF NOT EXISTS badge_definitions (
       id TEXT PRIMARY KEY,
@@ -2633,6 +2728,7 @@ function bootstrap() {
   addColumnIfMissing('coinflips', 'first_pick_team_id', 'TEXT REFERENCES teams(id) ON DELETE SET NULL')
   addColumnIfMissing('coinflips', 'updated_at', 'TEXT')
   addColumnIfMissing('draft_picks', 'opened_by_team_id', 'TEXT REFERENCES teams(id) ON DELETE SET NULL')
+  migrateEventPlayerCharactersPrimaryKey()
   sqlite.exec(`
     INSERT INTO participants (discord_id, name, updated_at)
     SELECT discord_id, name, MAX(updated_at)
@@ -2642,6 +2738,48 @@ function bootstrap() {
       name = excluded.name,
       updated_at = excluded.updated_at
       WHERE participants.name_overridden = 0;
+  `)
+}
+
+function migrateEventPlayerCharactersPrimaryKey() {
+  const columns = sqlite.prepare('PRAGMA table_info(event_player_characters)').all() as Array<{
+    name: string
+    pk: number
+  }>
+  const primaryKey = columns
+    .filter((column) => column.pk > 0)
+    .sort((a, b) => a.pk - b.pk)
+    .map((column) => column.name)
+  if (primaryKey.join(',') === 'event_id,discord_id,faction') return
+
+  sqlite.exec(`
+    ALTER TABLE event_player_characters RENAME TO event_player_characters_old;
+    CREATE TABLE event_player_characters (
+      event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+      discord_id TEXT NOT NULL,
+      faction TEXT NOT NULL,
+      character_id TEXT NOT NULL,
+      character_name TEXT NOT NULL,
+      assigned_at TEXT NOT NULL,
+      PRIMARY KEY (event_id, discord_id, faction)
+    );
+    INSERT OR REPLACE INTO event_player_characters (
+      event_id,
+      discord_id,
+      faction,
+      character_id,
+      character_name,
+      assigned_at
+    )
+    SELECT
+      event_id,
+      discord_id,
+      faction,
+      character_id,
+      character_name,
+      assigned_at
+    FROM event_player_characters_old;
+    DROP TABLE event_player_characters_old;
   `)
 }
 
