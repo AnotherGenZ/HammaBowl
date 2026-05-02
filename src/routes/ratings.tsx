@@ -1,11 +1,15 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { pageMeta } from '../lib/meta'
 import { isCaptainPlayer } from '../lib/rules'
 import { useSession } from '../lib/SessionContext'
 
 type RatingsSortMode = 'name' | 'rating-desc' | 'rating-asc'
+
+const RATINGS_PREFERENCES_PREFIX = 'hammabowl:ratings-preferences'
+const RATINGS_SORT_MODES = new Set<RatingsSortMode>(['name', 'rating-desc', 'rating-asc'])
+const useBrowserLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
 
 const requireRatingsAccess = createServerFn({ method: 'GET' }).handler(async () => {
   const { getDiscordSessionUser } = await import('../lib/discord.server')
@@ -49,14 +53,32 @@ function Ratings() {
   const [saving, setSaving] = useState<string>()
   const [sortMode, setSortMode] = useState<RatingsSortMode>('name')
   const [message, setMessage] = useState<{ text: string; tone: 'neutral' | 'success' | 'error' }>()
+  const [loadedPreferencesKey, setLoadedPreferencesKey] = useState<string>()
+  const ratingListRef = useRef<HTMLDivElement>(null)
+  const pendingRatingScrollPosition = useRef<{
+    anchorId?: string
+    anchorTop?: number
+    listTop: number
+    windowX: number
+    windowY: number
+  } | undefined>(undefined)
 
   const isAdmin = Boolean(user?.roles.includes('admin'))
   const canRate = user?.roles.some((role) => role === 'participant' || role === 'admin')
+  const preferencesKey = event && user
+    ? `${RATINGS_PREFERENCES_PREFIX}:${event.id}:${user.id}`
+    : undefined
+  const preferencesLoaded = Boolean(preferencesKey && loadedPreferencesKey === preferencesKey)
   const raterOptions = useMemo(
     () => {
       const submittedRaterIds = new Set(event?.ratings.map((rating) => rating.fromPlayerId) ?? [])
+      const currentUserId = user?.id
+
       return (event?.players ?? [])
-        .filter((player) => submittedRaterIds.has(player.id) || player.id === user?.id)
+        .filter((player) => {
+          if (player.id === currentUserId) return true
+          return submittedRaterIds.has(player.id)
+        })
         .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
     },
     [event, user],
@@ -95,7 +117,30 @@ function Ratings() {
     })
   }, [players, ratings, sortMode])
 
+  useBrowserLayoutEffect(() => {
+    if (!pendingRatingScrollPosition.current) return
+
+    const { anchorId, anchorTop, listTop, windowX, windowY } = pendingRatingScrollPosition.current
+    pendingRatingScrollPosition.current = undefined
+    restoreRatingScrollPosition({ anchorId, anchorTop, listTop, windowX, windowY })
+    requestAnimationFrame(() => restoreRatingScrollPosition({ anchorId, anchorTop, listTop, windowX, windowY }))
+  }, [sortedPlayers])
+
   useEffect(() => {
+    if (!preferencesKey) {
+      setLoadedPreferencesKey(undefined)
+      return
+    }
+
+    const storedPreferences = readRatingsPreferences(preferencesKey)
+    setSortMode(storedPreferences.sortMode)
+    setSelectedRaterId(storedPreferences.selectedRaterId)
+    setLoadedPreferencesKey(preferencesKey)
+  }, [preferencesKey])
+
+  useEffect(() => {
+    if (!preferencesLoaded) return
+
     if (!user) {
       setSelectedRaterId('')
       return
@@ -112,12 +157,24 @@ function Ratings() {
     }
 
     if (!raterOptions.some((player) => player.id === selectedRaterId)) {
-      setSelectedRaterId(raterOptions[0].id)
+      const defaultRaterId = raterOptions.some((player) => player.id === user.id)
+        ? user.id
+        : raterOptions[0].id
+      setSelectedRaterId(defaultRaterId)
     }
-  }, [isAdmin, raterOptions, selectedRaterId, user])
+  }, [isAdmin, preferencesLoaded, raterOptions, selectedRaterId, user])
 
   useEffect(() => {
-    if (!event || !canRate) {
+    if (!preferencesLoaded || !preferencesKey) return
+
+    localStorage.setItem(
+      preferencesKey,
+      JSON.stringify({ selectedRaterId, sortMode }),
+    )
+  }, [preferencesKey, preferencesLoaded, selectedRaterId, sortMode])
+
+  useEffect(() => {
+    if (!event || !canRate || !preferencesLoaded) {
       setRatings({})
       setRatingsLoaded(false)
       return
@@ -158,7 +215,7 @@ function Ratings() {
     return () => {
       active = false
     }
-  }, [event, canRate, isAdmin, selectedRaterId, user])
+  }, [event, canRate, isAdmin, preferencesLoaded, selectedRaterId, user])
 
   async function rate(toDiscordId: string, score: number) {
     setSaving(toDiscordId)
@@ -171,6 +228,7 @@ function Ratings() {
       })
       if (!response.ok) throw new Error(await response.text())
       const result = await response.json()
+      preserveRatingScrollPosition(toDiscordId)
       setRatings((current) => ({ ...current, [toDiscordId]: score }))
       setMessage({ text: result.message ?? 'Rating saved.', tone: 'success' })
     } catch (error) {
@@ -191,6 +249,7 @@ function Ratings() {
       })
       if (!response.ok) throw new Error(await response.text())
       const result = await response.json()
+      preserveRatingScrollPosition(toDiscordId)
       setRatings((current) => {
         const next = { ...current }
         delete next[toDiscordId]
@@ -202,6 +261,69 @@ function Ratings() {
     } finally {
       setSaving(undefined)
     }
+  }
+
+  function preserveRatingScrollPosition(changedPlayerId: string) {
+    const anchor = getRatingListScrollAnchor(changedPlayerId)
+
+    pendingRatingScrollPosition.current = {
+      anchorId: anchor?.id,
+      anchorTop: anchor?.top,
+      listTop: ratingListRef.current?.scrollTop ?? 0,
+      windowX: window.scrollX,
+      windowY: window.scrollY,
+    }
+  }
+
+  function restoreRatingScrollPosition({
+    anchorId,
+    anchorTop,
+    listTop,
+    windowX,
+    windowY,
+  }: {
+    anchorId?: string
+    anchorTop?: number
+    listTop: number
+    windowX: number
+    windowY: number
+  }) {
+    if (ratingListRef.current) {
+      ratingListRef.current.scrollTop = listTop
+
+      if (anchorId && anchorTop !== undefined) {
+        const anchor = ratingListRef.current.querySelector<HTMLElement>(
+          `[data-player-id="${window.CSS.escape(anchorId)}"]`,
+        )
+
+        if (anchor) {
+          ratingListRef.current.scrollTop += anchor.getBoundingClientRect().top - anchorTop
+        }
+      }
+    }
+    window.scrollTo(windowX, windowY)
+  }
+
+  function getRatingListScrollAnchor(changedPlayerId: string) {
+    const list = ratingListRef.current
+    if (!list) return undefined
+
+    const listTop = list.getBoundingClientRect().top
+    const rows = Array.from(list.querySelectorAll<HTMLElement>('[data-player-id]'))
+
+    for (const row of rows) {
+      if (row.dataset.playerId === changedPlayerId) continue
+
+      const rowRect = row.getBoundingClientRect()
+      if (rowRect.bottom <= listTop) continue
+
+      return {
+        id: row.dataset.playerId,
+        top: rowRect.top,
+      }
+    }
+
+    return undefined
   }
 
   return (
@@ -295,12 +417,13 @@ function Ratings() {
                 </button>
               </div>
             </div>
-            <div className="rating-list">
+            <div className="rating-list" ref={ratingListRef}>
               {sortedPlayers.map((player) => {
                 const hasRating = ratings[player.id] !== undefined
                 return (
                   <article
                     className="rating-row"
+                    data-player-id={player.id}
                     data-rating-state={ratingsLoaded && !hasRating ? 'unrated' : 'rated'}
                     key={player.id}
                   >
@@ -318,7 +441,9 @@ function Ratings() {
                             className={ratings[player.id] === score ? 'active' : undefined}
                             disabled={saving === player.id}
                             aria-pressed={ratings[player.id] === score}
-                            onClick={() => {
+                            onClick={(event) => {
+                              event.currentTarget.blur()
+
                               if (ratings[player.id] === score) {
                                 void clearRating(player.id)
                                 return
@@ -346,4 +471,35 @@ function Ratings() {
       </section>
     </main>
   )
+}
+
+function readRatingsPreferences(preferencesKey: string): {
+  selectedRaterId: string
+  sortMode: RatingsSortMode
+} {
+  const fallback: { selectedRaterId: string; sortMode: RatingsSortMode } = {
+    selectedRaterId: '',
+    sortMode: 'name',
+  }
+
+  try {
+    const storedValue = localStorage.getItem(preferencesKey)
+    if (!storedValue) return fallback
+
+    const parsed = JSON.parse(storedValue) as Partial<{
+      selectedRaterId: unknown
+      sortMode: unknown
+    }>
+
+    return {
+      selectedRaterId: typeof parsed.selectedRaterId === 'string'
+        ? parsed.selectedRaterId
+        : fallback.selectedRaterId,
+      sortMode: RATINGS_SORT_MODES.has(parsed.sortMode as RatingsSortMode)
+        ? parsed.sortMode as RatingsSortMode
+        : fallback.sortMode,
+    }
+  } catch {
+    return fallback
+  }
 }
