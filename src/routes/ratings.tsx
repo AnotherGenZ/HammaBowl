@@ -141,9 +141,9 @@ function Ratings() {
 
     const storedPreferences = readRatingsPreferences(preferencesKey)
     setSortMode(storedPreferences.sortMode)
-    setSelectedRaterId(storedPreferences.selectedRaterId)
+    setSelectedRaterId(user?.id ?? '')
     setLoadedPreferencesKey(preferencesKey)
-  }, [preferencesKey])
+  }, [preferencesKey, user?.id])
 
   useEffect(() => {
     if (!preferencesLoaded) return
@@ -176,9 +176,9 @@ function Ratings() {
 
     localStorage.setItem(
       preferencesKey,
-      JSON.stringify({ selectedRaterId, sortMode }),
+      JSON.stringify({ sortMode }),
     )
-  }, [preferencesKey, preferencesLoaded, selectedRaterId, sortMode])
+  }, [preferencesKey, preferencesLoaded, sortMode])
 
   useEffect(() => {
     if (!event || !canRate || !preferencesLoaded) {
@@ -488,11 +488,9 @@ function Ratings() {
 }
 
 function readRatingsPreferences(preferencesKey: string): {
-  selectedRaterId: string
   sortMode: RatingsSortMode
 } {
-  const fallback: { selectedRaterId: string; sortMode: RatingsSortMode } = {
-    selectedRaterId: '',
+  const fallback: { sortMode: RatingsSortMode } = {
     sortMode: 'name',
   }
 
@@ -500,15 +498,9 @@ function readRatingsPreferences(preferencesKey: string): {
     const storedValue = localStorage.getItem(preferencesKey)
     if (!storedValue) return fallback
 
-    const parsed = JSON.parse(storedValue) as Partial<{
-      selectedRaterId: unknown
-      sortMode: unknown
-    }>
+    const parsed = JSON.parse(storedValue) as Partial<{ sortMode: unknown }>
 
     return {
-      selectedRaterId: typeof parsed.selectedRaterId === 'string'
-        ? parsed.selectedRaterId
-        : fallback.selectedRaterId,
       sortMode: RATINGS_SORT_MODES.has(parsed.sortMode as RatingsSortMode)
         ? parsed.sortMode as RatingsSortMode
         : fallback.sortMode,
