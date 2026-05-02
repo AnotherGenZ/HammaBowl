@@ -213,6 +213,11 @@ export interface PlayerProfileSummary {
   averageRating: number | null
   characterCount: number
   badges: PlayerBadge[]
+  events: Array<{
+    id: string
+    name: string
+    startsAt: string
+  }>
 }
 
 export interface AdminBadgeDefinition {

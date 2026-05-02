@@ -1824,8 +1824,26 @@ export function searchPlayerProfiles(query = ''): PlayerProfileSummary[] {
       averageRating: row.averageRating === null ? null : Number(row.averageRating),
       characterCount: Number(row.characterCount),
       badges: getVisibleBadges(badges, row.badgeDisplayOrder).slice(0, 3),
+      events: getPlayerProfileEvents(row.discordId),
     }
   })
+}
+
+function getPlayerProfileEvents(discordId: string) {
+  return sqlite.prepare(`
+    SELECT
+      e.id AS id,
+      COALESCE(e.name_override, e.name) AS name,
+      e.starts_at AS startsAt
+    FROM event_participants ep
+    JOIN events e ON e.id = ep.event_id
+    WHERE ep.discord_id = ? AND ep.disqualified = 0
+    ORDER BY e.starts_at DESC
+  `).all(discordId) as Array<{
+    id: string
+    name: string
+    startsAt: string
+  }>
 }
 
 export function getPlayerProfile(discordId: string): PlayerProfile | null {

@@ -1062,7 +1062,7 @@ dd {
 
 .directory-toolbar {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) auto;
+  grid-template-columns: minmax(220px, 1fr) minmax(140px, 160px) minmax(140px, 180px) minmax(180px, 240px) auto auto;
   align-items: end;
   gap: 14px;
 }
@@ -1070,13 +1070,15 @@ dd {
 .directory-toolbar label {
   display: grid;
   gap: 7px;
+  min-width: 0;
   color: #b4bcbb;
   font-size: 0.78rem;
   font-weight: 900;
   text-transform: uppercase;
 }
 
-.directory-toolbar input {
+.directory-toolbar input,
+.directory-toolbar select {
   min-height: 42px;
   min-width: 0;
   border-radius: 6px;
@@ -1088,6 +1090,26 @@ dd {
   font-weight: 700;
   text-transform: none;
   transition: border-color 120ms ease;
+}
+
+.directory-toolbar select {
+  width: 100%;
+  padding-right: 32px;
+}
+
+.directory-clear-button {
+  min-height: 42px;
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: #cbd5d3;
+  padding: 0 14px;
+  white-space: nowrap;
+}
+
+.directory-clear-button:hover {
+  border-color: rgba(228, 180, 94, 0.72);
+  background: rgba(228, 180, 94, 0.16);
+  color: #fff7e6;
 }
 
 .profile-directory-grid {
