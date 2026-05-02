@@ -1,4 +1,4 @@
-import { appBaseUrl, env, requireEnv } from './env'
+import { env, requireEnv } from './env'
 import type { Role } from './types'
 
 const DISCORD_API_BASE_URL = 'https://discord.com/api/v10'
@@ -37,25 +37,25 @@ export interface DiscordSessionData {
   avatarUrl?: string | null
 }
 
-export function discordAuthorizeUrl(state: string) {
+export function discordAuthorizeUrl(state: string, requestUrl: string) {
   const url = new URL('https://discord.com/oauth2/authorize')
 
   url.searchParams.set('client_id', requireEnv('DISCORD_CLIENT_ID'))
   url.searchParams.set('response_type', 'code')
-  url.searchParams.set('redirect_uri', discordRedirectUri())
+  url.searchParams.set('redirect_uri', discordRedirectUri(requestUrl))
   url.searchParams.set('scope', 'identify guilds.members.read')
   url.searchParams.set('state', state)
 
   return url.toString()
 }
 
-export async function exchangeDiscordCode(code: string) {
+export async function exchangeDiscordCode(code: string, requestUrl: string) {
   const body = new URLSearchParams({
     client_id: requireEnv('DISCORD_CLIENT_ID'),
     client_secret: requireEnv('DISCORD_CLIENT_SECRET'),
     grant_type: 'authorization_code',
     code,
-    redirect_uri: discordRedirectUri(),
+    redirect_uri: discordRedirectUri(requestUrl),
   })
 
   const response = await fetch(`${DISCORD_API_BASE_URL}/oauth2/token`, {
@@ -111,11 +111,8 @@ export function mapDiscordRoleIds(roleIds: string[]): Role[] {
   return Array.from(roles)
 }
 
-function discordRedirectUri() {
-  return env(
-    'DISCORD_REDIRECT_URI',
-    `${appBaseUrl()}/api/auth/discord/callback`,
-  )
+function discordRedirectUri(requestUrl: string) {
+  return new URL('/api/auth/discord/callback', new URL(requestUrl).origin).toString()
 }
 
 async function discordFetch<T>(path: string, accessToken: string) {

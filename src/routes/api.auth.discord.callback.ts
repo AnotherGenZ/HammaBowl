@@ -19,7 +19,7 @@ export const Route = createFileRoute('/api/auth/discord/callback')({
           return new Response('Invalid Discord OAuth state', { status: 400 })
         }
 
-        const token = await exchangeDiscordCode(code)
+        const token = await exchangeDiscordCode(code, request.url)
         const identity = await getDiscordIdentity(token.access_token)
 
         await session.update({

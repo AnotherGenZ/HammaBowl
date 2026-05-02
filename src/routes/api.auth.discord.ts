@@ -5,7 +5,7 @@ import { getHammaSession } from '../lib/discord.server'
 export const Route = createFileRoute('/api/auth/discord')({
   server: {
     handlers: {
-      GET: async () => {
+      GET: async ({ request }) => {
         const session = await getHammaSession()
         const state = crypto.randomUUID()
 
@@ -14,7 +14,7 @@ export const Route = createFileRoute('/api/auth/discord')({
         return new Response(null, {
           status: 302,
           headers: {
-            Location: discordAuthorizeUrl(state),
+            Location: discordAuthorizeUrl(state, request.url),
           },
         })
       },
