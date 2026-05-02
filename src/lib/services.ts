@@ -10,6 +10,10 @@ import type { HammaEvent, Role } from './types'
 
 const RAID_HELPER_REFRESH_INTERVAL_MS = 10 * 60 * 1000
 let eventCache: HammaEvent | null = null
+let eventCacheGeneration = 0
+let eventDbRefresh:
+  | { generation: number; promise: Promise<HammaEvent | null> }
+  | null = null
 let lastRaidHelperRefreshAt = 0
 let raidHelperRefreshPromise: Promise<HammaEvent | null> | null = null
 let autoRefreshTimerStarted = false
@@ -50,9 +54,12 @@ const getCurrentEventServer = createServerOnlyFn(
       return eventCache
     }
 
-    const dbEvent = options.force ? null : await getCurrentEventFromDb()
+    const cacheGeneration = eventCacheGeneration
+    const dbEvent = options.force ? null : await getCoalescedCurrentEventFromDb()
     if (!options.force && dbEvent && !isRaidHelperRefreshDue()) {
-      eventCache = dbEvent
+      if (cacheGeneration === eventCacheGeneration) {
+        eventCache = dbEvent
+      }
       return dbEvent
     }
 
@@ -67,6 +74,7 @@ const getCurrentEventServer = createServerOnlyFn(
 )
 
 export function clearCurrentEventCache() {
+  eventCacheGeneration += 1
   eventCache = null
 }
 
@@ -99,6 +107,21 @@ const getCurrentEventFromDb = createServerOnlyFn(async () => {
   const { getCurrentDbEvent } = await import('./db.server')
   return getCurrentDbEvent()
 })
+
+function getCoalescedCurrentEventFromDb() {
+  const generation = eventCacheGeneration
+  if (eventDbRefresh?.generation === generation) {
+    return eventDbRefresh.promise
+  }
+
+  const promise = getCurrentEventFromDb().finally(() => {
+    if (eventDbRefresh?.promise === promise) {
+      eventDbRefresh = null
+    }
+  })
+  eventDbRefresh = { generation, promise }
+  return promise
+}
 
 const getCurrentEventsFromDb = createServerOnlyFn(async () => {
   const { getCurrentDbEvents } = await import('./db.server')
