@@ -64,6 +64,15 @@ export function getDraftReadiness(event: HammaEvent) {
     }
   }
 
+  if (!event.coinflip?.result || !event.coinflip.choiceType) {
+    return {
+      ready: false,
+      label: 'Waiting for coinflip',
+      tone: 'pending' as const,
+      missingRatings,
+    }
+  }
+
   return {
     ready: true,
     label: 'Ready to draft',
