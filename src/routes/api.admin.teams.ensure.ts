@@ -19,7 +19,7 @@ export const Route = createFileRoute('/api/admin/teams/ensure')({
         return Response.json({
           ok: true,
           message: `Configured ${teams.length} teams.`,
-          teams: updated?.captains ?? [],
+          teams: updated?.teams ?? [],
           event: updated,
         })
       },

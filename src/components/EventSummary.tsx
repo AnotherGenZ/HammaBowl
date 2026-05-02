@@ -6,6 +6,7 @@ import { Countdown } from './Countdown'
 export function EventSummary({ event }: { event: HammaEvent }) {
   const ledgers = buildTeamLedgers(event)
   const drafted = event.draftPicks.length
+  const eventStarted = Date.now() >= Date.parse(event.startsAt)
 
   return (
     <section className="event-hero">
@@ -38,13 +39,19 @@ export function EventSummary({ event }: { event: HammaEvent }) {
       </div>
       {ledgers.length ? (
         <div className="team-grid">
-          {ledgers.map((ledger) => (
-          <article className="team-panel" key={ledger.captain.id}>
+          {ledgers.map((ledger) => {
+            const memberCount = ledger.picks.length + (ledger.captainPlayer ? 1 : 0)
+            return (
+          <article className="team-panel summary-team-panel" key={ledger.team.id}>
             <div>
-              <h2>{ledger.captain.teamName}</h2>
+              <h2>{ledger.team.teamName}</h2>
             </div>
-            <strong className="score">{ledger.captain.score}</strong>
+            {eventStarted ? <strong className="score">{ledger.team.score}</strong> : null}
             <dl>
+              <div>
+                <dt>Members</dt>
+                <dd>{memberCount}</dd>
+              </div>
               <div>
                 <dt>Budget</dt>
                 <dd>{money(ledger.budgetRemaining)}</dd>
@@ -55,11 +62,12 @@ export function EventSummary({ event }: { event: HammaEvent }) {
               </div>
               <div>
                 <dt>Committed</dt>
-                <dd>{percent(ledger.salarySpent / ledger.captain.budget)}</dd>
+                <dd>{percent(ledger.salarySpent / ledger.team.budget)}</dd>
               </div>
             </dl>
           </article>
-          ))}
+            )
+          })}
         </div>
       ) : null}
     </section>

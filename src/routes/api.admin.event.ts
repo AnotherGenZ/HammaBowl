@@ -48,6 +48,11 @@ export const Route = createFileRoute('/api/admin/event')({
             'draftStartMinutesBefore' in body
               ? String(body.draftStartMinutesBefore ?? '')
               : undefined,
+          salaryPool: 'salaryPool' in body ? String(body.salaryPool ?? '') : undefined,
+          bonusPool: 'bonusPool' in body ? String(body.bonusPool ?? '') : undefined,
+          maxPlayerBonus:
+            'maxPlayerBonus' in body ? String(body.maxPlayerBonus ?? '') : undefined,
+          bidIncrement: 'bidIncrement' in body ? String(body.bidIncrement ?? '') : undefined,
         })
 
         clearCurrentEventCache()

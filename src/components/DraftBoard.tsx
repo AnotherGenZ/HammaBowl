@@ -1,16 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import { money } from '../lib/format'
 import {
+  acquisitionCost,
   buildTeamLedgers,
   calculatePlayerSalaries,
   canAcquirePlayer,
+  getDraftReadiness,
   isDraftEligiblePlayer,
   nextDraftSide,
 } from '../lib/rules'
 import type { HammaEvent } from '../lib/types'
 import { useRealtimeCurrentEvent } from '../lib/useRealtimeCurrentEvent'
-
-const BID_INCREMENT = 1_000_000
 
 export function DraftBoard({
   event,
@@ -24,10 +24,8 @@ export function DraftBoard({
   userId?: string
 }) {
   const [currentEvent, setCurrentEvent] = useRealtimeCurrentEvent(event)
-  const [bidOpen, setBidOpen] = useState(false)
-  const [selectedPlayerId, setSelectedPlayerId] = useState('')
-  const [selectedTeamId, setSelectedTeamId] = useState('')
   const [savingBid, setSavingBid] = useState(false)
+  const [pickingPlayerId, setPickingPlayerId] = useState<string>()
   const [resettingPickId, setResettingPickId] = useState<string>()
   const [bidMessage, setBidMessage] = useState<{ text: string; tone: 'neutral' | 'success' | 'error' }>()
   const pickListRefs = useRef<Array<HTMLUListElement | null>>([])
@@ -63,79 +61,48 @@ export function DraftBoard({
   const draftEligibleCount = currentEvent.players.filter((player) =>
     isDraftEligiblePlayer(currentEvent, player),
   ).length
-  const isCaptain = ledgers.some((ledger) => ledger.captain.playerId === userId)
-  const allowedLedgers = canManageAll
-    ? ledgers
-    : ledgers.filter((ledger) => ledger.captain.playerId === userId)
-  const draftReady = ledgers.length >= 2 && currentEvent.ratings.length > 0
-  const draftStatus = !ledgers.length
-    ? { label: 'Waiting for teams', tone: 'blocked' }
-    : !currentEvent.ratings.length
-      ? { label: 'Waiting for ratings', tone: 'pending' }
-      : { label: 'Ready to draft', tone: 'ready' }
+  const isCaptain = ledgers.some((ledger) => ledger.team.captainDiscordId === userId)
+  const draftReadiness = getDraftReadiness(currentEvent)
+  const draftReady = draftReadiness.ready
+  const draftStatus = draftReadiness
   const activeBid = currentEvent.activeDraftBid
   const pickTurn = nextDraftSide(currentEvent)
-  const myCaptainLedgers = ledgers.filter((ledger) => ledger.captain.playerId === userId)
+  const myCaptainLedgers = ledgers.filter((ledger) => ledger.team.captainDiscordId === userId)
   const isMyTurn = Boolean(
     isCaptain &&
       pickTurn &&
       !activeBid &&
-      myCaptainLedgers.some((l) => l.captain.id === pickTurn.captain.id),
+      myCaptainLedgers.some((l) => l.team.id === pickTurn.team.id),
   )
-  const openingLedgers = pickTurn
-    ? allowedLedgers.filter((ledger) => ledger.captain.id === pickTurn.captain.id)
-    : []
-  const selectedPlayer = available.find((player) => player.id === selectedPlayerId)
-  const selectedSalary = selectedPlayerId ? salaryByPlayer.get(selectedPlayerId) ?? 0 : 0
   const bidPlayer = activeBid
     ? currentEvent.players.find((player) => player.id === activeBid.playerId)
     : undefined
   const highestLedger = activeBid
-    ? ledgers.find((ledger) => ledger.captain.id === activeBid.highestCaptainId)
+    ? ledgers.find((ledger) => ledger.team.id === activeBid.highestTeamId)
     : undefined
   const nextLedger = activeBid
-    ? ledgers.find((ledger) => ledger.captain.id === activeBid.nextCaptainId)
+    ? ledgers.find((ledger) => ledger.team.id === activeBid.nextTeamId)
     : undefined
   const canActOnBid = Boolean(
     activeBid &&
       nextLedger &&
-      (canManageAll || nextLedger.captain.playerId === userId),
+      nextLedger.team.captainDiscordId === userId,
   )
+  const canSeeBidActions = Boolean(activeBid && isCaptain)
   const canRaiseBid = Boolean(
     activeBid &&
       nextLedger &&
+      canActOnBid &&
       canAcquirePlayer(
         currentEvent,
-        nextLedger.captain.id,
+        nextLedger.team.id,
         activeBid.playerId,
-        activeBid.currentBonus + BID_INCREMENT,
+        activeBid.currentBonus + currentEvent.bidIncrement,
       ),
   )
-  const canOpenBid = Boolean(
-    canBid &&
-      draftReady &&
-      openingLedgers.length &&
-      !activeBid &&
-      Boolean(pickTurn),
-  )
 
   useEffect(() => {
-    if (!selectedPlayerId && available[0]) setSelectedPlayerId(available[0].id)
-  }, [available, selectedPlayerId])
-
-  useEffect(() => {
-    if (!openingLedgers.length) {
-      if (selectedTeamId) setSelectedTeamId('')
-      return
-    }
-
-    if (!openingLedgers.some((ledger) => ledger.captain.id === selectedTeamId)) {
-      setSelectedTeamId(openingLedgers[0].captain.id)
-    }
-  }, [openingLedgers, selectedTeamId])
-
-  useEffect(() => {
-    const currentTurnId = pickTurn?.captain.id
+    const currentTurnId = pickTurn?.team.id
     if (
       currentTurnId &&
       prevPickTurnRef.current &&
@@ -151,7 +118,7 @@ export function DraftBoard({
     if (!isMyTurn) {
       document.title = 'Draft — HammaBowl'
     }
-  }, [pickTurn?.captain.id, isMyTurn])
+  }, [pickTurn?.team.id, isMyTurn])
 
   useEffect(() => {
     if (isCaptain && 'Notification' in window && Notification.permission === 'default') {
@@ -159,9 +126,9 @@ export function DraftBoard({
     }
   }, [isCaptain])
 
-  async function runBidAction(action: 'open' | 'bump' | 'forfeit') {
-    const actionTeamId = action === 'open' ? selectedTeamId : activeBid?.nextCaptainId
-    const actionPlayerId = action === 'open' ? selectedPlayerId : activeBid?.playerId
+  async function runBidAction(action: 'bump' | 'forfeit') {
+    const actionTeamId = activeBid?.nextTeamId
+    const actionPlayerId = activeBid?.playerId
     if (!actionPlayerId || !actionTeamId) return
 
     setSavingBid(true)
@@ -185,12 +152,40 @@ export function DraftBoard({
       }
       if (payload.event) setCurrentEvent(payload.event)
       setBidMessage({ text: payload.message ?? 'Bid updated.', tone: 'success' })
-      if (action !== 'bump') setSelectedPlayerId('')
-      if (action === 'open') setBidOpen(false)
     } catch (error) {
       setBidMessage({ text: error instanceof Error ? error.message : 'Unable to update bid.', tone: 'error' })
     } finally {
       setSavingBid(false)
+    }
+  }
+
+  async function pickPlayer(playerId: string) {
+    const teamId = pickTurn?.team.id
+    if (!teamId) return
+
+    setPickingPlayerId(playerId)
+    setBidMessage(undefined)
+    try {
+      const response = await fetch('/api/draft/pick', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          playerDiscordId: playerId,
+          teamId,
+        }),
+      })
+      if (!response.ok) throw new Error(await response.text())
+
+      const payload = await response.json() as {
+        message?: string
+        event?: HammaEvent | null
+      }
+      if (payload.event) setCurrentEvent(payload.event)
+      setBidMessage({ text: payload.message ?? 'Pick started.', tone: 'success' })
+    } catch (error) {
+      setBidMessage({ text: error instanceof Error ? error.message : 'Unable to pick player.', tone: 'error' })
+    } finally {
+      setPickingPlayerId(undefined)
     }
   }
 
@@ -263,23 +258,23 @@ export function DraftBoard({
         {ledgers.length ? (
           <div className="team-grid compact">
             {ledgers.map((ledger, ledgerIndex) => {
-              const isPickTurn = draftReady && !activeBid && pickTurn?.captain.id === ledger.captain.id
+              const isPickTurn = draftReady && !activeBid && pickTurn?.team.id === ledger.team.id
               return (
-                <article className={`team-panel${isPickTurn ? ' team-panel-active' : ''}`} key={ledger.captain.id}>
+                <article className={`team-panel${isPickTurn ? ' team-panel-active' : ''}`} key={ledger.team.id}>
                   <div className="team-title-row">
-                    <h2>{ledger.captain.teamName}</h2>
+                    <h2>{ledger.team.teamName}</h2>
                     {isPickTurn ? (
                       <span className="pick-turn-chip pick-turn-pulse">Pick turn</span>
                     ) : null}
                   </div>
                   <div className="team-meta-row">
-                    <span>
+                    <span className={`faction-field ${ledger.team.faction ? `faction-${ledger.team.faction.toLowerCase()}` : ''}`}>
                       <small>Faction</small>
-                      <strong>{ledger.captain.faction ?? 'TBD'}</strong>
+                      <strong>{ledger.team.faction ?? 'TBD'}</strong>
                     </span>
                     <span>
                       <small>Starting Side</small>
-                      <strong>{ledger.captain.startingSide ?? 'TBD'}</strong>
+                      <strong>{ledger.team.startingSide ?? 'TBD'}</strong>
                     </span>
                   </div>
                   <dl>
@@ -312,7 +307,7 @@ export function DraftBoard({
                               ♛
                             </span>
                           </span>
-                          <small>Captain</small>
+                          <small>Team</small>
                         </div>
                       </li>
                     ) : null}
@@ -366,11 +361,6 @@ export function DraftBoard({
               </span>
             </div>
           </div>
-          {canOpenBid ? (
-            <button type="button" onClick={() => setBidOpen((open) => !open)}>
-              {bidOpen ? 'Close bid' : 'Open bid'}
-            </button>
-          ) : null}
         </div>
         {bidMessage ? (
           <div className={`toast toast-${bidMessage.tone}`} role="status" aria-live="polite">
@@ -386,7 +376,7 @@ export function DraftBoard({
               </div>
               <div>
                 <small>Leading</small>
-                <strong>{highestLedger?.captain.teamName ?? activeBid.highestCaptainId}</strong>
+                <strong>{highestLedger?.team.teamName ?? activeBid.highestTeamId}</strong>
               </div>
               <div>
                 <small>Bonus bid</small>
@@ -394,12 +384,12 @@ export function DraftBoard({
               </div>
               <div>
                 <small>Turn</small>
-                <strong>{nextLedger?.captain.teamName ?? activeBid.nextCaptainId}</strong>
+                <strong>{nextLedger?.team.teamName ?? activeBid.nextTeamId}</strong>
               </div>
             </div>
-            {canActOnBid || canCancelBid ? (
+            {canSeeBidActions || canCancelBid ? (
               <div className="bid-actions">
-                {canActOnBid ? (
+                {canSeeBidActions ? (
                   <>
                     <button
                       type="button"
@@ -407,12 +397,12 @@ export function DraftBoard({
                       onClick={() => void runBidAction('bump')}
                     >
                       {savingBid ? <span className="spinner" aria-label="Saving" /> : null}
-                      +{money(BID_INCREMENT)}
+                      +{money(currentEvent.bidIncrement)}
                     </button>
                     <button
                       className="text-button danger"
                       type="button"
-                      disabled={savingBid}
+                      disabled={savingBid || !canActOnBid}
                       onClick={() => void runBidAction('forfeit')}
                     >
                       Forfeit
@@ -433,55 +423,6 @@ export function DraftBoard({
             ) : null}
           </div>
         ) : null}
-        {bidOpen ? (
-          <div className="bid-panel">
-            <label>
-              Player
-              <select
-                value={selectedPlayerId}
-                onChange={(event) => setSelectedPlayerId(event.currentTarget.value)}
-              >
-                {available.map((player) => (
-                  <option value={player.id} key={player.id}>
-                    {player.name} - {money(salaryByPlayer.get(player.id) ?? 0)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {canManageAll ? (
-              <label>
-                Team
-                <select
-                  value={selectedTeamId}
-                  onChange={(event) => setSelectedTeamId(event.currentTarget.value)}
-                >
-                  {openingLedgers.map((ledger) => (
-                    <option value={ledger.captain.id} key={ledger.captain.id}>
-                      {ledger.captain.teamName}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : (
-              <div className="locked-field">
-                <small>Team</small>
-                <strong>{openingLedgers[0]?.captain.teamName ?? 'Unassigned'}</strong>
-              </div>
-            )}
-            <div className="bid-summary">
-              <span>{selectedPlayer ? money(selectedSalary) : 'No player'}</span>
-              <small>Opening pick</small>
-            </div>
-            <button
-              type="button"
-              disabled={savingBid || !available.length || !selectedTeamId}
-              onClick={() => void runBidAction('open')}
-            >
-              {savingBid ? <span className="spinner" aria-label="Saving" /> : null}
-              Start bid
-            </button>
-          </div>
-        ) : null}
         <div className="available-list">
           {!draftEligibleCount ? (
             <div className="empty-inline">No draft-eligible signups are available for this event yet.</div>
@@ -489,30 +430,39 @@ export function DraftBoard({
             <div className="empty-inline">Every draft-eligible signup has already been drafted.</div>
           ) : available.map((player) => {
             const salary = salaryByPlayer.get(player.id) ?? 0
+            const pickCost = pickTurn
+              ? acquisitionCost(currentEvent, pickTurn.team.id, player.id, 0)
+              : undefined
+            const canPickPlayer = Boolean(
+              canBid &&
+                isMyTurn &&
+                draftReady &&
+                !activeBid &&
+                pickCost?.affordable,
+            )
             return (
             <article className="player-card" key={player.id}>
               <div className="player-name">
                 <strong>{player.name}</strong>
               </div>
               <span>{currentEvent.ratings.length ? money(salary) : 'TBD'}</span>
+              {isCaptain ? (
+                <button
+                  type="button"
+                  disabled={!canPickPlayer || pickingPlayerId === player.id}
+                  onClick={() => void pickPlayer(player.id)}
+                >
+                  {pickingPlayerId === player.id ? <span className="spinner" aria-label="Picking" /> : null}
+                  Pick
+                </button>
+              ) : null}
               {ledgers.length && currentEvent.ratings.length ? (
                 <div className="eligibility">
                   {ledgers.map((ledger) => (
                     <EligibilityChip
-                      key={ledger.captain.id}
-                      label={ledger.captain.teamName}
-                      status={
-                        canAcquirePlayer(currentEvent, ledger.captain.id, player.id)
-                          ? 'budget'
-                          : canAcquirePlayer(
-                                currentEvent,
-                                ledger.captain.id,
-                                player.id,
-                                Math.max(0, salary - ledger.budgetRemaining),
-                              )
-                            ? 'combined'
-                            : 'blocked'
-                      }
+                      key={ledger.team.id}
+                      label={ledger.team.teamName}
+                      status={eligibilityStatus(currentEvent, ledger.team.id, player.id)}
                     />
                   ))}
                 </div>
@@ -538,6 +488,16 @@ function EligibilityChip({
       <small>{status === 'budget' ? 'Budget' : status === 'combined' ? 'Combo' : 'Blocked'}</small>
     </span>
   )
+}
+
+function eligibilityStatus(
+  event: HammaEvent,
+  teamId: string,
+  playerId: string,
+): 'budget' | 'combined' | 'blocked' {
+  const cost = acquisitionCost(event, teamId, playerId, 0)
+  if (!cost?.affordable) return 'blocked'
+  return cost.usesReach ? 'combined' : 'budget'
 }
 
 function initials(label: string) {

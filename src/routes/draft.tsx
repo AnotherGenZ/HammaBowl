@@ -21,8 +21,7 @@ function Draft() {
   const event = Route.useLoaderData()
   const { user } = useSession()
 
-  const canBid =
-    user?.roles.includes('captain') || user?.roles.includes('admin')
+  const canBid = Boolean(user)
 
   return (
     <main className="wide-page">

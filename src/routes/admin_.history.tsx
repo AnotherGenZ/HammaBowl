@@ -262,10 +262,10 @@ function HistoricalEventEditor({
             participants={participants}
             value={newTeam.captainDiscordId}
             onChange={(captainDiscordId) => setNewTeam((current) => ({ ...current, captainDiscordId }))}
-            label="Captain"
+            label="Team"
           />
           <label>
-            Captain name
+            Team name
             <input
               value={newTeam.captainName}
               onChange={(event) => {
@@ -338,10 +338,10 @@ function HistoricalTeamEditor({
         participants={participants}
         value={captainDiscordId}
         onChange={setCaptainDiscordId}
-        label="Captain"
+        label="Team"
       />
       <label>
-        Captain name
+        Team name
         <input value={captainName} onChange={(event) => setCaptainName(event.currentTarget.value)} />
       </label>
       <div className="button-row left">

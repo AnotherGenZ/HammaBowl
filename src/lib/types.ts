@@ -1,4 +1,4 @@
-export type Role = 'viewer' | 'participant' | 'captain' | 'admin'
+export type Role = 'viewer' | 'participant' | 'admin'
 export type Faction = 'VS' | 'NC' | 'TR'
 export type StartingSide = string
 
@@ -20,9 +20,9 @@ export interface Rating {
   disqualified?: boolean
 }
 
-export interface Captain {
+export interface Team {
   id: string
-  playerId: string
+  captainDiscordId: string
   teamName: string
   faction?: Faction
   startingSide?: StartingSide
@@ -34,19 +34,19 @@ export interface Captain {
 export interface DraftPick {
   id: string
   playerId: string
-  captainId: string
+  teamId: string
   salary: number
   bonusSpent: number
-  contestedByCaptainId?: string
+  contestedByTeamId?: string
   confirmedAt: string
 }
 
 export interface ActiveDraftBid {
   id: string
   playerId: string
-  openedByCaptainId: string
-  highestCaptainId: string
-  nextCaptainId: string
+  openedByTeamId: string
+  highestTeamId: string
+  nextTeamId: string
   currentBonus: number
   createdAt: string
   updatedAt: string
@@ -54,14 +54,14 @@ export interface ActiveDraftBid {
 
 export interface Coinflip {
   id: string
-  callingCaptainId: string
+  callingTeamId: string
   call?: 'heads' | 'tails'
   result?: 'heads' | 'tails'
-  winningCaptainId?: string
+  winningTeamId?: string
   choiceType?: 'faction' | 'side'
   chosenFaction?: Faction
   chosenStartingSide?: StartingSide
-  firstPickCaptainId?: string
+  firstPickTeamId?: string
   createdAt: string
   updatedAt?: string
 }
@@ -78,17 +78,20 @@ export interface HammaEvent {
   draftStartMinutesBefore?: number
   phase: 'signups' | 'rating' | 'draft' | 'locked' | 'complete'
   salaryPool: number
+  bonusPool: number
+  maxPlayerBonus: number
+  bidIncrement: number
   pendingPlayerCount: number
   availableFactions: Faction[]
   availableSides: StartingSide[]
-  captains: Captain[]
+  teams: Team[]
   players: Player[]
   ratings: Rating[]
   draftPicks: DraftPick[]
   activeDraftBid?: ActiveDraftBid
-  nextPickCaptainId?: string
+  nextPickTeamId?: string
   coinflip?: Coinflip
-  winningCaptainId?: string
+  winningTeamId?: string
   twitchStreamUrl?: string
   twitchVodUrl?: string
   lore?: string
@@ -103,7 +106,7 @@ export interface PlayerSalary {
 }
 
 export interface TeamLedger {
-  captain: Captain
+  team: Team
   captainPlayer?: Player
   picks: Array<DraftPick & { player: Player; salary: number }>
   salarySpent: number

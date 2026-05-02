@@ -29,7 +29,7 @@ function Overlay() {
           <h1>HammaBowl</h1>
         </div>
         <div className="overlay-score">
-          {(event?.captains ?? []).map((captain) => (
+          {(event?.teams ?? []).map((captain) => (
             <article key={captain.id}>
               <span>{captain.teamName}</span>
               <strong>{captain.score}</strong>

@@ -1,6 +1,6 @@
 import { env, requireEnv } from './env'
 import type { Faction, HammaEvent, Player } from './types'
-import { SALARY_POOL } from './rules'
+import { BID_INCREMENT, BONUS_POOL, MAX_PLAYER_BONUS, SALARY_POOL } from './rules'
 
 const RAID_HELPER_API_BASE_URL = 'https://raid-helper.xyz/api/v4'
 
@@ -106,10 +106,13 @@ async function hydrateRemoteEvent(
     draftStartMinutesBefore: undefined,
     phase: 'signups' as const,
     salaryPool: SALARY_POOL,
+    bonusPool: BONUS_POOL,
+    maxPlayerBonus: MAX_PLAYER_BONUS,
+    bidIncrement: BID_INCREMENT,
     pendingPlayerCount: signups.filter(isMaybeSignup).length,
     availableFactions: ['VS', 'NC', 'TR'] as Faction[],
     availableSides: ['north', 'south'],
-    captains: [],
+    teams: [],
     players: signupPlayers(signups),
     ratings: [],
     draftPicks: [],
@@ -120,9 +123,9 @@ export function buildTeamCompositionMessage(event: HammaEvent) {
   const playerById = new Map(event.players.map((player) => [player.id, player]))
   const lines = [`**${event.name} teams**`]
 
-  for (const captain of event.captains) {
+  for (const captain of event.teams) {
     lines.push('', `__${captain.teamName}__`)
-    const picks = event.draftPicks.filter((pick) => pick.captainId === captain.id)
+    const picks = event.draftPicks.filter((pick) => pick.teamId === captain.id)
     for (const pick of picks) {
       const player = playerById.get(pick.playerId)
       if (player) lines.push(`- ${player.name}`)

@@ -457,6 +457,14 @@ dt {
   transition: border-color 200ms ease;
 }
 
+.summary-team-panel {
+  grid-template-rows: auto auto auto;
+}
+
+.summary-team-panel dl {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .team-panel-active {
   border-color: rgba(71, 191, 143, 0.5);
   box-shadow: 0 0 0 1px rgba(71, 191, 143, 0.12);
@@ -1065,11 +1073,11 @@ dd {
 
 .signup-pool-panel {
   display: grid;
-  grid-template-rows: auto auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
 }
 
 .signup-pool-panel .available-list {
-  grid-row: 4;
+  grid-row: 3;
   min-height: 0;
   max-height: none;
 }
@@ -1222,6 +1230,26 @@ dd {
 .team-count-chip {
   justify-content: center;
   justify-self: start;
+}
+
+.faction-field {
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+.faction-field.faction-vs {
+  border: 1px solid rgba(150, 96, 255, 0.55);
+  background: rgba(150, 96, 255, 0.18);
+}
+
+.faction-field.faction-tr {
+  border: 1px solid rgba(217, 79, 61, 0.55);
+  background: rgba(217, 79, 61, 0.18);
+}
+
+.faction-field.faction-nc {
+  border: 1px solid rgba(71, 191, 143, 0.55);
+  background: rgba(71, 191, 143, 0.18);
 }
 
 .pick-main {
@@ -2012,7 +2040,7 @@ dd {
 
 .player-card {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 96px minmax(150px, auto);
+  grid-template-columns: minmax(0, 1fr) 96px auto minmax(150px, auto);
   align-items: center;
   gap: 14px;
   padding: 14px;
@@ -2043,6 +2071,7 @@ dd {
   gap: 6px;
   min-width: 150px;
   flex-wrap: wrap;
+  grid-column: 4;
 }
 
 .eligibility-chip {
@@ -2488,6 +2517,11 @@ dd {
 
   .player-card > span {
     text-align: left;
+  }
+
+  .eligibility {
+    grid-column: auto;
+    justify-content: flex-start;
   }
 
   .profile-wide {

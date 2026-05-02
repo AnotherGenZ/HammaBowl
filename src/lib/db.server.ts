@@ -27,19 +27,26 @@ import {
   teams,
 } from './schema'
 import {
+  BID_INCREMENT,
   BONUS_CAP,
+  BONUS_POOL,
+  MAX_PLAYER_BONUS,
   SALARY_POOL,
   TEAM_BUDGET,
+  acquisitionCost,
   buildTeamLedgers,
   calculatePlayerSalaries,
   canAcquirePlayer,
+  getDraftReadiness,
   isCaptainPlayer,
+  oppositeTeamId,
+  reachAwardWinner,
 } from './rules'
 import type {
   AdminBadgeManagerData,
   AdminPlayerProfileEditorData,
   AdminPlayerCharacterConfig,
-  Captain,
+  Team,
   DraftPick,
   EventPlayerCharacterAssignment,
   Faction,
@@ -56,7 +63,6 @@ import type {
 } from './types'
 
 const dbPath = env('DATABASE_URL', path.join(process.cwd(), 'data', 'hammabowl.sqlite'))
-const BID_INCREMENT = 1_000_000
 const ACTIVE_EVENT_SETTING_KEY = 'active_event_id'
 fs.mkdirSync(path.dirname(dbPath), { recursive: true })
 
@@ -81,13 +87,16 @@ export async function upsertEventFromRaidHelper(event: HammaEvent) {
       endsAt: event.endsAt,
       closingTime: event.closingTime,
       draftStartMinutesBefore: event.draftStartMinutesBefore,
-    phase: event.phase,
-    salaryPool: event.salaryPool,
-    pendingSignupCount: event.pendingPlayerCount ?? 0,
-    availableFactions: JSON.stringify(event.availableFactions ?? ['VS', 'NC', 'TR']),
-    availableSides: JSON.stringify(event.availableSides ?? ['north', 'south']),
-    updatedAt: now,
-  })
+      phase: event.phase,
+      salaryPool: event.salaryPool,
+      bonusPool: event.bonusPool,
+      maxPlayerBonus: event.maxPlayerBonus,
+      bidIncrement: event.bidIncrement,
+      pendingSignupCount: event.pendingPlayerCount ?? 0,
+      availableFactions: JSON.stringify(event.availableFactions ?? ['VS', 'NC', 'TR']),
+      availableSides: JSON.stringify(event.availableSides ?? ['north', 'south']),
+      updatedAt: now,
+    })
     .onConflictDoUpdate({
       target: events.raidHelperEventId,
       set: {
@@ -188,14 +197,14 @@ export async function getDbEvent(eventId: string): Promise<HammaEvent | null> {
     status: 'signed_up',
   }))
 
-  const captains: Captain[] = teamRows.map((team) => ({
+  const eventTeams: Team[] = teamRows.map((team) => ({
     id: team.id,
-    playerId: team.captainDiscordId ?? '',
+    captainDiscordId: team.captainDiscordId ?? '',
     teamName: team.name,
     faction: normalizeFaction(team.faction),
     startingSide: normalizeStartingSide(team.startingSide),
-    budget: team.budget,
-    bonusCap: team.bonusCap,
+    budget: event.salaryPool / 2,
+    bonusCap: event.bonusPool / 2,
     score: team.score,
   }))
 
@@ -212,10 +221,10 @@ export async function getDbEvent(eventId: string): Promise<HammaEvent | null> {
     .map((pick) => ({
       id: pick.id,
       playerId: pick.playerDiscordId,
-      captainId: pick.teamId,
+      teamId: pick.teamId,
       salary: pick.salary,
       bonusSpent: pick.bonusSpent,
-      contestedByCaptainId: pick.contestedByTeamId ?? undefined,
+      contestedByTeamId: pick.contestedByTeamId ?? undefined,
       confirmedAt: pick.confirmedAt,
     }))
 
@@ -231,10 +240,13 @@ export async function getDbEvent(eventId: string): Promise<HammaEvent | null> {
     draftStartMinutesBefore: event.draftStartMinutesBefore ?? undefined,
     phase: event.phase as HammaEvent['phase'],
     salaryPool: event.salaryPool,
+    bonusPool: event.bonusPool,
+    maxPlayerBonus: event.maxPlayerBonus,
+    bidIncrement: event.bidIncrement,
     pendingPlayerCount: event.pendingSignupCount,
     availableFactions: parseAvailableFactions(event.availableFactions),
     availableSides: parseAvailableSides(event.availableSides),
-    captains,
+    teams: eventTeams,
     players,
     ratings: eventRatings,
     draftPicks: eventDraftPicks,
@@ -242,31 +254,31 @@ export async function getDbEvent(eventId: string): Promise<HammaEvent | null> {
       ? {
           id: activeBidRow.id,
           playerId: activeBidRow.playerDiscordId,
-          openedByCaptainId: activeBidRow.openedByTeamId,
-          highestCaptainId: activeBidRow.highestTeamId,
-          nextCaptainId: activeBidRow.nextTeamId,
+          openedByTeamId: activeBidRow.openedByTeamId,
+          highestTeamId: activeBidRow.highestTeamId,
+          nextTeamId: activeBidRow.nextTeamId,
           currentBonus: activeBidRow.currentBonus,
           createdAt: activeBidRow.createdAt,
           updatedAt: activeBidRow.updatedAt,
         }
       : undefined,
-    nextPickCaptainId: event.nextPickTeamId ?? undefined,
+    nextPickTeamId: event.nextPickTeamId ?? undefined,
     coinflip: coinflipRow
       ? {
           id: coinflipRow.id,
-          callingCaptainId: coinflipRow.callingTeamId ?? '',
+          callingTeamId: coinflipRow.callingTeamId ?? '',
           call: normalizeCoinSide(coinflipRow.callerCall),
           result: normalizeCoinSide(coinflipRow.result),
-          winningCaptainId: coinflipRow.winningTeamId ?? undefined,
+          winningTeamId: coinflipRow.winningTeamId ?? undefined,
           choiceType: normalizeChoiceType(coinflipRow.winnerChoiceType),
           chosenFaction: normalizeFaction(coinflipRow.winnerFaction),
           chosenStartingSide: normalizeStartingSide(coinflipRow.winnerStartingSide),
-          firstPickCaptainId: coinflipRow.firstPickTeamId ?? undefined,
+          firstPickTeamId: coinflipRow.firstPickTeamId ?? undefined,
           createdAt: coinflipRow.createdAt,
           updatedAt: coinflipRow.updatedAt ?? undefined,
         }
       : undefined,
-    winningCaptainId: event.winningTeamId ?? undefined,
+    winningTeamId: event.winningTeamId ?? undefined,
     twitchStreamUrl: event.twitchStreamUrl ?? undefined,
     twitchVodUrl: event.twitchVodUrl ?? undefined,
     lore: event.lore ?? undefined,
@@ -450,7 +462,7 @@ export async function selectCoinflipCaller(eventId: string) {
 
   const teamRows = db.select().from(teams).where(eq(teams.eventId, eventId)).all()
   const eligibleTeams = teamRows.filter((team) => team.captainDiscordId)
-  if (eligibleTeams.length < 2) throw new Error('Assign two captains before coinflip.')
+  if (eligibleTeams.length < 2) throw new Error('Assign two teams before coinflip.')
 
   const caller = eligibleTeams[Math.floor(Math.random() * eligibleTeams.length)]
   const now = new Date().toISOString()
@@ -709,6 +721,10 @@ export async function updateEventAdminSettings(
     twitchStreamUrl?: string
     twitchVodUrl?: string
     draftStartMinutesBefore?: string
+    salaryPool?: string
+    bonusPool?: string
+    maxPlayerBonus?: string
+    bidIncrement?: string
   },
 ) {
   const event = db.select().from(events).where(eq(events.id, eventId)).get()
@@ -721,6 +737,18 @@ export async function updateEventAdminSettings(
   const nextDraftStartMinutesBefore = normalizeDraftStartMinutesBefore(
     values.draftStartMinutesBefore,
     event.draftStartMinutesBefore,
+  )
+  const nextSalaryPool = normalizeEvenPool(values.salaryPool, event.salaryPool, 'Salary pool')
+  const nextBonusPool = normalizeEvenPool(values.bonusPool, event.bonusPool, 'Bonus pool')
+  const nextMaxPlayerBonus = normalizeNonNegativeInteger(
+    values.maxPlayerBonus,
+    event.maxPlayerBonus,
+    'Max player bonus',
+  )
+  const nextBidIncrement = normalizePositiveInteger(
+    values.bidIncrement,
+    event.bidIncrement,
+    'Bid increment',
   )
 
   db.update(events)
@@ -739,12 +767,39 @@ export async function updateEventAdminSettings(
           ? event.twitchVodUrl
           : normalizeOptionalTwitchUrl(values.twitchVodUrl),
       draftStartMinutesBefore: nextDraftStartMinutesBefore,
+      salaryPool: nextSalaryPool,
+      bonusPool: nextBonusPool,
+      maxPlayerBonus: nextMaxPlayerBonus,
+      bidIncrement: nextBidIncrement,
       updatedAt: new Date().toISOString(),
     })
     .where(eq(events.id, eventId))
     .run()
 
   return { ok: true }
+}
+
+function normalizeEvenPool(value: string | undefined, current: number, label: string) {
+  const amount = normalizeNonNegativeInteger(value, current, label)
+  if (amount % 2 !== 0) throw new Error(`${label} must be evenly divisible by 2.`)
+  return amount
+}
+
+function normalizeNonNegativeInteger(value: string | undefined, current: number, label: string) {
+  if (value === undefined) return current
+  const trimmed = value.trim()
+  if (!trimmed) throw new Error(`${label} is required.`)
+  const amount = Number(trimmed)
+  if (!Number.isInteger(amount) || amount < 0) {
+    throw new Error(`${label} must be a non-negative whole-dollar amount.`)
+  }
+  return amount
+}
+
+function normalizePositiveInteger(value: string | undefined, current: number, label: string) {
+  const amount = normalizeNonNegativeInteger(value, current, label)
+  if (amount <= 0) throw new Error(`${label} must be greater than 0.`)
+  return amount
 }
 
 function normalizeDraftStartMinutesBefore(value: string | undefined, current: number | null) {
@@ -846,6 +901,9 @@ export async function createManualHistoricalEvent(values: {
       startsAt: new Date(startsAt).toISOString(),
       phase: 'complete',
       salaryPool: SALARY_POOL,
+      bonusPool: BONUS_POOL,
+      maxPlayerBonus: MAX_PLAYER_BONUS,
+      bidIncrement: BID_INCREMENT,
       pendingSignupCount: 0,
       updatedAt: now,
     })
@@ -1024,10 +1082,10 @@ export async function confirmDraftPick(
   event: HammaEvent,
   teamId: string,
   playerDiscordId: string,
-  bonusSpent: number,
+  bidBonus: number,
   contestedByTeamId?: string,
 ) {
-  const team = event.captains.find((captain) => captain.id === teamId)
+  const team = event.teams.find((captain) => captain.id === teamId)
   if (!team) throw new Error('Team not found.')
 
   const player = event.players.find((candidate) => candidate.id === playerDiscordId)
@@ -1037,28 +1095,17 @@ export async function confirmDraftPick(
     throw new Error('Player has already been drafted.')
   }
 
-  if (bonusSpent < 0 || !Number.isFinite(bonusSpent)) {
-    throw new Error('Bonus spent must be zero or more.')
+  if (bidBonus < 0 || !Number.isFinite(bidBonus)) {
+    throw new Error('Bonus bid must be zero or more.')
   }
 
-  const salaries = calculatePlayerSalaries(event)
-  const salary = salaries.find((item) => item.player.id === playerDiscordId)?.salary
-  if (salary === undefined) throw new Error('Player is not eligible for the draft.')
-
-  const ledger = buildTeamLedgers(event).find((item) => item.captain.id === teamId)
-  if (!ledger) throw new Error('Team ledger not found.')
-
-  if (!Number.isInteger(bonusSpent)) {
-    throw new Error('Bonus spent must be a whole dollar amount.')
-  }
-  if (bonusSpent > ledger.bonusRemaining) {
-    throw new Error('That team does not have enough bonus cap remaining.')
-  }
-  if (salary + bonusSpent > ledger.combinedRemaining) {
-    throw new Error('That team does not have enough combined budget remaining.')
+  if (!Number.isInteger(bidBonus)) {
+    throw new Error('Bonus bid must be a whole dollar amount.')
   }
 
-  if (!canAcquirePlayer(event, teamId, playerDiscordId, bonusSpent)) {
+  const cost = acquisitionCost(event, teamId, playerDiscordId, bidBonus)
+  if (!cost) throw new Error('Player is not eligible for the draft.')
+  if (!cost.affordable) {
     throw new Error('That team cannot afford this player.')
   }
 
@@ -1069,8 +1116,8 @@ export async function confirmDraftPick(
       eventId: event.id,
       playerDiscordId,
       teamId,
-      salary,
-      bonusSpent,
+      salary: cost.salary,
+      bonusSpent: cost.bonusSpent,
       contestedByTeamId: contestedByTeamId || null,
       confirmedAt: new Date().toISOString(),
     })
@@ -1078,16 +1125,18 @@ export async function confirmDraftPick(
 
   db.update(events).set({ phase: 'draft', updatedAt: new Date().toISOString() }).where(eq(events.id, event.id)).run()
 
-  return { id, player: player.name, team: team.teamName, salary, bonusSpent }
+  return { id, player: player.name, team: team.teamName, salary: cost.salary, bonusSpent: cost.bonusSpent }
 }
 
 export async function openDraftBid(event: HammaEvent, teamId: string, playerDiscordId: string) {
   if (event.activeDraftBid) throw new Error('A bid is already open.')
+  const readiness = getDraftReadiness(event)
+  if (!readiness.ready) throw new Error(readiness.label)
 
-  const team = event.captains.find((captain) => captain.id === teamId)
+  const team = event.teams.find((captain) => captain.id === teamId)
   if (!team) throw new Error('Team not found.')
 
-  const opposingTeam = event.captains.find((captain) => captain.id !== teamId)
+  const opposingTeam = event.teams.find((captain) => captain.id !== teamId)
   if (!opposingTeam) throw new Error('Configure an opposing team before opening bids.')
 
   const player = event.players.find((candidate) => candidate.id === playerDiscordId)
@@ -1097,17 +1146,7 @@ export async function openDraftBid(event: HammaEvent, teamId: string, playerDisc
     throw new Error('Player has already been drafted.')
   }
 
-  const salary = calculatePlayerSalaries(event).find((item) => item.player.id === playerDiscordId)?.salary
-  if (salary === undefined) throw new Error('Player is not eligible for the draft.')
-
-  const ledger = buildTeamLedgers(event).find((item) => item.captain.id === teamId)
-  if (!ledger) throw new Error('Team ledger not found.')
-
-  const openingBonus = 0
-  if (salary > ledger.combinedRemaining) {
-    throw new Error('That team does not have enough combined budget remaining.')
-  }
-  if (!canAcquirePlayer(event, teamId, playerDiscordId, openingBonus)) {
+  if (!canAcquirePlayer(event, teamId, playerDiscordId, 0)) {
     throw new Error('That team cannot afford to open this bid.')
   }
 
@@ -1121,7 +1160,7 @@ export async function openDraftBid(event: HammaEvent, teamId: string, playerDisc
       openedByTeamId: teamId,
       highestTeamId: teamId,
       nextTeamId: opposingTeam.id,
-      currentBonus: openingBonus,
+      currentBonus: 0,
       status: 'active',
       createdAt: now,
       updatedAt: now,
@@ -1134,26 +1173,40 @@ export async function openDraftBid(event: HammaEvent, teamId: string, playerDisc
     id,
     player: player.name,
     team: team.teamName,
-    currentBonus: openingBonus,
+    currentBonus: 0,
     nextTeam: opposingTeam.teamName,
   }
+}
+
+export async function pickDraftPlayer(event: HammaEvent, teamId: string, playerDiscordId: string) {
+  const readiness = getDraftReadiness(event)
+  if (!readiness.ready) throw new Error(readiness.label)
+  if (event.activeDraftBid) throw new Error('A bid is already open.')
+
+  const reachWinner = reachAwardWinner(event, teamId, playerDiscordId)
+  if (reachWinner) {
+    const result = await confirmDraftPick(event, reachWinner.team.id, playerDiscordId, 0)
+    db.update(events)
+      .set({
+        nextPickTeamId: oppositeTeamId(event, teamId) ?? null,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(events.id, event.id))
+      .run()
+    return {
+      ...result,
+      directAward: true,
+    }
+  }
+
+  return openDraftBid(event, teamId, playerDiscordId)
 }
 
 export async function bumpDraftBid(event: HammaEvent, bidId: string, teamId: string) {
   const bid = getActiveBid(event.id, bidId)
   if (bid.nextTeamId !== teamId) throw new Error('It is not your turn to raise this bid.')
 
-  const nextBonus = bid.currentBonus + BID_INCREMENT
-  const ledger = buildTeamLedgers(event).find((item) => item.captain.id === teamId)
-  if (!ledger) throw new Error('Team ledger not found.')
-  if (nextBonus > ledger.bonusRemaining) {
-    throw new Error('That team does not have enough bonus cap to raise.')
-  }
-  const salary = calculatePlayerSalaries(event).find((item) => item.player.id === bid.playerDiscordId)?.salary
-  if (salary === undefined) throw new Error('Player is not eligible for the draft.')
-  if (salary + nextBonus > ledger.combinedRemaining) {
-    throw new Error('That team does not have enough combined budget remaining.')
-  }
+  const nextBonus = bid.currentBonus + event.bidIncrement
   if (!canAcquirePlayer(event, teamId, bid.playerDiscordId, nextBonus)) {
     throw new Error('That team does not have enough bonus cap to raise.')
   }
@@ -1170,7 +1223,7 @@ export async function bumpDraftBid(event: HammaEvent, bidId: string, teamId: str
     .run()
 
   const player = event.players.find((candidate) => candidate.id === bid.playerDiscordId)
-  const team = event.captains.find((captain) => captain.id === teamId)
+  const team = event.teams.find((captain) => captain.id === teamId)
   db.update(events).set({ updatedAt: now }).where(eq(events.id, event.id)).run()
 
   return {
@@ -1183,7 +1236,7 @@ export async function bumpDraftBid(event: HammaEvent, bidId: string, teamId: str
 export async function forfeitDraftBid(event: HammaEvent, bidId: string, teamId: string) {
   const bid = getActiveBid(event.id, bidId)
   if (bid.nextTeamId !== teamId) throw new Error('It is not your turn to forfeit this bid.')
-  const nextPickTeamId = nextPickTeamAfterBidResolution(bid)
+  const nextPickTeamId = oppositeTeamId(event, bid.openedByTeamId)
 
   const result = await confirmDraftPick(
     event,
@@ -1197,15 +1250,11 @@ export async function forfeitDraftBid(event: HammaEvent, bidId: string, teamId: 
     .where(and(eq(activeDraftBids.eventId, event.id), eq(activeDraftBids.id, bid.id)))
     .run()
   db.update(events)
-    .set({ nextPickTeamId, updatedAt: new Date().toISOString() })
+    .set({ nextPickTeamId: nextPickTeamId ?? null, updatedAt: new Date().toISOString() })
     .where(eq(events.id, event.id))
     .run()
 
   return result
-}
-
-function nextPickTeamAfterBidResolution(bid: ReturnType<typeof getActiveBid>) {
-  return bid.currentBonus > 0 ? bid.highestTeamId : bid.nextTeamId
 }
 
 export async function resetDraftPick(eventId: string, pickId: string) {
@@ -2126,7 +2175,7 @@ function getPlayerBadges(discordId: string): PlayerBadge[] {
     badges.push({
       id: 'big-spender',
       name: 'BIG SPENDER',
-      description: 'Captain spent most of a bonus cap on one player.',
+      description: 'Team spent most of a bonus cap on one player.',
       color: '#f0b46b',
       source: 'automatic',
     })
@@ -2262,6 +2311,9 @@ function bootstrap() {
       draft_start_minutes_before INTEGER,
       phase TEXT NOT NULL DEFAULT 'signups',
       salary_pool INTEGER NOT NULL DEFAULT ${SALARY_POOL},
+      bonus_pool INTEGER NOT NULL DEFAULT ${BONUS_POOL},
+      max_player_bonus INTEGER NOT NULL DEFAULT ${MAX_PLAYER_BONUS},
+      bid_increment INTEGER NOT NULL DEFAULT ${BID_INCREMENT},
       pending_signup_count INTEGER NOT NULL DEFAULT 0,
       available_factions TEXT NOT NULL DEFAULT '["VS","NC","TR"]',
       available_sides TEXT NOT NULL DEFAULT '["north","south"]',
@@ -2412,6 +2464,9 @@ function bootstrap() {
   addColumnIfMissing('events', 'ends_at', 'TEXT')
   addColumnIfMissing('events', 'draft_start_minutes_before', 'INTEGER')
   addColumnIfMissing('events', 'pending_signup_count', 'INTEGER NOT NULL DEFAULT 0')
+  addColumnIfMissing('events', 'bonus_pool', `INTEGER NOT NULL DEFAULT ${BONUS_POOL}`)
+  addColumnIfMissing('events', 'max_player_bonus', `INTEGER NOT NULL DEFAULT ${MAX_PLAYER_BONUS}`)
+  addColumnIfMissing('events', 'bid_increment', `INTEGER NOT NULL DEFAULT ${BID_INCREMENT}`)
   addColumnIfMissing('events', 'available_factions', `TEXT NOT NULL DEFAULT '["VS","NC","TR"]'`)
   addColumnIfMissing('events', 'available_sides', `TEXT NOT NULL DEFAULT '["north","south"]'`)
   addColumnIfMissing('events', 'next_pick_team_id', 'TEXT REFERENCES teams(id) ON DELETE SET NULL')
@@ -2546,9 +2601,9 @@ function coinflipSummary(row: {
 }) {
   return {
     id: row.id,
-    callingCaptainId: row.callingTeamId ?? '',
+    callingTeamId: row.callingTeamId ?? '',
     call: normalizeCoinSide(row.callerCall ?? null),
     result: normalizeCoinSide(row.result ?? null),
-    winningCaptainId: row.winningTeamId ?? undefined,
+    winningTeamId: row.winningTeamId ?? undefined,
   }
 }

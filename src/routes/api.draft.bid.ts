@@ -1,8 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { getDiscordSessionUser, requireAdminSession } from '../lib/discord.server'
-import { bumpDraftBid, cancelActiveDraftBid, forfeitDraftBid, getDbEvent, openDraftBid } from '../lib/db.server'
+import { bumpDraftBid, cancelActiveDraftBid, forfeitDraftBid, getDbEvent, pickDraftPlayer } from '../lib/db.server'
 import { publishEventUpdate } from '../lib/realtime.server'
-import { nextDraftSide } from '../lib/rules'
+import { getDraftReadiness, nextDraftSide } from '../lib/rules'
 import { clearCurrentEventCache, requireCurrentEvent } from '../lib/services'
 
 export const Route = createFileRoute('/api/draft/bid')({
@@ -11,29 +11,29 @@ export const Route = createFileRoute('/api/draft/bid')({
       POST: async ({ request }) => {
         const user = await getDiscordSessionUser()
         if (!user) throw new Response('Discord login required', { status: 401 })
-        if (!user.roles.includes('captain') && !user.roles.includes('admin')) {
-          throw new Response('Captain Discord role required', { status: 403 })
-        }
 
         const event = await requireCurrentEvent()
+        const readiness = getDraftReadiness(event)
+        if (!readiness.ready) throw new Response(readiness.label, { status: 403 })
         const body = await request.json()
         const action = String(body.action ?? 'open')
         const teamId = String(body.teamId ?? '')
-        const team = event.captains.find((captain) => captain.id === teamId)
-        const isAdmin = user.roles.includes('admin')
+        const team = event.teams.find((captain) => captain.id === teamId)
 
         if (!team) throw new Response('Team not found', { status: 404 })
-        if (!isAdmin && team.playerId !== user.id) {
+        if (team.captainDiscordId !== user.id) {
           throw new Response('You can only bid for your assigned team.', { status: 403 })
         }
-        if (action === 'open' && nextDraftSide(event)?.captain.id !== teamId) {
+        if (action === 'open' && nextDraftSide(event)?.team.id !== teamId) {
           throw new Response("It is not your team's pick turn.", { status: 403 })
         }
 
         let message = 'Bid updated.'
         if (action === 'open') {
-          const result = await openDraftBid(event, teamId, String(body.playerDiscordId ?? ''))
-          message = `${result.team} opened bidding on ${result.player}.`
+          const result = await pickDraftPlayer(event, teamId, String(body.playerDiscordId ?? ''))
+          message = 'directAward' in result && result.directAward
+            ? `${result.player} automatically awarded to ${result.team}.`
+            : `${result.team} opened bidding on ${result.player}.`
         } else if (action === 'bump') {
           const result = await bumpDraftBid(event, String(body.bidId ?? ''), teamId)
           message = `${result.team} raised the bid on ${result.player}.`

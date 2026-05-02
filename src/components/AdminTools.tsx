@@ -2,7 +2,7 @@ import { type ReactNode, useEffect, useState } from 'react'
 import type {
   AdminBadgeManagerData,
   AdminPlayerCharacterConfig,
-  Captain,
+  Team,
   EventPlayerCharacterAssignment,
   Faction,
   HammaEvent,
@@ -389,6 +389,19 @@ function useClientReady() {
   return ready
 }
 
+function formatWholeDollarInput(value: number) {
+  return value.toLocaleString('en-US')
+}
+
+function formatWholeDollarText(value: string) {
+  const digits = parseWholeDollarText(value)
+  return digits ? Number(digits).toLocaleString('en-US') : ''
+}
+
+function parseWholeDollarText(value: string) {
+  return value.replace(/[^\d]/g, '')
+}
+
 function EventIdentityControls({
   event,
   busy,
@@ -404,10 +417,18 @@ function EventIdentityControls({
   const [draftStartMinutesBefore, setDraftStartMinutesBefore] = useState(
     event.draftStartMinutesBefore?.toString() ?? '',
   )
+  const [salaryPool, setSalaryPool] = useState(event.salaryPool.toString())
+  const [bonusPool, setBonusPool] = useState(event.bonusPool.toString())
+  const [maxPlayerBonus, setMaxPlayerBonus] = useState(event.maxPlayerBonus.toString())
+  const [bidIncrement, setBidIncrement] = useState(event.bidIncrement.toString())
 
   useEffect(() => {
     setNameOverride(event.nameOverride ?? '')
     setDraftStartMinutesBefore(event.draftStartMinutesBefore?.toString() ?? '')
+    setSalaryPool(formatWholeDollarInput(event.salaryPool))
+    setBonusPool(formatWholeDollarInput(event.bonusPool))
+    setMaxPlayerBonus(formatWholeDollarInput(event.maxPlayerBonus))
+    setBidIncrement(formatWholeDollarInput(event.bidIncrement))
   }, [event])
 
   return (
@@ -438,6 +459,61 @@ function EventIdentityControls({
             }
           >
             Save name
+          </button>
+        </div>
+
+        <div className="event-result-card">
+          <strong>Draft budgets</strong>
+          <label>
+            Total salary pool
+            <input
+              inputMode="numeric"
+              value={salaryPool}
+              onChange={(event) => setSalaryPool(formatWholeDollarText(event.currentTarget.value))}
+            />
+          </label>
+          <label>
+            Total bonus pool
+            <input
+              inputMode="numeric"
+              value={bonusPool}
+              onChange={(event) => setBonusPool(formatWholeDollarText(event.currentTarget.value))}
+            />
+          </label>
+          <label>
+            Max player bonus
+            <input
+              inputMode="numeric"
+              value={maxPlayerBonus}
+              onChange={(event) => setMaxPlayerBonus(formatWholeDollarText(event.currentTarget.value))}
+            />
+          </label>
+          <label>
+            Bid increment
+            <input
+              inputMode="numeric"
+              value={bidIncrement}
+              onChange={(event) => setBidIncrement(formatWholeDollarText(event.currentTarget.value))}
+            />
+          </label>
+          <button
+            type="button"
+            disabled={busy === 'draft-settings'}
+            onClick={() =>
+              void onRun('draft-settings', async () => {
+                const result = await postAdminJson('/api/admin/event', {
+                  eventId: event.id,
+                  salaryPool: parseWholeDollarText(salaryPool),
+                  bonusPool: parseWholeDollarText(bonusPool),
+                  maxPlayerBonus: parseWholeDollarText(maxPlayerBonus),
+                  bidIncrement: parseWholeDollarText(bidIncrement),
+                })
+                if (isEventResult(result) && result.event) onEvent(result.event)
+                return result
+              })
+            }
+          >
+            Save draft settings
           </button>
         </div>
 
@@ -537,14 +613,14 @@ function TeamEditor({
             })
           }
         >
-          {event.captains.length ? 'Ensure teams' : 'Create teams'}
+          {event.teams.length ? 'Ensure teams' : 'Create teams'}
         </button>
       }
     >
 
-      {event.captains.length ? (
+      {event.teams.length ? (
         <div className="team-admin-grid">
-          {event.captains.map((team) => (
+          {event.teams.map((team) => (
             <TeamForm
               key={team.id}
               eventId={event.id}
@@ -556,7 +632,7 @@ function TeamEditor({
           ))}
         </div>
       ) : (
-        <p>Create teams, then assign captains and names here.</p>
+        <p>Create teams, then assign teams and names here.</p>
       )}
     </AdminSection>
   )
@@ -1085,8 +1161,8 @@ function CoinflipControls({
 }) {
   const factions: Faction[] = ['VS', 'NC', 'TR']
   const coinflip = event.coinflip
-  const caller = event.captains.find((team) => team.id === coinflip?.callingCaptainId)
-  const winner = event.captains.find((team) => team.id === coinflip?.winningCaptainId)
+  const caller = event.teams.find((team) => team.id === coinflip?.callingTeamId)
+  const winner = event.teams.find((team) => team.id === coinflip?.winningTeamId)
   const [availableFactions, setAvailableFactions] = useState<Faction[]>(
     event.availableFactions.length ? event.availableFactions : factions,
   )
@@ -1374,7 +1450,7 @@ function CoinflipControls({
                 void onRun('coinflip-assignments', () =>
                   runCoinflipAction({
                     action: 'assignments',
-                    assignments: event.captains.map((team) => ({
+                    assignments: event.teams.map((team) => ({
                       teamId: team.id,
                       faction: assignments[team.id]?.faction ?? '',
                       startingSide: assignments[team.id]?.startingSide ?? '',
@@ -1387,7 +1463,7 @@ function CoinflipControls({
             </button>
           </div>
           <div className="assignment-grid">
-            {event.captains.map((team) => {
+            {event.teams.map((team) => {
               const currentFaction = assignments[team.id]?.faction ?? ''
               const currentSide = assignments[team.id]?.startingSide ?? ''
               const factionOptions = unclaimedAssignmentOptions(
@@ -1457,18 +1533,18 @@ function EventResultControls({
 }) {
   const [streamUrl, setStreamUrl] = useState(event.twitchStreamUrl ?? '')
   const [vodUrl, setVodUrl] = useState(event.twitchVodUrl ?? '')
-  const [scoreTeamId, setScoreTeamId] = useState(event.captains[0]?.id ?? '')
+  const [scoreTeamId, setScoreTeamId] = useState(event.teams[0]?.id ?? '')
   const [scoreDelta, setScoreDelta] = useState('1')
-  const [winningTeamId, setWinningTeamId] = useState(event.winningCaptainId ?? event.captains[0]?.id ?? '')
+  const [winningTeamId, setWinningTeamId] = useState(event.winningTeamId ?? event.teams[0]?.id ?? '')
 
   useEffect(() => {
     setStreamUrl(event.twitchStreamUrl ?? '')
     setVodUrl(event.twitchVodUrl ?? '')
-    if (!event.captains.some((team) => team.id === scoreTeamId)) {
-      setScoreTeamId(event.captains[0]?.id ?? '')
+    if (!event.teams.some((team) => team.id === scoreTeamId)) {
+      setScoreTeamId(event.teams[0]?.id ?? '')
     }
-    if (!event.captains.some((team) => team.id === winningTeamId)) {
-      setWinningTeamId(event.winningCaptainId ?? event.captains[0]?.id ?? '')
+    if (!event.teams.some((team) => team.id === winningTeamId)) {
+      setWinningTeamId(event.winningTeamId ?? event.teams[0]?.id ?? '')
     }
   }, [event, scoreTeamId, winningTeamId])
 
@@ -1480,7 +1556,7 @@ function EventResultControls({
 
   async function adjustScore() {
     const result = await postResult({ teamId: scoreTeamId, delta: Number(scoreDelta) })
-    setScoreTeamId(event.captains[0]?.id ?? '')
+    setScoreTeamId(event.teams[0]?.id ?? '')
     setScoreDelta('1')
     return result
   }
@@ -1527,10 +1603,10 @@ function EventResultControls({
             Team
             <select
               value={scoreTeamId}
-              disabled={!event.captains.length}
+              disabled={!event.teams.length}
               onChange={(event) => setScoreTeamId(event.currentTarget.value)}
             >
-              {event.captains.map((team) => (
+              {event.teams.map((team) => (
                 <option key={team.id} value={team.id}>
                   {team.teamName}
                 </option>
@@ -1560,10 +1636,10 @@ function EventResultControls({
             Winning team
             <select
               value={winningTeamId}
-              disabled={!event.captains.length}
+              disabled={!event.teams.length}
               onChange={(event) => setWinningTeamId(event.currentTarget.value)}
             >
-              {event.captains.map((team) => (
+              {event.teams.map((team) => (
                 <option key={team.id} value={team.id}>
                   {team.teamName}
                 </option>
@@ -1592,7 +1668,7 @@ function EventResultControls({
 
 function buildAssignmentState(event: HammaEvent) {
   return Object.fromEntries(
-    event.captains.map((team) => [
+    event.teams.map((team) => [
       team.id,
       {
         faction: team.faction ?? '',
@@ -1715,19 +1791,19 @@ function TeamForm({
   onSaved,
 }: {
   eventId: string
-  team: Captain
+  team: Team
   players: Player[]
   busy: boolean
   onSaved: (event: HammaEvent) => void
 }) {
   const [name, setName] = useState(team.teamName)
-  const [captainDiscordId, setCaptainDiscordId] = useState(team.playerId)
+  const [captainDiscordId, setCaptainDiscordId] = useState(team.captainDiscordId)
   const [score, setScore] = useState(team.score.toString())
   const [message, setMessage] = useState<string>()
 
   useEffect(() => {
     setName(team.teamName)
-    setCaptainDiscordId(team.playerId)
+    setCaptainDiscordId(team.captainDiscordId)
     setScore(team.score.toString())
     setMessage(undefined)
   }, [team])
@@ -1752,7 +1828,7 @@ function TeamForm({
         <input value={name} onChange={(event) => setName(event.currentTarget.value)} />
       </label>
       <label>
-        Captain
+        Team
         <select
           value={captainDiscordId}
           onChange={(event) => setCaptainDiscordId(event.currentTarget.value)}

@@ -104,10 +104,6 @@ export function mapDiscordRoleIds(roleIds: string[]): Role[] {
     roles.add('admin')
   }
 
-  if (roleIds.includes(env('DISCORD_CAPTAIN_ROLE_ID'))) {
-    roles.add('captain')
-  }
-
   return Array.from(roles)
 }
 
