@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { requireAdminSession } from '../lib/discord.server'
 import { getAdminPlayerCharacterConfigs, savePlayerCharacters } from '../lib/db.server'
-import { resolveJaegerCharacter } from '../lib/census.server'
+import { censusLookupErrorResponse, resolveJaegerCharacter } from '../lib/census.server'
 import { publishEventUpdate } from '../lib/realtime.server'
 import type { Faction } from '../lib/types'
 
@@ -22,9 +22,7 @@ export const Route = createFileRoute('/api/admin/player-jaeger')({
         const discordId = String(body.discordId ?? '').trim()
         if (!discordId) throw new Response('Player is required.', { status: 400 })
 
-        const resolved = await Promise.all(
-          FACTIONS.map((faction) => resolveJaegerCharacter(faction, String(body[faction] ?? ''))),
-        )
+        const resolved = await resolveCharactersOrThrow(body)
 
         savePlayerCharacters(discordId, resolved)
         publishEventUpdate('general', 'player.jaeger.updated')
@@ -38,3 +36,15 @@ export const Route = createFileRoute('/api/admin/player-jaeger')({
   },
   component: () => null,
 })
+
+async function resolveCharactersOrThrow(body: Partial<Record<Faction, string>>) {
+  try {
+    return await Promise.all(
+      FACTIONS.map((faction) => resolveJaegerCharacter(faction, String(body[faction] ?? ''))),
+    )
+  } catch (error) {
+    const response = censusLookupErrorResponse(error)
+    if (response) throw response
+    throw error
+  }
+}

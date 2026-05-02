@@ -6,7 +6,7 @@ import {
   saveEventPlayerCharacterAssignment,
   saveEventPlayerCharacterAssignments,
 } from '../lib/db.server'
-import { resolveJaegerCharacter } from '../lib/census.server'
+import { censusLookupErrorResponse, resolveJaegerCharacter } from '../lib/census.server'
 import { requireEventByIdOrCurrent } from '../lib/services'
 import { publishEventUpdate } from '../lib/realtime.server'
 import type { Faction } from '../lib/types'
@@ -46,8 +46,11 @@ export const Route = createFileRoute('/api/admin/player-characters')({
 
         const accountPrefix = String(body.accountPrefix ?? '').trim()
         if (accountPrefix) {
-          const resolved = await Promise.all(
-            FACTIONS.map((faction) => resolveJaegerCharacter(faction, `${accountPrefix}${faction}`)),
+          const resolved = await resolveCharactersOrThrow(
+            Object.fromEntries(FACTIONS.map((faction) => [faction, `${accountPrefix}${faction}`])) as Record<
+              Faction,
+              string
+            >,
           )
           const assignments = saveEventPlayerCharacterAssignments(event.id, discordId, resolved)
           publishEventUpdate(event.id, 'event.jaeger.updated')
@@ -59,7 +62,7 @@ export const Route = createFileRoute('/api/admin/player-characters')({
         }
 
         const faction = normalizeFaction(String(body.faction ?? ''))
-        const character = await resolveJaegerCharacter(faction, String(body.characterName ?? '').trim())
+        const character = await resolveCharacterOrThrow(faction, String(body.characterName ?? '').trim())
         const assignments = saveEventPlayerCharacterAssignment(event.id, discordId, character)
         publishEventUpdate(event.id, 'event.jaeger.updated')
         return Response.json({
@@ -74,6 +77,28 @@ export const Route = createFileRoute('/api/admin/player-characters')({
 })
 
 const FACTIONS: Faction[] = ['TR', 'VS', 'NC']
+
+async function resolveCharacterOrThrow(faction: Faction, name: string) {
+  try {
+    return await resolveJaegerCharacter(faction, name)
+  } catch (error) {
+    const response = censusLookupErrorResponse(error)
+    if (response) throw response
+    throw error
+  }
+}
+
+async function resolveCharactersOrThrow(body: Record<Faction, string>) {
+  try {
+    return await Promise.all(
+      FACTIONS.map((faction) => resolveJaegerCharacter(faction, body[faction])),
+    )
+  } catch (error) {
+    const response = censusLookupErrorResponse(error)
+    if (response) throw response
+    throw error
+  }
+}
 
 function normalizeFaction(value: string): Faction {
   if (value === 'TR' || value === 'VS' || value === 'NC') return value

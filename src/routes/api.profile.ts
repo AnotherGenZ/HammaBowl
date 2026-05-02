@@ -5,7 +5,7 @@ import {
   savePlayerCharacters,
   updatePlayerProfile,
 } from '../lib/db.server'
-import { resolveJaegerCharacter } from '../lib/census.server'
+import { censusLookupErrorResponse, resolveJaegerCharacter } from '../lib/census.server'
 import { isProfileBanner } from '../lib/profileBanners'
 import { publishEventUpdate } from '../lib/realtime.server'
 import type { Faction } from '../lib/types'
@@ -55,9 +55,7 @@ export const Route = createFileRoute('/api/profile')({
       PUT: async ({ request }) => {
         const user = await requireUser()
         const body = await request.json() as Partial<Record<Faction, string>>
-        const resolved = await Promise.all(
-          FACTIONS.map((faction) => resolveJaegerCharacter(faction, String(body[faction] ?? ''))),
-        )
+        const resolved = await resolveCharactersOrThrow(body)
         const profile = savePlayerCharacters(user.id, resolved)
         publishEventUpdate('general', 'player.jaeger.updated')
         return Response.json({ profile, resolved })
@@ -71,4 +69,16 @@ async function requireUser() {
   const user = await getDiscordSessionUser()
   if (!user) throw new Response('Discord login required', { status: 401 })
   return user
+}
+
+async function resolveCharactersOrThrow(body: Partial<Record<Faction, string>>) {
+  try {
+    return await Promise.all(
+      FACTIONS.map((faction) => resolveJaegerCharacter(faction, String(body[faction] ?? ''))),
+    )
+  } catch (error) {
+    const response = censusLookupErrorResponse(error)
+    if (response) throw response
+    throw error
+  }
 }
