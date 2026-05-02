@@ -660,17 +660,11 @@ export async function resetCoinflip(eventId: string) {
   const coinflip = db.select().from(coinflips).where(eq(coinflips.eventId, eventId)).get()
   if (!coinflip) return { ok: true, message: 'Coinflip is already reset.' }
 
-  if (coinflip.winnerChoiceType === 'faction' && coinflip.winningTeamId) {
-    db.update(teams).set({ faction: null }).where(eq(teams.id, coinflip.winningTeamId)).run()
-  }
-
-  if (coinflip.winnerChoiceType === 'side') {
-    db.update(teams).set({ startingSide: null }).where(eq(teams.eventId, eventId)).run()
-  }
-
+  const now = new Date().toISOString()
+  db.update(teams).set({ faction: null, startingSide: null }).where(eq(teams.eventId, eventId)).run()
   db.delete(coinflips).where(eq(coinflips.eventId, eventId)).run()
   db.update(events)
-    .set({ nextPickTeamId: null, updatedAt: new Date().toISOString() })
+    .set({ nextPickTeamId: null, updatedAt: now })
     .where(eq(events.id, eventId))
     .run()
 
