@@ -290,6 +290,11 @@ export function DraftBoard({
           <div className="team-grid compact">
             {ledgers.map((ledger, ledgerIndex) => {
               const isPickTurn = draftReady && !activeBid && pickTurn?.team.id === ledger.team.id
+              const teamPlayerCount = ledger.picks.length + (ledger.captainPlayer ? 1 : 0)
+              const teamValue = ledger.picks.reduce(
+                (sum, pick) => sum + pick.salary + pick.bonusSpent,
+                0,
+              )
               return (
                 <article className={`team-panel${isPickTurn ? ' team-panel-active' : ''}`} key={ledger.team.id}>
                   <div className="team-title-row">
@@ -376,11 +381,13 @@ export function DraftBoard({
                       </li>
                     ))}
                   </ul>
-                  <div className="team-count-chip">
-                    {ledger.picks.length + (ledger.captainPlayer ? 1 : 0)}{' '}
-                    {ledger.picks.length + (ledger.captainPlayer ? 1 : 0) === 1
-                      ? 'player'
-                      : 'players'}
+                  <div className="team-footer-chips">
+                    <div className="team-count-chip">
+                      {teamPlayerCount} {teamPlayerCount === 1 ? 'player' : 'players'}
+                    </div>
+                    <div className="team-value-chip" title={money(teamValue)}>
+                      Value {compactMoney(teamValue)}
+                    </div>
                   </div>
                 </article>
               )
