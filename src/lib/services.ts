@@ -7,8 +7,11 @@ import {
 } from './raidHelper'
 import type { HammaEvent, Role } from './types'
 
-const EVENT_CACHE_TTL_MS = 30 * 60 * 1000
-let eventCache: { event: HammaEvent; expiresAt: number } | null = null
+const RAID_HELPER_REFRESH_INTERVAL_MS = 10 * 60 * 1000
+let eventCache: HammaEvent | null = null
+let lastRaidHelperRefreshAt = 0
+let raidHelperRefreshPromise: Promise<HammaEvent | null> | null = null
+let autoRefreshTimerStarted = false
 
 export interface SessionUser {
   id: string
@@ -28,25 +31,25 @@ export async function getCurrentEvent(options: { force?: boolean } = {}): Promis
 
 const getCurrentEventServer = createServerOnlyFn(
   async (options: { force?: boolean } = {}): Promise<HammaEvent | null> => {
-  if (!options.force && eventCache && eventCache.expiresAt > Date.now()) {
-    return eventCache.event
-  }
+    ensureRaidHelperAutoRefresh()
 
-  try {
-    const event = await hydrateEventFromRaidHelper()
-    if (!event) return null
-    const { getDbEvent, upsertEventFromRaidHelper } = await import('./db.server')
-    const eventId = await upsertEventFromRaidHelper(event)
-    const dbEvent = (await getDbEvent(eventId)) ?? event
-    eventCache = {
-      event: dbEvent,
-      expiresAt: Date.now() + EVENT_CACHE_TTL_MS,
+    if (!options.force && eventCache && !isRaidHelperRefreshDue()) {
+      return eventCache
     }
-    return dbEvent
-  } catch (error) {
-    console.error(error)
-    return null
-  }
+
+    const dbEvent = options.force ? null : await getCurrentEventFromDb()
+    if (!options.force && dbEvent && !isRaidHelperRefreshDue()) {
+      eventCache = dbEvent
+      return dbEvent
+    }
+
+    if (!options.force && raidHelperRefreshPromise) {
+      return dbEvent ?? raidHelperRefreshPromise
+    }
+
+    return refreshCurrentEventFromRaidHelper({
+      fallbackEvent: options.force ? null : dbEvent,
+    })
   },
 )
 
@@ -68,6 +71,68 @@ export async function refreshRaidHelperEvent(): Promise<HammaEvent | null> {
   clearCurrentEventCache()
   return getCurrentEvent({ force: true })
 }
+
+const getCurrentEventFromDb = createServerOnlyFn(async () => {
+  const { getCurrentDbEvent } = await import('./db.server')
+  return getCurrentDbEvent()
+})
+
+const upsertRaidHelperEvent = createServerOnlyFn(async (event: HammaEvent) => {
+  const { getDbEvent, upsertEventFromRaidHelper } = await import('./db.server')
+  const eventId = await upsertEventFromRaidHelper(event)
+  return (await getDbEvent(eventId)) ?? event
+})
+
+function isRaidHelperRefreshDue() {
+  return Date.now() - lastRaidHelperRefreshAt >= RAID_HELPER_REFRESH_INTERVAL_MS
+}
+
+function ensureRaidHelperAutoRefresh() {
+  if (autoRefreshTimerStarted || typeof window !== 'undefined' || !isRaidHelperConfigured()) {
+    return
+  }
+
+  autoRefreshTimerStarted = true
+  const timer = setInterval(() => {
+    if (!isRaidHelperRefreshDue()) return
+
+    void getCurrentEventFromDb()
+      .then((fallbackEvent) => refreshCurrentEventFromRaidHelper({ fallbackEvent }))
+      .catch((error) => console.error(error))
+  }, RAID_HELPER_REFRESH_INTERVAL_MS)
+  timer.unref?.()
+}
+
+function refreshCurrentEventFromRaidHelper(options: {
+  fallbackEvent?: HammaEvent | null
+} = {}) {
+  if (raidHelperRefreshPromise) return raidHelperRefreshPromise
+
+  raidHelperRefreshPromise = (async () => {
+    try {
+      const event = await hydrateEventFromRaidHelper()
+      if (!event) {
+        eventCache = options.fallbackEvent ?? null
+        return options.fallbackEvent ?? null
+      }
+
+      const dbEvent = await upsertRaidHelperEvent(event)
+      eventCache = dbEvent
+      return dbEvent
+    } catch (error) {
+      console.error(error)
+      eventCache = options.fallbackEvent ?? null
+      return options.fallbackEvent ?? null
+    } finally {
+      lastRaidHelperRefreshAt = Date.now()
+      raidHelperRefreshPromise = null
+    }
+  })()
+
+  return raidHelperRefreshPromise
+}
+
+ensureRaidHelperAutoRefresh()
 
 export async function postTeamCompositionToDiscord(event: HammaEvent) {
   if (isRaidHelperConfigured()) {

@@ -266,6 +266,37 @@ export async function getDbEvent(eventId: string): Promise<HammaEvent | null> {
   }
 }
 
+export async function getCurrentDbEvent(): Promise<HammaEvent | null> {
+  const eventRows = db.select().from(events).all()
+  if (!eventRows.length) return null
+
+  const configuredRaidHelperEventId = env('RAID_HELPER_EVENT_ID')
+  const configuredEvent = configuredRaidHelperEventId
+    ? eventRows.find((event) => event.raidHelperEventId === configuredRaidHelperEventId)
+    : undefined
+
+  const selected = configuredEvent ?? selectCurrentDbEventRow(eventRows)
+  return selected ? getDbEvent(selected.id) : null
+}
+
+function selectCurrentDbEventRow<T extends { startsAt: string; updatedAt: string }>(eventRows: T[]) {
+  const now = Date.now()
+  const byStartsAtAsc = (a: T, b: T) =>
+    new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime()
+  const byStartsAtDesc = (a: T, b: T) =>
+    new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime()
+  const byUpdatedAtDesc = (a: T, b: T) =>
+    new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+
+  return (
+    eventRows
+      .filter((event) => new Date(event.startsAt).getTime() >= now)
+      .sort(byStartsAtAsc)[0] ??
+    [...eventRows].sort(byStartsAtDesc)[0] ??
+    [...eventRows].sort(byUpdatedAtDesc)[0]
+  )
+}
+
 export async function ensureDefaultTeams(event: HammaEvent) {
   const now = new Date().toISOString()
   const existing = db.select().from(teams).where(eq(teams.eventId, event.id)).all()
