@@ -1049,6 +1049,23 @@ dd {
   background: #1e2226;
 }
 
+.table-sort-button {
+  justify-content: flex-start;
+  min-height: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  font: inherit;
+  text-transform: inherit;
+}
+
+.table-sort-button:hover,
+.table-sort-button:focus-visible {
+  color: #fff7e6;
+  outline: 0;
+}
+
 .table-wrap tbody tr {
   transition: background 120ms ease;
 }

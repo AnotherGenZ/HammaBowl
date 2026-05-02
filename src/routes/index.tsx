@@ -3,7 +3,7 @@ import { EventSummary } from '../components/EventSummary'
 import { PlayerTable } from '../components/PlayerTable'
 import { shortDate } from '../lib/format'
 import { pageMeta } from '../lib/meta'
-import { calculatePlayerSalaries } from '../lib/rules'
+import { calculatePlayerRatingSummaries } from '../lib/rules'
 import { getCurrentEvent, getSessionUser } from '../lib/services'
 import { useRealtimeCurrentEvent } from '../lib/useRealtimeCurrentEvent'
 
@@ -52,7 +52,7 @@ function Home() {
     )
   }
 
-  const ratings = calculatePlayerSalaries(event)
+  const ratings = calculatePlayerRatingSummaries(event)
 
   return (
     <main>

@@ -307,7 +307,7 @@ export function DraftBoard({
                               ♛
                             </span>
                           </span>
-                          <small>Team</small>
+                          <small>Captain</small>
                         </div>
                       </li>
                     ) : null}

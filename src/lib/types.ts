@@ -97,10 +97,14 @@ export interface HammaEvent {
   lore?: string
 }
 
-export interface PlayerSalary {
+export interface PlayerRatingSummary {
   player: Player
   averageRating: number
   ratingCount: number
+  isCaptain: boolean
+}
+
+export interface PlayerSalary extends PlayerRatingSummary {
   pointShare: number
   salary: number
 }

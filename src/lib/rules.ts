@@ -1,4 +1,4 @@
-import type { HammaEvent, PlayerSalary, TeamLedger } from './types'
+import type { HammaEvent, PlayerRatingSummary, PlayerSalary, TeamLedger } from './types'
 
 export const TEAM_BUDGET = 125_000_000
 export const BONUS_CAP = 25_000_000
@@ -65,13 +65,17 @@ export function getDraftReadiness(event: HammaEvent) {
   }
 }
 
-export function calculatePlayerSalaries(event: HammaEvent): PlayerSalary[] {
-  const eligiblePlayers = event.players.filter(
-    (player) => isDraftEligiblePlayer(event, player),
-  )
+export function calculatePlayerRatingSummaries(event: HammaEvent): PlayerRatingSummary[] {
+  return summarizePlayerRatings(event, event.players)
+}
+
+function summarizePlayerRatings(
+  event: HammaEvent,
+  players: HammaEvent['players'],
+): PlayerRatingSummary[] {
   const participantIds = new Set(event.players.map((player) => player.id))
 
-  const playerAverages = eligiblePlayers.map((player) => {
+  return players.map((player) => {
     const ratings = event.ratings.filter(
       (rating) =>
         rating.toPlayerId === player.id &&
@@ -87,8 +91,16 @@ export function calculatePlayerSalaries(event: HammaEvent): PlayerSalary[] {
       player,
       averageRating,
       ratingCount: ratings.length,
+      isCaptain: isCaptainPlayer(event, player.id),
     }
   })
+}
+
+export function calculatePlayerSalaries(event: HammaEvent): PlayerSalary[] {
+  const eligiblePlayers = event.players.filter(
+    (player) => isDraftEligiblePlayer(event, player),
+  )
+  const playerAverages = summarizePlayerRatings(event, eligiblePlayers)
 
   const totalPoints = playerAverages.reduce(
     (sum, item) => sum + item.averageRating,
