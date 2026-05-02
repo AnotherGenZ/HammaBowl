@@ -262,8 +262,13 @@ button .spinner {
   margin: 0;
 }
 
+.user-menu {
+  position: relative;
+}
+
 .nav a,
 .login,
+.discord-link,
 .pill {
   min-height: 36px;
   display: inline-flex;
@@ -277,20 +282,136 @@ button .spinner {
 .nav a:hover,
 .nav a.active,
 .login:hover,
-.login.active {
+.login.active,
+.discord-link:hover {
   background: rgba(255, 255, 255, 0.08);
   color: #fff7e6;
 }
 
-.logout-button {
-  background: transparent;
-  border-color: rgba(255, 255, 255, 0.08);
+.discord-link {
+  width: 36px;
+  justify-content: center;
+  padding: 0;
   color: #cbd5d3;
 }
 
-.logout-button:hover:not(:disabled) {
+.discord-link svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+
+.user-chip {
+  min-height: 36px;
+  max-width: 220px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px;
+  padding: 3px 12px 3px 3px;
+  color: #cbd5d3;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.user-chip:hover,
+.user-chip.active,
+.user-menu:focus-within .user-chip,
+.user-menu:hover .user-chip {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff7e6;
+}
+
+.user-chip img,
+.user-chip > span {
+  width: 30px;
+  aspect-ratio: 1;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: rgba(228, 180, 94, 0.16);
+  object-fit: cover;
+}
+
+.user-chip > span {
+  display: grid;
+  place-items: center;
+  color: #e4b45e;
+  font-size: 0.9rem;
+  font-weight: 900;
+}
+
+.user-chip strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 20;
+  min-width: 160px;
+  display: grid;
+  padding: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(18, 20, 23, 0.98);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-4px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.user-menu:hover .user-dropdown,
+.user-menu:focus-within .user-dropdown {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.user-dropdown::before {
+  position: absolute;
+  right: 0;
+  bottom: 100%;
+  left: 0;
+  height: 8px;
+  content: "";
+}
+
+.user-dropdown form {
+  display: contents;
+}
+
+.user-dropdown-item {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #cbd5d3;
+  padding: 0 10px;
+  font-weight: 800;
+  text-align: left;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.user-dropdown-item:hover,
+.user-dropdown-item:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff7e6;
+}
+
+.user-dropdown-button {
+  width: 100%;
+  cursor: pointer;
+}
+
+.user-dropdown-button:hover:not(:disabled) {
   background: rgba(217, 79, 61, 0.16);
-  border-color: rgba(217, 79, 61, 0.5);
   color: #f2b4ab;
 }
 

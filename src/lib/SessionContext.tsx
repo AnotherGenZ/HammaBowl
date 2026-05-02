@@ -4,6 +4,7 @@ import type { Role } from './types'
 export interface SessionUser {
   id: string
   name: string
+  avatarUrl?: string
   profileComplete: boolean
   roles: Role[]
 }
