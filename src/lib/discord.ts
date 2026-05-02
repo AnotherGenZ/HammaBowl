@@ -37,6 +37,15 @@ export interface DiscordSessionData {
   avatarUrl?: string | null
 }
 
+export class DiscordApiError extends Error {
+  constructor(
+    readonly path: string,
+    readonly status: number,
+  ) {
+    super(`Discord API request failed: ${path} ${status}`)
+  }
+}
+
 export function discordAuthorizeUrl(state: string, requestUrl: string) {
   const url = new URL('https://discord.com/oauth2/authorize')
 
@@ -107,6 +116,14 @@ export function mapDiscordRoleIds(roleIds: string[]): Role[] {
   return Array.from(roles)
 }
 
+export function isDiscordGuildMemberNotFound(error: unknown) {
+  return (
+    error instanceof DiscordApiError &&
+    error.status === 404 &&
+    /^\/users\/@me\/guilds\/\d+\/member$/.test(error.path)
+  )
+}
+
 function discordRedirectUri(requestUrl: string) {
   return new URL('/api/auth/discord/callback', new URL(requestUrl).origin).toString()
 }
@@ -117,7 +134,7 @@ async function discordFetch<T>(path: string, accessToken: string) {
   })
 
   if (!response.ok) {
-    throw new Error(`Discord API request failed: ${path} ${response.status}`)
+    throw new DiscordApiError(path, response.status)
   }
 
   return response.json() as Promise<T>

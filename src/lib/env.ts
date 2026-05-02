@@ -14,6 +14,10 @@ export function appBaseUrl() {
   return env('APP_BASE_URL', 'http://localhost:3000')
 }
 
+export function discordInviteUrl() {
+  return env('DISCORD_INVITE_URL', 'https://discord.gg/k3SfwE8rN4')
+}
+
 export function sessionPassword() {
   return env(
     'SESSION_PASSWORD',
