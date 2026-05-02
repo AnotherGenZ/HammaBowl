@@ -1565,6 +1565,7 @@ dd {
   min-width: 0;
 }
 
+.pick-main a,
 .pick-main span {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1576,6 +1577,12 @@ dd {
   align-items: center;
   gap: 6px;
   min-width: 0;
+}
+
+.captain-pick-name span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .captain-crown {

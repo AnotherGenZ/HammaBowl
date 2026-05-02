@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
 import { compactMoney, money } from '../lib/format'
 import {
@@ -331,12 +332,16 @@ export function DraftBoard({
                     {ledger.captainPlayer ? (
                       <li className="locked-pick">
                         <div className="pick-main">
-                          <span className="captain-pick-name">
-                            {ledger.captainPlayer.name}
+                          <Link
+                            to="/players/$discordId"
+                            params={{ discordId: ledger.captainPlayer.id }}
+                            className="captain-pick-name"
+                          >
+                            <span>{ledger.captainPlayer.name}</span>
                             <span className="captain-crown" aria-hidden="true">
                               ♛
                             </span>
-                          </span>
+                          </Link>
                           <small>Captain</small>
                         </div>
                       </li>
@@ -344,7 +349,9 @@ export function DraftBoard({
                     {ledger.picks.map((pick) => (
                       <li key={pick.id}>
                         <div className="pick-main">
-                          <span>{pick.player.name}</span>
+                          <Link to="/players/$discordId" params={{ discordId: pick.player.id }}>
+                            <span>{pick.player.name}</span>
+                          </Link>
                           <small>
                             <span title={money(pick.salary)}>{compactMoney(pick.salary)}</span>
                             {pick.bonusSpent ? (
@@ -407,7 +414,13 @@ export function DraftBoard({
             <div className="bid-info-grid">
               <div>
                 <small>Player</small>
-                <strong>{bidPlayer?.name ?? activeBid.playerId}</strong>
+                {bidPlayer ? (
+                  <Link to="/players/$discordId" params={{ discordId: bidPlayer.id }}>
+                    <strong>{bidPlayer.name}</strong>
+                  </Link>
+                ) : (
+                  <strong>{activeBid.playerId}</strong>
+                )}
               </div>
               <div>
                 <small>Leading</small>
@@ -478,7 +491,9 @@ export function DraftBoard({
             return (
             <article className="player-card" key={player.id}>
               <div className="player-name">
-                <strong>{player.name}</strong>
+                <Link to="/players/$discordId" params={{ discordId: player.id }}>
+                  <strong>{player.name}</strong>
+                </Link>
               </div>
               <span>{currentEvent.ratings.length ? money(salary) : 'TBD'}</span>
               {isCaptain ? (

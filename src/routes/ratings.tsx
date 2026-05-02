@@ -1,4 +1,4 @@
-import { createFileRoute, redirect } from '@tanstack/react-router'
+import { Link, createFileRoute, redirect } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { pageMeta } from '../lib/meta'
@@ -439,7 +439,9 @@ function Ratings() {
                     data-rating-state={ratingsLoaded && !hasRating ? 'unrated' : 'rated'}
                     key={player.id}
                   >
-                    <strong>{player.name}</strong>
+                    <Link to="/players/$discordId" params={{ discordId: player.id }}>
+                      <strong>{player.name}</strong>
+                    </Link>
                     <div className="rating-controls">
                       {saving === player.id ? <span className="spinner" aria-label="Saving" /> : null}
                       <div
