@@ -44,6 +44,9 @@ export const Route = createFileRoute('/api/admin/event')({
           twitchStreamUrl:
             'twitchStreamUrl' in body ? String(body.twitchStreamUrl ?? '') : undefined,
           twitchVodUrl: 'twitchVodUrl' in body ? String(body.twitchVodUrl ?? '') : undefined,
+          eventDescription:
+            'eventDescription' in body ? String(body.eventDescription ?? '') : undefined,
+          eventLinks: 'eventLinks' in body ? body.eventLinks : undefined,
           draftStartMinutesBefore:
             'draftStartMinutesBefore' in body
               ? String(body.draftStartMinutesBefore ?? '')

@@ -49,6 +49,7 @@ import type {
   Team,
   DraftPick,
   EventPlayerCharacterAssignment,
+  EventLink,
   Faction,
   HammaEvent,
   HistoricalEvent,
@@ -281,6 +282,8 @@ export async function getDbEvent(eventId: string): Promise<HammaEvent | null> {
     winningTeamId: event.winningTeamId ?? undefined,
     twitchStreamUrl: event.twitchStreamUrl ?? undefined,
     twitchVodUrl: event.twitchVodUrl ?? undefined,
+    eventDescription: event.eventDescription ?? undefined,
+    eventLinks: parseEventLinks(event.eventLinks),
     lore: event.lore ?? undefined,
   }
 }
@@ -720,6 +723,8 @@ export async function updateEventAdminSettings(
     lore?: string
     twitchStreamUrl?: string
     twitchVodUrl?: string
+    eventDescription?: string
+    eventLinks?: unknown
     draftStartMinutesBefore?: string
     salaryPool?: string
     bonusPool?: string
@@ -766,6 +771,14 @@ export async function updateEventAdminSettings(
         values.twitchVodUrl === undefined
           ? event.twitchVodUrl
           : normalizeOptionalTwitchUrl(values.twitchVodUrl),
+      eventDescription:
+        values.eventDescription === undefined
+          ? event.eventDescription
+          : values.eventDescription.trim() || null,
+      eventLinks:
+        values.eventLinks === undefined
+          ? event.eventLinks
+          : JSON.stringify(normalizeEventLinks(values.eventLinks)),
       draftStartMinutesBefore: nextDraftStartMinutesBefore,
       salaryPool: nextSalaryPool,
       bonusPool: nextBonusPool,
@@ -2343,6 +2356,8 @@ function bootstrap() {
       winning_team_id TEXT,
       twitch_stream_url TEXT,
       twitch_vod_url TEXT,
+      event_description TEXT,
+      event_links TEXT,
       lore TEXT,
       updated_at TEXT NOT NULL
     );
@@ -2495,6 +2510,8 @@ function bootstrap() {
   addColumnIfMissing('events', 'winning_team_id', 'TEXT')
   addColumnIfMissing('events', 'twitch_stream_url', 'TEXT')
   addColumnIfMissing('events', 'twitch_vod_url', 'TEXT')
+  addColumnIfMissing('events', 'event_description', 'TEXT')
+  addColumnIfMissing('events', 'event_links', 'TEXT')
   addColumnIfMissing('events', 'lore', 'TEXT')
   addColumnIfMissing('participants', 'avatar_url', 'TEXT')
   addColumnIfMissing('participants', 'name_overridden', 'INTEGER NOT NULL DEFAULT 0')
@@ -2601,6 +2618,67 @@ function normalizeOptionalTwitchUrl(value: string | undefined) {
     (hostname !== 'twitch.tv' && !hostname.endsWith('.twitch.tv'))
   ) {
     throw new Error('Twitch links must use twitch.tv HTTPS URLs.')
+  }
+
+  return url.toString()
+}
+
+const EVENT_LINK_ICONS = new Set([
+  'Link',
+  'Globe',
+  'Calendar',
+  'Trophy',
+  'Play',
+  'MessageCircle',
+  'FileText',
+  'Map',
+  'Users',
+  'ScrollText',
+  'Video',
+])
+
+function parseEventLinks(value: string | null): EventLink[] {
+  if (!value) return []
+
+  try {
+    return normalizeEventLinks(JSON.parse(value))
+  } catch {
+    return []
+  }
+}
+
+function normalizeEventLinks(value: unknown): EventLink[] {
+  if (!Array.isArray(value)) return []
+
+  return value
+    .map((item) => {
+      if (!item || typeof item !== 'object') return null
+      const record = item as Record<string, unknown>
+      const name = String(record.name ?? '').trim()
+      const icon = EVENT_LINK_ICONS.has(String(record.icon ?? ''))
+        ? String(record.icon)
+        : 'Link'
+      const url = normalizeOptionalEventUrl(String(record.url ?? ''))
+      if (!name || !url) return null
+      return { name: name.slice(0, 64), url, icon }
+    })
+    .filter((link): link is EventLink => Boolean(link))
+    .slice(0, 12)
+}
+
+function normalizeOptionalEventUrl(value: string | undefined) {
+  const trimmed = value?.trim()
+  if (!trimmed) return null
+
+  let url: URL
+  try {
+    url = new URL(trimmed)
+  } catch {
+    throw new Error('Event links must be valid URLs.')
+  }
+
+  if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+    throw new Error('Event links must use HTTP or HTTPS URLs.')
   }
 
   return url.toString()

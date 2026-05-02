@@ -2,6 +2,7 @@ import { money, percent, shortDate } from '../lib/format'
 import { buildTeamLedgers } from '../lib/rules'
 import type { HammaEvent } from '../lib/types'
 import { Countdown } from './Countdown'
+import { EventLinkIcon } from './EventLinkIcons'
 
 export function EventSummary({ event }: { event: HammaEvent }) {
   const ledgers = buildTeamLedgers(event)
@@ -12,19 +13,32 @@ export function EventSummary({ event }: { event: HammaEvent }) {
     <section className="event-hero">
       <div>
         <h1>{event.name}</h1>
-        <div className="meta-row">
-          <span>{shortDate(event.startsAt)}</span>
-          {event.twitchStreamUrl ? (
-            <a href={event.twitchStreamUrl} target="_blank" rel="noreferrer">
-              Stream
+        {event.eventDescription ? (
+          <p className="event-description">{event.eventDescription}</p>
+        ) : null}
+        <div className="event-link-badges" aria-label="Event details and links">
+          <span className="event-start-badge">{shortDate(event.startsAt)}</span>
+          {event.eventLinks.map((link) => (
+            <a key={`${link.url}-${link.name}`} href={link.url} target="_blank" rel="noreferrer">
+              <EventLinkIcon name={link.icon} />
+              <span>{link.name}</span>
             </a>
-          ) : null}
-          {event.twitchVodUrl ? (
-            <a href={event.twitchVodUrl} target="_blank" rel="noreferrer">
-              VOD
-            </a>
-          ) : null}
+          ))}
         </div>
+        {event.twitchStreamUrl || event.twitchVodUrl ? (
+          <div className="meta-row">
+            {event.twitchStreamUrl ? (
+              <a href={event.twitchStreamUrl} target="_blank" rel="noreferrer">
+                Stream
+              </a>
+            ) : null}
+            {event.twitchVodUrl ? (
+              <a href={event.twitchVodUrl} target="_blank" rel="noreferrer">
+                VOD
+              </a>
+            ) : null}
+          </div>
+        ) : null}
       </div>
       <Countdown
         closingTime={event.closingTime}

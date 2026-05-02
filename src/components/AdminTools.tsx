@@ -2,6 +2,7 @@ import { type ReactNode, useEffect, useState } from 'react'
 import type {
   AdminBadgeManagerData,
   AdminPlayerCharacterConfig,
+  EventLink,
   Team,
   EventPlayerCharacterAssignment,
   Faction,
@@ -11,6 +12,7 @@ import type {
   StartingSide,
 } from '../lib/types'
 import { shortDate } from '../lib/format'
+import { EVENT_LINK_ICON_OPTIONS, EventLinkIcon } from './EventLinkIcons'
 
 interface RealtimeAdminUpdate {
   type: string
@@ -421,6 +423,9 @@ function EventIdentityControls({
   const [bonusPool, setBonusPool] = useState(event.bonusPool.toString())
   const [maxPlayerBonus, setMaxPlayerBonus] = useState(event.maxPlayerBonus.toString())
   const [bidIncrement, setBidIncrement] = useState(event.bidIncrement.toString())
+  const [eventDescription, setEventDescription] = useState(event.eventDescription ?? '')
+  const [eventLinks, setEventLinks] = useState<EventLink[]>(event.eventLinks)
+  const [openIconPicker, setOpenIconPicker] = useState<number | null>(null)
 
   useEffect(() => {
     setNameOverride(event.nameOverride ?? '')
@@ -429,10 +434,76 @@ function EventIdentityControls({
     setBonusPool(formatWholeDollarInput(event.bonusPool))
     setMaxPlayerBonus(formatWholeDollarInput(event.maxPlayerBonus))
     setBidIncrement(formatWholeDollarInput(event.bidIncrement))
+    setEventDescription(event.eventDescription ?? '')
+    setEventLinks(event.eventLinks)
   }, [event])
 
+  useEffect(() => {
+    if (openIconPicker === null) return
+
+    function closePickerOnOutsidePointer(event: PointerEvent) {
+      const target = event.target
+      if (!(target instanceof Element)) return
+      if (target.closest('.event-icon-picker')) return
+      setOpenIconPicker(null)
+    }
+
+    function closePickerOnEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') setOpenIconPicker(null)
+    }
+
+    document.addEventListener('pointerdown', closePickerOnOutsidePointer)
+    document.addEventListener('keydown', closePickerOnEscape)
+    return () => {
+      document.removeEventListener('pointerdown', closePickerOnOutsidePointer)
+      document.removeEventListener('keydown', closePickerOnEscape)
+    }
+  }, [openIconPicker])
+
+  function addEventLink() {
+    setEventLinks((current) => [...current, { name: '', url: '', icon: 'Link' }])
+  }
+
+  function updateEventLink(index: number, patch: Partial<EventLink>) {
+    setEventLinks((current) =>
+      current.map((link, linkIndex) => (linkIndex === index ? { ...link, ...patch } : link)),
+    )
+  }
+
+  function removeEventLink(index: number) {
+    setEventLinks((current) => current.filter((_, linkIndex) => linkIndex !== index))
+    setOpenIconPicker((current) => (current === index ? null : current))
+  }
+
+  async function saveEventDetails() {
+    const result = await postAdminJson('/api/admin/event', {
+      eventId: event.id,
+      nameOverride,
+      eventDescription,
+      eventLinks,
+      salaryPool: parseWholeDollarText(salaryPool),
+      bonusPool: parseWholeDollarText(bonusPool),
+      maxPlayerBonus: parseWholeDollarText(maxPlayerBonus),
+      bidIncrement: parseWholeDollarText(bidIncrement),
+      draftStartMinutesBefore,
+    })
+    if (isEventResult(result) && result.event) onEvent(result.event)
+    return result
+  }
+
   return (
-    <AdminSection title="Event identity">
+    <AdminSection
+      title="Event Details"
+      actions={
+        <button
+          type="button"
+          disabled={busy === 'event-details'}
+          onClick={() => void onRun('event-details', saveEventDetails)}
+        >
+          Save
+        </button>
+      }
+    >
       <div className="event-result-grid">
         <div className="event-result-card">
           <strong>Name override</strong>
@@ -444,22 +515,84 @@ function EventIdentityControls({
               onChange={(event) => setNameOverride(event.currentTarget.value)}
             />
           </label>
-          <button
-            type="button"
-            disabled={busy === 'event-name'}
-            onClick={() =>
-              void onRun('event-name', async () => {
-                const result = await postAdminJson('/api/admin/event', {
-                  eventId: event.id,
-                  nameOverride,
-                })
-                if (isEventResult(result) && result.event) onEvent(result.event)
-                return result
-              })
-            }
-          >
-            Save name
-          </button>
+        </div>
+
+        <div className="event-result-card event-details-card">
+          <strong>Event page details</strong>
+          <label>
+            Description
+            <textarea
+              value={eventDescription}
+              rows={3}
+              onChange={(event) => setEventDescription(event.currentTarget.value)}
+            />
+          </label>
+          <div className="event-link-editor">
+            <div className="event-link-editor-heading">
+              <span>Links</span>
+              <button type="button" onClick={addEventLink}>
+                Add link
+              </button>
+            </div>
+            {eventLinks.length ? (
+              eventLinks.map((link, index) => (
+                <div className="event-link-editor-row" key={index}>
+                  <label>
+                    Name
+                    <input
+                      value={link.name}
+                      onChange={(event) => updateEventLink(index, { name: event.currentTarget.value })}
+                    />
+                  </label>
+                  <label>
+                    URL
+                    <input
+                      value={link.url}
+                      inputMode="url"
+                      placeholder="https://"
+                      onChange={(event) => updateEventLink(index, { url: event.currentTarget.value })}
+                    />
+                  </label>
+                  <div className="event-icon-picker">
+                    <button
+                      type="button"
+                      className="event-icon-picker-trigger"
+                      aria-haspopup="dialog"
+                      aria-expanded={openIconPicker === index}
+                      onClick={() => setOpenIconPicker((current) => (current === index ? null : index))}
+                    >
+                      <EventLinkIcon name={link.icon} />
+                      <span>{EVENT_LINK_ICON_OPTIONS.find((option) => option.name === link.icon)?.label ?? 'Icon'}</span>
+                    </button>
+                    {openIconPicker === index ? (
+                      <div className="event-icon-picker-popup" role="dialog" aria-label={`Icon for ${link.name || 'event link'}`}>
+                        {EVENT_LINK_ICON_OPTIONS.map((option) => (
+                          <button
+                            key={option.name}
+                            type="button"
+                            className={link.icon === option.name ? 'active' : ''}
+                            title={option.label}
+                            aria-label={option.label}
+                            onClick={() => {
+                              updateEventLink(index, { icon: option.name })
+                              setOpenIconPicker(null)
+                            }}
+                          >
+                            <EventLinkIcon name={option.name} />
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                  <button type="button" className="text-button danger" onClick={() => removeEventLink(index)}>
+                    Remove
+                  </button>
+                </div>
+              ))
+            ) : (
+              <small>No links configured.</small>
+            )}
+          </div>
         </div>
 
         <div className="event-result-card">
@@ -496,25 +629,6 @@ function EventIdentityControls({
               onChange={(event) => setBidIncrement(formatWholeDollarText(event.currentTarget.value))}
             />
           </label>
-          <button
-            type="button"
-            disabled={busy === 'draft-settings'}
-            onClick={() =>
-              void onRun('draft-settings', async () => {
-                const result = await postAdminJson('/api/admin/event', {
-                  eventId: event.id,
-                  salaryPool: parseWholeDollarText(salaryPool),
-                  bonusPool: parseWholeDollarText(bonusPool),
-                  maxPlayerBonus: parseWholeDollarText(maxPlayerBonus),
-                  bidIncrement: parseWholeDollarText(bidIncrement),
-                })
-                if (isEventResult(result) && result.event) onEvent(result.event)
-                return result
-              })
-            }
-          >
-            Save draft settings
-          </button>
         </div>
 
         <div className="event-result-card">
@@ -531,22 +645,6 @@ function EventIdentityControls({
               onChange={(event) => setDraftStartMinutesBefore(event.currentTarget.value)}
             />
           </label>
-          <button
-            type="button"
-            disabled={busy === 'draft-start'}
-            onClick={() =>
-              void onRun('draft-start', async () => {
-                const result = await postAdminJson('/api/admin/event', {
-                  eventId: event.id,
-                  draftStartMinutesBefore,
-                })
-                if (isEventResult(result) && result.event) onEvent(result.event)
-                return result
-              })
-            }
-          >
-            Save draft timing
-          </button>
           <small>Leave blank to count down to the event start after signups close.</small>
         </div>
       </div>

@@ -66,6 +66,12 @@ export interface Coinflip {
   updatedAt?: string
 }
 
+export interface EventLink {
+  url: string
+  name: string
+  icon: string
+}
+
 export interface HammaEvent {
   id: string
   raidHelperEventId: string
@@ -94,6 +100,8 @@ export interface HammaEvent {
   winningTeamId?: string
   twitchStreamUrl?: string
   twitchVodUrl?: string
+  eventDescription?: string
+  eventLinks: EventLink[]
   lore?: string
 }
 

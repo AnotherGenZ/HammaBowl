@@ -23,6 +23,8 @@ export const events = sqliteTable('events', {
   winningTeamId: text('winning_team_id'),
   twitchStreamUrl: text('twitch_stream_url'),
   twitchVodUrl: text('twitch_vod_url'),
+  eventDescription: text('event_description'),
+  eventLinks: text('event_links'),
   lore: text('lore'),
   updatedAt: text('updated_at').notNull(),
 })

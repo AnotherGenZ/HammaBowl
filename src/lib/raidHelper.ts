@@ -116,6 +116,7 @@ async function hydrateRemoteEvent(
     players: signupPlayers(signups),
     ratings: [],
     draftPicks: [],
+    eventLinks: [],
   }
 }
 
