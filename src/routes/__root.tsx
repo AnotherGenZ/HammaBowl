@@ -46,13 +46,20 @@ function RootComponent() {
 function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
   const pathname = useRouterState({ select: (state) => state.location.pathname })
   const isOverlayRoute = pathname === '/overlay'
+  const isRatingsRoute = pathname === '/ratings'
+  const isDraftRoute = pathname === '/draft'
+  const bodyClassName = isOverlayRoute
+    ? 'overlay-document'
+    : isRatingsRoute || isDraftRoute
+      ? 'fixed-document'
+      : undefined
 
   return (
     <html lang="en" className={isOverlayRoute ? 'overlay-document' : undefined}>
       <head>
         <HeadContent />
       </head>
-      <body className={isOverlayRoute ? 'overlay-document' : undefined}>
+      <body className={bodyClassName}>
         <SessionProvider>
           <div className={isOverlayRoute ? 'shell overlay-shell' : 'shell'}>
             {isOverlayRoute ? null : <TopBar />}
@@ -127,7 +134,7 @@ function TopBar() {
           </>
         ) : (
           <a className="login" href="/api/auth/discord">
-            Discord login
+            Login
           </a>
         )}
       </div>

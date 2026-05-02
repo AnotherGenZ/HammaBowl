@@ -24,7 +24,7 @@ function Draft() {
   const canBid = Boolean(user)
 
   return (
-    <main className="wide-page">
+    <main className="wide-page draft-page">
       {event ? (
         <DraftBoard
           event={event}

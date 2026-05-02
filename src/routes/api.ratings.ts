@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { getDiscordSessionUser } from '../lib/discord.server'
-import { getRatingsByRater, isEventParticipant, saveRating } from '../lib/db.server'
+import { clearRating, getRatingsByRater, isEventParticipant, saveRating } from '../lib/db.server'
 import { clearCurrentEventCache, requireCurrentEvent } from '../lib/services'
 import { publishEventUpdate } from '../lib/realtime.server'
 
@@ -30,7 +30,16 @@ export const Route = createFileRoute('/api/ratings')({
         }
 
         const body = await request.json()
-        await saveRating(event, user.id, String(body.toDiscordId ?? ''), Number(body.score))
+        const toDiscordId = String(body.toDiscordId ?? '')
+        if (body.score === null) {
+          await clearRating(event, user.id, toDiscordId)
+          clearCurrentEventCache()
+          publishEventUpdate(event.id, 'ratings.updated')
+
+          return Response.json({ ok: true, message: 'Rating cleared.' })
+        }
+
+        await saveRating(event, user.id, toDiscordId, Number(body.score))
         clearCurrentEventCache()
         publishEventUpdate(event.id, 'ratings.updated')
 

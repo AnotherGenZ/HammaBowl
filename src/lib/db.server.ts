@@ -1390,6 +1390,28 @@ export async function saveRating(
   return { ok: true }
 }
 
+export async function clearRating(
+  event: HammaEvent,
+  fromDiscordId: string,
+  toDiscordId: string,
+) {
+  if (fromDiscordId === toDiscordId) throw new Error('You cannot rate yourself.')
+  if (!event.players.some((player) => player.id === toDiscordId)) throw new Error('Player is not active for this event.')
+  if (isCaptainPlayer(event, toDiscordId)) throw new Error('Captains cannot be rated.')
+
+  db.delete(ratings)
+    .where(
+      and(
+        eq(ratings.eventId, event.id),
+        eq(ratings.fromDiscordId, fromDiscordId),
+        eq(ratings.toDiscordId, toDiscordId),
+      ),
+    )
+    .run()
+
+  return { ok: true }
+}
+
 export function getRatingsByRater(eventId: string, fromDiscordId: string) {
   return db
     .select()

@@ -27,6 +27,10 @@ body.overlay-document {
   background: transparent;
 }
 
+body.fixed-document {
+  overflow: hidden;
+}
+
 button,
 a {
   font: inherit;
@@ -186,6 +190,14 @@ button .spinner {
   min-height: 100vh;
 }
 
+.fixed-document .shell {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .overlay-shell {
   background: transparent;
 }
@@ -291,6 +303,17 @@ main {
 main.wide-page {
   width: min(1680px, calc(100% - 32px));
   min-height: calc(100vh - 138px);
+}
+
+main.ratings-page {
+  display: grid;
+  min-height: 0;
+}
+
+main.draft-page {
+  display: grid;
+  height: 100%;
+  min-height: 0;
 }
 
 /* ── Event hero ─────────────────────────────────────── */
@@ -1043,6 +1066,10 @@ dd {
   align-items: stretch;
   height: calc(100vh - 138px);
   min-height: 0;
+}
+
+.draft-page .draft-layout {
+  height: 100%;
 }
 
 .draft-layout > .panel {
@@ -1950,6 +1977,13 @@ dd {
   gap: 10px;
 }
 
+.ratings-page .panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .rating-legend {
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
@@ -1989,10 +2023,52 @@ dd {
   font-weight: 700;
 }
 
+.rating-list-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.rating-list-toolbar > span {
+  color: #b4bcbb;
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.rating-sort-control {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.rating-sort-control button {
+  min-height: 34px;
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: #cbd5d3;
+  padding: 0 11px;
+  white-space: nowrap;
+}
+
+.rating-sort-control button:hover:not(:disabled),
+.rating-sort-control button.active {
+  border-color: rgba(228, 180, 94, 0.72);
+  background: rgba(228, 180, 94, 0.16);
+  color: #fff7e6;
+}
+
 .rating-list {
   display: grid;
+  grid-auto-rows: max-content;
+  align-content: start;
   gap: 10px;
-  max-height: min(680px, 70vh);
+  flex: 1;
+  min-height: 0;
+  max-height: none;
   overflow-y: auto;
   padding-right: 6px;
 }
@@ -2025,15 +2101,28 @@ dd {
   gap: 8px;
 }
 
-.rating-row select {
-  min-height: 38px;
-  min-width: 86px;
+.rating-score-picker {
+  display: grid;
+  grid-template-columns: repeat(10, 32px);
+  gap: 4px;
+}
+
+.rating-score-picker button {
+  width: 32px;
+  min-height: 32px;
+  border-color: rgba(255, 255, 255, 0.14);
   border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  background: #121417;
-  color: #f4f0e8;
-  padding: 0 10px;
-  transition: border-color 120ms ease;
+  background: rgba(255, 255, 255, 0.06);
+  color: #d8dedc;
+  padding: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.rating-score-picker button:hover:not(:disabled),
+.rating-score-picker button.active {
+  border-color: #f0c878;
+  background: #f0c878;
+  color: #121417;
 }
 
 /* ── Player cards ───────────────────────────────────── */
@@ -2556,6 +2645,24 @@ dd {
     flex-direction: column;
     gap: 4px;
   }
+
+  .rating-row {
+    display: grid;
+    justify-content: stretch;
+  }
+
+  .rating-row > strong {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .rating-controls {
+    justify-content: flex-start;
+  }
+
+  .rating-score-picker {
+    grid-template-columns: repeat(5, 32px);
+  }
 }
 
 @media (max-width: 560px) {
@@ -2594,5 +2701,14 @@ dd {
 
   .rating-header-actions {
     flex-wrap: wrap;
+  }
+
+  .rating-list-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .rating-sort-control {
+    justify-content: flex-start;
   }
 }
