@@ -2,8 +2,9 @@ import { Link, createFileRoute } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { HallOfLegendsUnderConstruction } from '../components/HallOfLegendsUnderConstruction'
 import { canViewHallOfLegends } from '../lib/featureFlags'
-import { shortDate } from '../lib/format'
+import { shortDateWithTimeZone } from '../lib/format'
 import { pageMeta } from '../lib/meta'
+import type { HistoricalEvent } from '../lib/types'
 
 const loadHistoricalEvent = createServerFn({ method: 'GET' })
   .inputValidator((input: { eventId: string }) => input)
@@ -58,15 +59,20 @@ function HistoricalEventPage() {
     )
   }
 
+  const winningTeam = event.teams.find((team) => team.winner)
+  const losingTeams = event.teams.filter((team) => !team.winner)
+  const roundProgression = buildRoundProgression(event)
+
   return (
-    <main>
-      <section className="event-hero compact-hero">
+    <main className="legend-detail-main">
+      <section className="event-hero compact-hero legend-detail-hero">
         <div>
+          <Link to="/hall-of-legends" className="legend-back-link">
+            Back to Hall of Legends
+          </Link>
           <h1>{event.name}</h1>
           <div className="meta-row">
-            <Link to="/hall-of-legends">Back to Hall of Legends</Link>
-            <span>{shortDate(event.date)}</span>
-            <span>{event.server}</span>
+            <span>{shortDateWithTimeZone(event.date)}</span>
             {event.twitchStreamUrl ? (
               <a href={event.twitchStreamUrl} target="_blank" rel="noreferrer">
                 Stream
@@ -79,6 +85,7 @@ function HistoricalEventPage() {
             ) : null}
           </div>
         </div>
+        <LegendDetailTrophy event={event} />
       </section>
 
       {event.lore ? (
@@ -88,21 +95,140 @@ function HistoricalEventPage() {
         </section>
       ) : null}
 
-      <section className="history-team-grid event-detail-teams">
-        {event.teams.map((team) => (
-          <article className={`history-team${team.winner ? ' winner' : ''}`} key={team.id}>
-            <div className="history-team-title">
-              <h2>{team.name}</h2>
-              <div className="history-team-meta">
-                {team.winner ? <span>Winner</span> : null}
-                <strong className="score">{team.score}</strong>
-              </div>
+      <section className="legend-detail-score-panel" aria-label={`${event.name} final scores`}>
+        <div>
+          <span>Final scores</span>
+          <h2>{event.teams.map((team) => team.score).join(' - ')}</h2>
+        </div>
+        <div className="legend-detail-score-list">
+          {event.teams.map((team) => (
+            <div className={team.winner ? 'winner' : undefined} key={team.id}>
+              <span>{team.name}</span>
+              <strong>{team.score}</strong>
             </div>
-            {team.captain ? <p>Captain: {team.captain}</p> : null}
-            <p className="member-line">{team.members.length ? team.members.join(', ') : 'No members recorded.'}</p>
+          ))}
+        </div>
+      </section>
+
+      {event.rounds.length ? (
+        <section className="legend-round-history">
+          <h2>Rounds</h2>
+          <div className="legend-round-track" aria-label={`${event.name} round score progression`}>
+            {roundProgression.map((item) => (
+              <article className="legend-round-node" key={item.round.roundNumber}>
+                <span>Round {item.round.roundNumber}</span>
+                <strong>{item.score}</strong>
+                <p>{item.winnerName ?? 'No winner recorded'}</p>
+                {item.round.resultNote ? <small>{item.round.resultNote}</small> : null}
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      <section className="legend-roster-matchup" aria-label={`${event.name} rosters`}>
+        {winningTeam ? (
+          <LegendRoster team={winningTeam} title="Winning roster" variant="winner" />
+        ) : (
+          <article className="legend-roster-panel winner">
+            <h2>Winning roster</h2>
+            <p>No winning roster recorded.</p>
           </article>
-        ))}
+        )}
+
+        <article className="legend-roster-panel">
+          <div className="legend-roster-heading">
+            <span>Losing roster</span>
+            <h2>{losingTeams.map((team) => team.name).join(' / ') || 'Opponent'}</h2>
+          </div>
+          {losingTeams.length ? (
+            losingTeams.map((team) => (
+              <div className="legend-losing-team" key={team.id}>
+                {losingTeams.length > 1 ? <h3>{team.name}</h3> : null}
+                <LegendRosterList team={team} />
+              </div>
+            ))
+          ) : (
+            <p>No losing roster recorded.</p>
+          )}
+        </article>
       </section>
     </main>
   )
+}
+
+function LegendDetailTrophy({ event }: { event: Pick<HistoricalEvent, 'name' | 'trophyId'> }) {
+  const isBiolab = event.trophyId === 'hamma-dome-biolab'
+
+  return (
+    <div className={`legend-detail-trophy ${isBiolab ? 'legend-detail-trophy-biolab' : ''}`}>
+      <img
+        src={isBiolab ? '/trophies/hamma-dome-i.png' : '/trophies/hamma-bowl.png'}
+        alt={`${event.name} trophy`}
+      />
+    </div>
+  )
+}
+
+function LegendRoster({
+  team,
+  title,
+  variant,
+}: {
+  team: HistoricalEvent['teams'][number]
+  title: string
+  variant?: 'winner'
+}) {
+  return (
+    <article className={`legend-roster-panel${variant === 'winner' ? ' winner' : ''}`}>
+      <div className="legend-roster-heading">
+        <span>{title}</span>
+        <h2>{team.name}</h2>
+      </div>
+      <LegendRosterList team={team} />
+    </article>
+  )
+}
+
+function LegendRosterList({ team }: { team: HistoricalEvent['teams'][number] }) {
+  if (!team.memberProfiles.length) {
+    return <p>No members recorded.</p>
+  }
+
+  const members = [...team.memberProfiles].sort((a, b) => {
+    if (a.discordId === team.captainDiscordId) return -1
+    if (b.discordId === team.captainDiscordId) return 1
+    return a.name.localeCompare(b.name)
+  })
+
+  return (
+    <ul className="legend-roster-list">
+      {members.map((member) => (
+        <li key={`${team.id}-${member.discordId}`}>
+          <Link to="/players/$discordId" params={{ discordId: member.discordId }}>
+            {member.name}
+          </Link>
+          {member.discordId === team.captainDiscordId ? <small>Captain</small> : null}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function buildRoundProgression(event: HistoricalEvent) {
+  const scores = new Map(event.teams.map((team) => [team.id, 0]))
+
+  return event.rounds.map((round) => {
+    if (round.winningTeamId) {
+      scores.set(round.winningTeamId, (scores.get(round.winningTeamId) ?? 0) + 1)
+    }
+
+    return {
+      round,
+      winnerName: round.winningTeamId
+        ? event.teams.find((team) => team.id === round.winningTeamId)?.name ?? round.winningTeamName
+        : undefined,
+      score: event.teams.map((team) => scores.get(team.id) ?? 0).join(' - '),
+    }
+  })
 }

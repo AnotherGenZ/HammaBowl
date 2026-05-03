@@ -28,6 +28,7 @@ export const Route = createFileRoute('/api/admin/history')({
             nameOverride: String(body.nameOverride ?? ''),
             startsAt: String(body.startsAt ?? ''),
             server: String(body.server ?? ''),
+            trophyId: 'trophyId' in body ? String(body.trophyId ?? '') : undefined,
             lore: String(body.lore ?? ''),
             twitchStreamUrl: String(body.twitchStreamUrl ?? ''),
             twitchVodUrl: String(body.twitchVodUrl ?? ''),

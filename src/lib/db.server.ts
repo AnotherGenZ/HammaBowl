@@ -1290,7 +1290,17 @@ function buildHistoricalEvent(event: typeof events.$inferSelect): HistoricalEven
     .all()
   const teamRows = db.select().from(teams).where(eq(teams.eventId, event.id)).all()
   const pickRows = db.select().from(draftPicks).where(eq(draftPicks.eventId, event.id)).all()
+  const roundRows = db
+    .select()
+    .from(eventRounds)
+    .where(eq(eventRounds.eventId, event.id))
+    .all()
+    .sort((a, b) => a.roundNumber - b.roundNumber)
   const participantName = getParticipantNameMap(participantRows.map((participant) => participant.discordId))
+  const participantFallbackName = new Map(
+    participantRows.map((participant) => [participant.discordId, participant.name]),
+  )
+  const displayName = (discordId: string) => participantName.get(discordId) ?? participantFallbackName.get(discordId) ?? discordId
 
   const historicalTeams = teamRows.map((team) => {
     const memberIds = new Set<string>()
@@ -1298,19 +1308,26 @@ function buildHistoricalEvent(event: typeof events.$inferSelect): HistoricalEven
     for (const pick of pickRows.filter((candidate) => candidate.teamId === team.id)) {
       memberIds.add(pick.playerDiscordId)
     }
+    const memberProfiles = Array.from(memberIds)
+      .map((discordId) => ({
+        discordId,
+        name: displayName(discordId),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name))
 
     return {
       id: team.id,
       name: team.name,
-      captain: team.captainDiscordId ? participantName.get(team.captainDiscordId) : undefined,
+      captainDiscordId: team.captainDiscordId ?? undefined,
+      captain: team.captainDiscordId ? displayName(team.captainDiscordId) : undefined,
       score: team.score,
-      members: Array.from(memberIds)
-        .map((discordId) => participantName.get(discordId) ?? discordId)
-        .sort((a, b) => a.localeCompare(b)),
+      members: memberProfiles.map((member) => member.name),
+      memberProfiles,
       winner: team.id === event.winningTeamId,
     }
   })
   const winningTeam = historicalTeams.find((team) => team.winner)
+  const teamsById = new Map(historicalTeams.map((team) => [team.id, team]))
 
   return {
     id: event.id,
@@ -1318,6 +1335,7 @@ function buildHistoricalEvent(event: typeof events.$inferSelect): HistoricalEven
     nameOverride: event.nameOverride ?? undefined,
     date: event.startsAt,
     server: event.server,
+    trophyId: normalizeEventTrophyId(event.trophyId),
     twitchStreamUrl: event.twitchStreamUrl ?? undefined,
     twitchVodUrl: event.twitchVodUrl ?? undefined,
     lore: event.lore ?? undefined,
@@ -1327,10 +1345,27 @@ function buildHistoricalEvent(event: typeof events.$inferSelect): HistoricalEven
           name: winningTeam.name,
           members: participantRows
             .filter((participant) => participant.winner)
-            .map((participant) => participantName.get(participant.discordId) ?? participant.name)
+            .map((participant) => displayName(participant.discordId))
             .sort((a, b) => a.localeCompare(b)),
+          memberProfiles: participantRows
+            .filter((participant) => participant.winner)
+            .map((participant) => ({
+              discordId: participant.discordId,
+              name: displayName(participant.discordId),
+            }))
+            .sort((a, b) => a.name.localeCompare(b.name)),
         }
       : undefined,
+    rounds: roundRows.map((round) => ({
+      eventId: round.eventId,
+      roundNumber: round.roundNumber,
+      startedAt: round.startedAt,
+      durationSeconds: round.durationSeconds,
+      winningTeamId: round.winningTeamId ?? undefined,
+      winningTeamName: round.winningTeamId ? teamsById.get(round.winningTeamId)?.name : undefined,
+      resultNote: round.resultNote ?? undefined,
+      updatedAt: round.updatedAt,
+    })),
     teams: historicalTeams,
   }
 }

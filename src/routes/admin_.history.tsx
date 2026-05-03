@@ -4,7 +4,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { AdminLayout, type AdminSidebarSection } from '../components/AdminSidebar'
 import { shortDate } from '../lib/format'
 import { pageMeta } from '../lib/meta'
-import type { HistoricalEvent, RegisteredParticipant } from '../lib/types'
+import type { EventTrophyId, HistoricalEvent, RegisteredParticipant } from '../lib/types'
+
+const EVENT_TROPHY_OPTIONS: Array<{ id: EventTrophyId; label: string }> = [
+  { id: 'hammo-bowl-cup', label: 'HammaBowl Cup' },
+  { id: 'hamma-dome-biolab', label: 'Hamma Dome I - Bitol Bio' },
+]
 
 const loadHistoricalAdmin = createServerFn({ method: 'GET' }).handler(async () => {
   const { getDiscordSessionUser } = await import('../lib/discord.server')
@@ -201,6 +206,7 @@ function HistoricalEventEditor({
   const [nameOverride, setNameOverride] = useState(event.nameOverride ?? event.name)
   const [startsAt, setStartsAt] = useState(toLocalDateTimeValue(event.date))
   const [server, setServer] = useState(event.server)
+  const [trophyId, setTrophyId] = useState<EventTrophyId>(event.trophyId)
   const [streamUrl, setStreamUrl] = useState(event.twitchStreamUrl ?? '')
   const [vodUrl, setVodUrl] = useState(event.twitchVodUrl ?? '')
   const [lore, setLore] = useState(event.lore ?? '')
@@ -232,6 +238,19 @@ function HistoricalEventEditor({
             <input value={server} onChange={(event) => setServer(event.currentTarget.value)} />
           </label>
           <label>
+            Trophy
+            <select
+              value={trophyId}
+              onChange={(event) => setTrophyId(event.currentTarget.value as EventTrophyId)}
+            >
+              {EVENT_TROPHY_OPTIONS.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
             Stream
             <input value={streamUrl} onChange={(event) => setStreamUrl(event.currentTarget.value)} />
           </label>
@@ -254,6 +273,7 @@ function HistoricalEventEditor({
               nameOverride,
               startsAt,
               server,
+              trophyId,
               twitchStreamUrl: streamUrl,
               twitchVodUrl: vodUrl,
               lore,

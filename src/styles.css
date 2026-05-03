@@ -4142,6 +4142,474 @@ main > .panel:first-child {
   text-transform: uppercase;
 }
 
+.legends-main,
+.legend-detail-main {
+  display: grid;
+  gap: 18px;
+}
+
+.legends-main {
+  grid-template-rows: auto minmax(0, 1fr);
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  overflow: hidden;
+  padding: 0;
+}
+
+.legends-hero {
+  width: min(1180px, calc(100% - 32px));
+  margin: 0 auto;
+  overflow: hidden;
+  padding-block: clamp(12px, 2vh, 24px) clamp(8px, 1.5vh, 16px);
+}
+
+.legend-carousel-section {
+  display: grid;
+  min-height: 0;
+  overflow: visible;
+  margin-inline: 0;
+  padding: 0;
+}
+
+.legend-carousel {
+  display: grid;
+  align-items: center;
+  grid-auto-columns: minmax(280px, 390px);
+  grid-auto-flow: column;
+  gap: 18px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  height: 100%;
+  min-height: min(780px, 100%);
+  padding: clamp(42px, 6vh, 78px) max(4px, calc((100vw - 390px) / 2)) clamp(78px, 11vh, 132px);
+  scroll-padding-inline: max(16px, calc((100vw - 390px) / 2));
+  scroll-snap-type: x proximity;
+}
+
+.legend-carousel.wheel-scrolling {
+  scroll-snap-type: none;
+}
+
+.legend-carousel::-webkit-scrollbar {
+  display: none;
+}
+
+.legend-card {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  gap: clamp(9px, 1.4vh, 14px);
+  height: clamp(400px, calc(100dvh - 350px), 530px);
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid rgba(228, 180, 94, 0.5);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 50% 24%, rgba(248, 228, 169, 0.22), transparent 30%),
+    linear-gradient(150deg, rgba(76, 62, 32, 0.96), rgba(26, 31, 31, 0.98) 62%),
+    #161a1a;
+  box-shadow:
+    0 22px 44px rgba(0, 0, 0, 0.24),
+    inset 0 0 0 1px rgba(248, 228, 169, 0.12);
+  padding: clamp(14px, 2vh, 20px);
+  color: #f4f0e8;
+  scroll-snap-align: center;
+  transition:
+    border-color 160ms ease,
+    opacity 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+  transform: scale(0.93);
+  opacity: 0.74;
+  isolation: isolate;
+}
+
+.legend-card:hover,
+.legend-card:focus-visible {
+  border-color: rgba(248, 228, 169, 0.88);
+  box-shadow:
+    0 28px 58px rgba(0, 0, 0, 0.34),
+    0 0 34px rgba(228, 180, 94, 0.24),
+    inset 0 0 0 1px rgba(248, 228, 169, 0.26);
+  transform: translateY(-4px) scale(0.96);
+  opacity: 0.9;
+}
+
+.legend-card.focused {
+  border-color: rgba(248, 228, 169, 0.92);
+  box-shadow:
+    0 30px 66px rgba(0, 0, 0, 0.38),
+    0 0 38px rgba(228, 180, 94, 0.3),
+    inset 0 0 0 1px rgba(248, 228, 169, 0.3);
+  transform: scale(1.025);
+  opacity: 1;
+}
+
+.legend-card.focused:hover,
+.legend-card.focused:focus-visible {
+  transform: translateY(-3px) scale(1.04);
+  opacity: 1;
+}
+
+.legend-card-shine {
+  position: absolute;
+  inset: -60% auto auto -38%;
+  width: 64%;
+  height: 220%;
+  background: linear-gradient(90deg, transparent, rgba(255, 247, 220, 0.18), transparent);
+  transform: rotate(20deg);
+  animation: legend-card-shine 6.8s ease-in-out infinite;
+  pointer-events: none;
+  z-index: -1;
+}
+
+@keyframes legend-card-shine {
+  0%,
+  48% {
+    translate: 0 0;
+    opacity: 0;
+  }
+  58% {
+    opacity: 1;
+  }
+  100% {
+    translate: 230% 0;
+    opacity: 0;
+  }
+}
+
+.legend-card-title {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  text-align: center;
+}
+
+.legend-card-title time {
+  color: #f0c878;
+  font-size: 0.76rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.legend-card-title h2 {
+  margin: 0;
+  color: #fff7e6;
+  font-size: clamp(1.35rem, 2vw, 2.05rem);
+  line-height: 1.02;
+}
+
+.legend-trophy,
+.legend-detail-trophy {
+  display: grid;
+  place-items: center;
+  align-self: center;
+  justify-self: center;
+  width: min(70%, clamp(140px, 22dvh, 210px));
+  aspect-ratio: 1122 / 1402;
+  filter:
+    drop-shadow(0 20px 30px rgba(0, 0, 0, 0.32))
+    drop-shadow(0 0 24px rgba(228, 180, 94, 0.28));
+  animation: legend-trophy-float 5.4s ease-in-out infinite;
+}
+
+.legend-trophy-biolab,
+.legend-detail-trophy-biolab {
+  width: min(76%, clamp(150px, 24dvh, 230px));
+}
+
+.legend-trophy img,
+.legend-detail-trophy img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+@keyframes legend-trophy-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.legend-scoreboard,
+.legend-detail-score-list {
+  display: grid;
+  gap: 8px;
+}
+
+.legend-scoreboard div,
+.legend-detail-score-list div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 38px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.055);
+  padding: 8px 10px;
+}
+
+.legend-scoreboard div.winner,
+.legend-detail-score-list div.winner {
+  border-color: rgba(248, 228, 169, 0.7);
+  background: rgba(228, 180, 94, 0.16);
+}
+
+.legend-scoreboard span,
+.legend-detail-score-list span {
+  min-width: 0;
+  overflow: hidden;
+  color: #d8dedc;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.legend-scoreboard strong,
+.legend-detail-score-list strong {
+  color: #f8e4a9;
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.legend-card-winner {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  border-top: 1px solid rgba(228, 180, 94, 0.22);
+  padding-top: 10px;
+  text-align: center;
+}
+
+.legend-card-winner span,
+.legend-detail-score-panel > div:first-child span,
+.legend-roster-heading span,
+.legend-round-node span {
+  color: #e4b45e;
+  font-size: 0.76rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.legend-card-winner strong {
+  overflow: hidden;
+  color: #fff7e6;
+  font-size: clamp(1rem, 1.6vw, 1.2rem);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.legend-detail-hero {
+  grid-template-columns: minmax(0, 1fr) minmax(160px, 240px);
+  align-items: center;
+  overflow: hidden;
+}
+
+.legend-back-link {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  min-height: 30px;
+  margin-bottom: 10px;
+  border: 1px solid rgba(228, 180, 94, 0.36);
+  border-radius: 999px;
+  background: rgba(228, 180, 94, 0.1);
+  color: #f4d59a;
+  padding: 0 10px;
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.legend-back-link:hover {
+  background: rgba(228, 180, 94, 0.18);
+  color: #fff7e6;
+}
+
+.legend-detail-trophy {
+  width: min(100%, 210px);
+}
+
+.legend-detail-score-panel {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.7fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 18px;
+  border: 1px solid rgba(228, 180, 94, 0.32);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 18% 24%, rgba(71, 191, 143, 0.11), transparent 34%),
+    linear-gradient(145deg, rgba(30, 34, 38, 0.92), rgba(18, 20, 23, 0.96));
+  padding: clamp(18px, 3vw, 28px);
+}
+
+.legend-detail-score-panel h2 {
+  margin: 6px 0 0;
+  color: #f8e4a9;
+  font-size: clamp(3rem, 8vw, 6.4rem);
+  line-height: 0.9;
+}
+
+.legend-round-history,
+.legend-roster-matchup {
+  display: grid;
+  gap: 14px;
+}
+
+.legend-round-history h2 {
+  margin: 0;
+}
+
+.legend-round-track {
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding: 4px 2px 12px;
+  scroll-snap-type: x proximity;
+}
+
+.legend-round-node {
+  position: relative;
+  display: grid;
+  flex: 0 0 min(230px, 72vw);
+  gap: 7px;
+  min-height: 128px;
+  border: 1px solid rgba(228, 180, 94, 0.28);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(228, 180, 94, 0.13), transparent 48%),
+    rgba(255, 255, 255, 0.055);
+  padding: 14px;
+  scroll-snap-align: start;
+}
+
+.legend-round-node:not(:last-child) {
+  margin-right: 42px;
+}
+
+.legend-round-node:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 8px);
+  width: 26px;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(228, 180, 94, 0.68), rgba(228, 180, 94, 0.18));
+}
+
+.legend-round-node strong {
+  color: #f8e4a9;
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.legend-round-node p,
+.legend-round-node small {
+  margin: 0;
+  color: #c0c8c6;
+  line-height: 1.4;
+}
+
+.legend-round-node small {
+  font-size: 0.78rem;
+}
+
+.legend-roster-matchup {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
+}
+
+.legend-roster-panel {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: clamp(16px, 2.5vw, 22px);
+}
+
+.legend-roster-panel.winner {
+  border-color: rgba(248, 228, 169, 0.74);
+  background:
+    linear-gradient(150deg, rgba(228, 180, 94, 0.15), rgba(255, 255, 255, 0.045)),
+    rgba(18, 20, 23, 0.94);
+  box-shadow: inset 0 0 0 1px rgba(248, 228, 169, 0.14);
+}
+
+.legend-roster-heading {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.legend-roster-heading h2 {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.legend-roster-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.legend-losing-team {
+  display: grid;
+  gap: 8px;
+}
+
+.legend-losing-team h3 {
+  margin: 0;
+  color: #f4f0e8;
+  font-size: 1rem;
+}
+
+.legend-roster-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 9px 11px;
+}
+
+.legend-roster-list a {
+  min-width: 0;
+  overflow: hidden;
+  color: #f4f0e8;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.legend-roster-list a:hover {
+  color: #f8e4a9;
+}
+
+.legend-roster-list small {
+  color: #e4b45e;
+  font-size: 0.7rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
 .ratings-result[data-visible='false'] {
   visibility: hidden;
 }
@@ -4451,8 +4919,31 @@ main > .panel:first-child {
   .badge-admin-grid,
   .badge-definition-cards,
   .badge-definition-list,
-  .badge-assignment-list {
+  .badge-assignment-list,
+  .legend-detail-hero,
+  .legend-detail-score-panel,
+  .legend-roster-matchup {
     grid-template-columns: 1fr;
+  }
+
+  .legend-carousel {
+    grid-auto-columns: minmax(260px, 84vw);
+    padding-inline: 8vw;
+    padding-block: 38px 74px;
+    scroll-padding-inline: 8vw;
+  }
+
+  .legend-card {
+    height: clamp(380px, calc(100dvh - 245px), 500px);
+  }
+
+  .legend-trophy {
+    width: min(68%, clamp(130px, 20dvh, 190px));
+  }
+
+  .legend-detail-trophy {
+    justify-self: start;
+    width: min(45vw, 180px);
   }
 
   .event-link-editor-row {
@@ -4587,8 +5078,16 @@ main > .panel:first-child {
   }
 
   .countdown-pulse,
-  .round-segment-active {
+  .round-segment-active,
+  .legend-card-shine,
+  .legend-trophy,
+  .legend-detail-trophy {
     animation: none;
+  }
+
+  .legend-card:hover,
+  .legend-card:focus-visible {
+    transform: none;
   }
 }
 

@@ -153,6 +153,7 @@ export interface HistoricalEvent {
   nameOverride?: string
   date: string
   server: string
+  trophyId: EventTrophyId
   twitchStreamUrl?: string
   twitchVodUrl?: string
   lore?: string
@@ -160,13 +161,23 @@ export interface HistoricalEvent {
     id: string
     name: string
     members: string[]
+    memberProfiles: Array<{
+      discordId: string
+      name: string
+    }>
   }
+  rounds: Array<EventRound & { winningTeamName?: string }>
   teams: Array<{
     id: string
     name: string
+    captainDiscordId?: string
     captain?: string
     score: number
     members: string[]
+    memberProfiles: Array<{
+      discordId: string
+      name: string
+    }>
     winner: boolean
   }>
 }
