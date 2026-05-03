@@ -1,5 +1,5 @@
 import { relations } from 'drizzle-orm'
-import { integer, primaryKey, real, sqliteTable, text } from 'drizzle-orm/sqlite-core'
+import { index, integer, primaryKey, real, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 
 export const events = sqliteTable('events', {
   id: text('id').primaryKey(),
@@ -21,6 +21,7 @@ export const events = sqliteTable('events', {
   pendingSignupCount: integer('pending_signup_count').notNull().default(0),
   availableFactions: text('available_factions').notNull().default('["VS","NC","TR"]'),
   availableSides: text('available_sides').notNull().default('["north","south"]'),
+  availableSpecs: text('available_specs'),
   nextPickTeamId: text('next_pick_team_id'),
   winningTeamId: text('winning_team_id'),
   twitchStreamUrl: text('twitch_stream_url'),
@@ -125,6 +126,21 @@ export const eventParticipants = sqliteTable(
   (table) => [primaryKey({ columns: [table.eventId, table.discordId] })],
 )
 
+export const eventParticipantSpecs = sqliteTable(
+  'event_participant_specs',
+  {
+    eventId: text('event_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
+    discordId: text('discord_id').notNull(),
+    specName: text('spec_name').notNull(),
+    position: integer('position').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.eventId, table.discordId, table.specName] }),
+    index('idx_event_participant_specs_event_spec').on(table.eventId, table.specName),
+  ],
+)
+
 export const teams = sqliteTable('teams', {
   id: text('id').primaryKey(),
   eventId: text('event_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
@@ -217,6 +233,7 @@ export const coinflips = sqliteTable('coinflips', {
 
 export const eventRelations = relations(events, ({ many }) => ({
   participants: many(eventParticipants),
+  participantSpecs: many(eventParticipantSpecs),
   teams: many(teams),
   ratings: many(ratings),
   draftPicks: many(draftPicks),

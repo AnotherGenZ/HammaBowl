@@ -16,6 +16,7 @@ import {
   draftPicks,
   eventRounds,
   eventPlayerCharacters,
+  eventParticipantSpecs,
   eventParticipants,
   events,
   playerCharacters,
@@ -101,6 +102,7 @@ export async function upsertEventFromRaidHelper(event: HammaEvent) {
       pendingSignupCount: event.pendingPlayerCount ?? 0,
       availableFactions: JSON.stringify(event.availableFactions ?? ['VS', 'NC', 'TR']),
       availableSides: JSON.stringify(event.availableSides ?? ['north', 'south']),
+      availableSpecs: event.availableSpecs?.length ? JSON.stringify(event.availableSpecs) : null,
       trophyId: event.trophyId ?? 'hammo-bowl-cup',
       updatedAt: now,
     })
@@ -112,6 +114,7 @@ export async function upsertEventFromRaidHelper(event: HammaEvent) {
         endsAt: event.endsAt,
         closingTime: event.closingTime,
         pendingSignupCount: event.pendingPlayerCount ?? 0,
+        availableSpecs: event.availableSpecs?.length ? JSON.stringify(event.availableSpecs) : null,
         updatedAt: now,
       },
     })
@@ -146,6 +149,14 @@ export async function upsertEventFromRaidHelper(event: HammaEvent) {
         ),
       )
       .run()
+    db.delete(eventParticipantSpecs)
+      .where(
+        and(
+          eq(eventParticipantSpecs.eventId, persistedEvent.id),
+          eq(eventParticipantSpecs.discordId, participant.discordId),
+        ),
+      )
+      .run()
   }
 
   for (const player of event.players) {
@@ -169,9 +180,69 @@ export async function upsertEventFromRaidHelper(event: HammaEvent) {
         },
       })
       .run()
+    replaceEventParticipantSpecs(persistedEvent.id, player.id, player.specs ?? [], now)
   }
 
   return persistedEvent.id
+}
+
+function replaceEventParticipantSpecs(
+  eventId: string,
+  discordId: string,
+  specs: string[],
+  updatedAt: string,
+) {
+  db.delete(eventParticipantSpecs)
+    .where(
+      and(
+        eq(eventParticipantSpecs.eventId, eventId),
+        eq(eventParticipantSpecs.discordId, discordId),
+      ),
+    )
+    .run()
+
+  for (const [index, specName] of specs.entries()) {
+    db.insert(eventParticipantSpecs)
+      .values({
+        eventId,
+        discordId,
+        specName,
+        position: index + 1,
+        updatedAt,
+      })
+      .onConflictDoUpdate({
+        target: [
+          eventParticipantSpecs.eventId,
+          eventParticipantSpecs.discordId,
+          eventParticipantSpecs.specName,
+        ],
+        set: {
+          position: index + 1,
+          updatedAt,
+        },
+      })
+      .run()
+  }
+}
+
+function groupEventParticipantSpecs(
+  specRows: Array<{ discordId: string; specName: string; position: number }>,
+) {
+  const grouped = new Map<string, Array<{ specName: string; position: number }>>()
+  for (const row of specRows) {
+    const specs = grouped.get(row.discordId) ?? []
+    specs.push({ specName: row.specName, position: row.position })
+    grouped.set(row.discordId, specs)
+  }
+
+  return new Map(
+    Array.from(grouped.entries()).map(([discordId, specs]) => [
+      discordId,
+      specs
+        .sort((a, b) => a.position - b.position || a.specName.localeCompare(b.specName))
+        .map((spec) => spec.specName),
+    ]),
+  )
 }
 
 export async function getDbEvent(eventId: string): Promise<HammaEvent | null> {
@@ -183,6 +254,12 @@ export async function getDbEvent(eventId: string): Promise<HammaEvent | null> {
     .from(eventParticipants)
     .where(eq(eventParticipants.eventId, event.id))
     .all()
+  const specRows = db
+    .select()
+    .from(eventParticipantSpecs)
+    .where(eq(eventParticipantSpecs.eventId, event.id))
+    .all()
+  const specsByParticipant = groupEventParticipantSpecs(specRows)
   const participantNames = getParticipantNameMap(participantRows.map((participant) => participant.discordId))
   const teamRows = db.select().from(teams).where(eq(teams.eventId, event.id)).all()
   const ratingRows = db.select().from(ratings).where(eq(ratings.eventId, event.id)).all()
@@ -208,6 +285,7 @@ export async function getDbEvent(eventId: string): Promise<HammaEvent | null> {
     outfit: '',
     faction: 'NS',
     status: 'signed_up',
+    specs: specsByParticipant.get(participant.discordId) ?? [],
   }))
 
   const eventTeams: Team[] = teamRows.map((team) => ({
@@ -262,6 +340,7 @@ export async function getDbEvent(eventId: string): Promise<HammaEvent | null> {
     pendingPlayerCount: event.pendingSignupCount,
     availableFactions: parseAvailableFactions(event.availableFactions),
     availableSides: parseAvailableSides(event.availableSides),
+    availableSpecs: parseStringList(event.availableSpecs),
     teams: eventTeams,
     players,
     ratings: eventRatings,
@@ -2770,6 +2849,7 @@ function bootstrap() {
       pending_signup_count INTEGER NOT NULL DEFAULT 0,
       available_factions TEXT NOT NULL DEFAULT '["VS","NC","TR"]',
       available_sides TEXT NOT NULL DEFAULT '["north","south"]',
+      available_specs TEXT,
       next_pick_team_id TEXT REFERENCES teams(id) ON DELETE SET NULL,
       winning_team_id TEXT,
       twitch_stream_url TEXT,
@@ -2849,6 +2929,16 @@ function bootstrap() {
       updated_at TEXT NOT NULL,
       PRIMARY KEY (event_id, discord_id)
     );
+    CREATE TABLE IF NOT EXISTS event_participant_specs (
+      event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+      discord_id TEXT NOT NULL,
+      spec_name TEXT NOT NULL,
+      position INTEGER NOT NULL,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (event_id, discord_id, spec_name)
+    );
+    CREATE INDEX IF NOT EXISTS idx_event_participant_specs_event_spec
+      ON event_participant_specs(event_id, spec_name);
     CREATE TABLE IF NOT EXISTS teams (
       id TEXT PRIMARY KEY,
       event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
@@ -2938,6 +3028,7 @@ function bootstrap() {
   addColumnIfMissing('events', 'bid_increment', `INTEGER NOT NULL DEFAULT ${BID_INCREMENT}`)
   addColumnIfMissing('events', 'available_factions', `TEXT NOT NULL DEFAULT '["VS","NC","TR"]'`)
   addColumnIfMissing('events', 'available_sides', `TEXT NOT NULL DEFAULT '["north","south"]'`)
+  addColumnIfMissing('events', 'available_specs', 'TEXT')
   addColumnIfMissing('events', 'next_pick_team_id', 'TEXT REFERENCES teams(id) ON DELETE SET NULL')
   addColumnIfMissing('events', 'winning_team_id', 'TEXT')
   addColumnIfMissing('events', 'twitch_stream_url', 'TEXT')
@@ -3062,6 +3153,15 @@ function parseAvailableSides(value: string | null | undefined): StartingSide[] {
   }
 }
 
+function parseStringList(value: string | null | undefined): string[] {
+  if (!value) return []
+  try {
+    return normalizeStringList(JSON.parse(value))
+  } catch {
+    return []
+  }
+}
+
 function normalizeFactionList(values: unknown): Faction[] {
   if (!Array.isArray(values)) return ['VS', 'NC', 'TR']
   const factions = values
@@ -3076,6 +3176,19 @@ function normalizeSideList(values: unknown): StartingSide[] {
     .map((value) => normalizeStartingSide(String(value)))
     .filter((value): value is StartingSide => Boolean(value))
   return Array.from(new Set(sides))
+}
+
+function normalizeStringList(values: unknown): string[] {
+  if (!Array.isArray(values)) return []
+  const seen = new Set<string>()
+  const items: string[] = []
+  for (const value of values) {
+    const item = String(value).trim()
+    if (!item || seen.has(item.toLowerCase())) continue
+    seen.add(item.toLowerCase())
+    items.push(item)
+  }
+  return items
 }
 
 function normalizeOptionalTwitchUrl(value: string | undefined) {

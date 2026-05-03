@@ -31,6 +31,7 @@ export function DraftBoard({
   const [savingBid, setSavingBid] = useState(false)
   const [pickingPlayerId, setPickingPlayerId] = useState<string>()
   const [resettingPickId, setResettingPickId] = useState<string>()
+  const [selectedSpecs, setSelectedSpecs] = useState<string[]>([])
   const [bidMessage, setBidMessage] = useState<{ text: string; tone: 'neutral' | 'success' | 'error' }>()
   const pickListRefs = useRef<Array<HTMLUListElement | null>>([])
   const syncingPickScroll = useRef(false)
@@ -54,12 +55,24 @@ export function DraftBoard({
   const salaryByPlayer = new Map(
     salaries.map((salary) => [salary.player.id, salary.salary]),
   )
-  const available = undraftedDraftEligiblePlayers(currentEvent)
+  const availablePlayers = undraftedDraftEligiblePlayers(currentEvent)
     .sort((a, b) => {
       const salaryDelta =
         (salaryByPlayer.get(b.id) ?? 0) - (salaryByPlayer.get(a.id) ?? 0)
       return salaryDelta || a.name.localeCompare(b.name)
     })
+  const availablePlayerSpecs = new Set(availablePlayers.flatMap((player) => player.specs ?? []))
+  const orderedEventSpecs = currentEvent.availableSpecs?.filter((spec) => availablePlayerSpecs.has(spec)) ?? []
+  const unorderedPlayerSpecs = Array.from(availablePlayerSpecs)
+    .filter((spec) => !orderedEventSpecs.includes(spec))
+    .sort((a, b) => a.localeCompare(b))
+  const specOptions = [...orderedEventSpecs, ...unorderedPlayerSpecs]
+  const activeSelectedSpecs = selectedSpecs.filter((spec) => specOptions.includes(spec))
+  const available = activeSelectedSpecs.length
+    ? availablePlayers.filter((player) =>
+        activeSelectedSpecs.some((spec) => player.specs?.includes(spec)),
+      )
+    : availablePlayers
   const draftEligibleCount = currentEvent.players.filter((player) =>
     isDraftEligiblePlayer(currentEvent, player),
   ).length
@@ -264,6 +277,14 @@ export function DraftBoard({
     }
   }
 
+  function toggleSpecFilter(spec: string) {
+    setSelectedSpecs((current) =>
+      current.includes(spec)
+        ? current.filter((item) => item !== spec)
+        : [...current, spec],
+    )
+  }
+
   function syncPickListScroll(index: number) {
     if (syncingPickScroll.current) return
     const source = pickListRefs.current[index]
@@ -412,7 +433,7 @@ export function DraftBoard({
         <div className="section-heading">
           <div>
             <div className="heading-with-chip">
-              <h2>Current signup pool</h2>
+              <h2>Player Pool</h2>
               <span className="count-chip">
                 {available.length} undrafted
               </span>
@@ -486,9 +507,32 @@ export function DraftBoard({
             ) : null}
           </div>
         ) : null}
+        {specOptions.length ? (
+          <div className="spec-filter-row" aria-label="Filter signup pool by signed specs">
+            <button
+              type="button"
+              className={!activeSelectedSpecs.length ? 'active' : ''}
+              onClick={() => setSelectedSpecs([])}
+            >
+              All
+            </button>
+            {specOptions.map((spec) => (
+              <button
+                key={spec}
+                type="button"
+                className={selectedSpecs.includes(spec) ? 'active' : ''}
+                onClick={() => toggleSpecFilter(spec)}
+              >
+                {spec}
+              </button>
+            ))}
+          </div>
+        ) : null}
         <div className={`available-list${!available.length ? ' available-list-empty' : ''}`}>
           {!draftEligibleCount ? (
             <div className="empty-inline">No draft-eligible signups are available for this event yet.</div>
+          ) : activeSelectedSpecs.length && availablePlayers.length && !available.length ? (
+            <div className="empty-inline">No undrafted players match the selected specs.</div>
           ) : !available.length ? (
             <div className="empty-inline">Every player has been drafted.</div>
           ) : available.map((player) => {
@@ -510,6 +554,13 @@ export function DraftBoard({
                 <Link to="/players/$discordId" params={{ discordId: player.id }}>
                   <strong>{player.name}</strong>
                 </Link>
+                {player.specs?.length ? (
+                  <div className="player-specs" aria-label={`${player.name} signed specs`}>
+                    {player.specs.map((spec) => (
+                      <span key={spec}>{spec}</span>
+                    ))}
+                  </div>
+                ) : null}
               </div>
               <span>{currentEvent.ratings.length ? money(salary) : 'TBD'}</span>
               {isCaptain ? (

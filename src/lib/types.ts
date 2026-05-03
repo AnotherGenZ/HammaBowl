@@ -10,6 +10,7 @@ export interface Player {
   outfit: string
   faction: 'VS' | 'NC' | 'TR' | 'NS'
   status: PlayerStatus
+  specs?: string[]
 }
 
 export interface Rating {
@@ -105,6 +106,7 @@ export interface HammaEvent {
   pendingPlayerCount: number
   availableFactions: Faction[]
   availableSides: StartingSide[]
+  availableSpecs?: string[]
   teams: Team[]
   players: Player[]
   ratings: Rating[]

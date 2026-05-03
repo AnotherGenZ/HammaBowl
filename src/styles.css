@@ -1805,21 +1805,24 @@ dd {
 
 .signup-pool-panel {
   display: grid;
-  grid-template-rows: auto auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto auto minmax(0, 1fr);
 }
 
 .signup-pool-panel .active-bid-panel {
-  grid-row: 2;
-}
-
-.signup-pool-panel > .toast {
   grid-row: 3;
 }
 
-.signup-pool-panel .available-list {
+.signup-pool-panel > .toast {
   grid-row: 4;
+}
+
+.signup-pool-panel .available-list {
+  grid-row: 5;
+  align-content: start;
+  grid-auto-rows: 82px;
   min-height: 0;
   max-height: none;
+  overflow-y: auto;
 }
 
 .pick-list {
@@ -1949,6 +1952,33 @@ dd {
 
 .heading-with-chip h2 {
   margin: 0;
+}
+
+.spec-filter-row {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+  overflow-x: auto;
+  padding: 10px 0 12px;
+  scrollbar-width: thin;
+}
+
+.spec-filter-row button {
+  flex: 0 0 auto;
+  min-height: 30px;
+  border-radius: 999px;
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: #d8dedc;
+  padding: 0 10px;
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
+.spec-filter-row button.active {
+  border-color: rgba(228, 180, 94, 0.48);
+  background: rgba(228, 180, 94, 0.16);
+  color: #f4d59a;
 }
 
 .count-chip,
@@ -3065,16 +3095,45 @@ dd {
   grid-template-columns: minmax(0, 1fr) 96px auto minmax(150px, auto);
   align-items: center;
   gap: 14px;
+  height: 100%;
   padding: 14px;
-  min-height: 68px;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .player-name {
   min-width: 0;
+  overflow: hidden;
 }
 
 .player-name strong {
   display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-specs {
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+  flex-wrap: nowrap;
+  margin-top: 6px;
+  overflow: hidden;
+}
+
+.player-specs span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: #d8dedc;
+  padding: 0 8px;
+  font-size: 0.72rem;
+  font-weight: 900;
+  max-width: 92px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3092,8 +3151,9 @@ dd {
   justify-content: flex-end;
   gap: 6px;
   min-width: 150px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   grid-column: 4;
+  overflow: hidden;
 }
 
 .eligibility-chip {
@@ -3558,6 +3618,11 @@ dd {
 
   .player-card {
     grid-template-columns: 1fr;
+    grid-auto-rows: min-content;
+  }
+
+  .signup-pool-panel .available-list {
+    grid-auto-rows: 142px;
   }
 
   .player-card > span {

@@ -9,6 +9,7 @@ export interface RaidHelperSignup {
   discordId: string
   name: string
   className?: string
+  specs: string[]
   status?: string
 }
 
@@ -18,12 +19,14 @@ interface RaidHelperRemoteEvent {
   startsAt: string
   endsAt?: string
   closingTime?: string
+  availableSpecs: string[]
   signups: RaidHelperSignup[]
 }
 
 export interface RaidHelperClient {
   getCurrentEvent(): Promise<RaidHelperRemoteEvent>
   getCurrentEvents(): Promise<RaidHelperRemoteEvent[]>
+  getEvent(eventId: string): Promise<RaidHelperRemoteEvent>
   getSignups(eventId: string): Promise<RaidHelperSignup[]>
   updateComp(compId: string, body: RaidHelperCompUpdate): Promise<void>
   updateSignupName(eventId: string, signupId: string, name: string): Promise<void>
@@ -67,6 +70,13 @@ export function createRaidHelperClient(): RaidHelperClient {
         apiKey,
       )
       return selectCurrentEvents(payload)
+    },
+    async getEvent(eventId) {
+      const payload = await requestUnknown(
+        `${RAID_HELPER_API_BASE_URL}/events/${encodeURIComponent(eventId)}`,
+        apiKey,
+      )
+      return normalizeRemoteEvent(payload)
     },
     async getSignups(eventId) {
       const payload = await requestUnknown(
@@ -140,18 +150,19 @@ async function hydrateRemoteEvent(
   client: RaidHelperClient,
   remoteEvent: RaidHelperRemoteEvent,
 ): Promise<HammaEvent> {
-  const signups = remoteEvent.signups.length
-    ? remoteEvent.signups
-    : await client.getSignups(remoteEvent.id)
+  const fullEvent = remoteEvent.signups.length && remoteEvent.availableSpecs.length
+    ? remoteEvent
+    : await client.getEvent(remoteEvent.id)
+  const signups = fullEvent.signups.length ? fullEvent.signups : remoteEvent.signups
 
   return {
-    id: `raid-helper-${remoteEvent.id}`,
-    raidHelperEventId: remoteEvent.id,
-    name: stripMarkdown(remoteEvent.title),
+    id: `raid-helper-${fullEvent.id}`,
+    raidHelperEventId: fullEvent.id,
+    name: stripMarkdown(fullEvent.title),
     server: env('HAMMABOWL_SERVER_NAME', 'Jaeger'),
-    startsAt: remoteEvent.startsAt,
-    endsAt: remoteEvent.endsAt,
-    closingTime: remoteEvent.closingTime,
+    startsAt: fullEvent.startsAt,
+    endsAt: fullEvent.endsAt,
+    closingTime: fullEvent.closingTime,
     draftStartMinutesBefore: undefined,
     roundCount: 3,
     roundDurationSeconds: 900,
@@ -163,6 +174,9 @@ async function hydrateRemoteEvent(
     pendingPlayerCount: signups.filter(isMaybeSignup).length,
     availableFactions: ['VS', 'NC', 'TR'] as Faction[],
     availableSides: ['north', 'south'],
+    availableSpecs: fullEvent.availableSpecs.length
+      ? fullEvent.availableSpecs
+      : uniqueStrings(signups.flatMap((signup) => signup.specs)),
     teams: [],
     players: signupPlayers(signups),
     ratings: [],
@@ -228,6 +242,7 @@ function signupPlayers(signups: RaidHelperSignup[]): Player[] {
       outfit: '',
       faction: 'NS',
       status: 'signed_up',
+      specs: signup.specs,
     })
   }
 
@@ -403,6 +418,7 @@ function normalizeRemoteEvent(payload: unknown): RaidHelperRemoteEvent {
     startsAt,
     endsAt: endsAt || undefined,
     closingTime: closingTime || undefined,
+    availableSpecs: normalizeAvailableSpecs(source.classes ?? source.classList ?? source.class_list),
     signups: normalizeSignups(
       source.signups ??
         source.signUps ??
@@ -468,9 +484,59 @@ function normalizeSignups(payload: unknown): RaidHelperSignup[] {
           user.username,
       ),
       className: stringValue(signup.className ?? signup.class ?? signup.role),
+      specs: signupSpecs(signup),
       status: stringValue(signup.status),
     }
   })
+}
+
+function normalizeAvailableSpecs(payload: unknown) {
+  if (!Array.isArray(payload)) return []
+
+  const acceptedClass = payload
+    .map(asRecord)
+    .find((item) => {
+      const name = stringValue(item.name).toLowerCase()
+      const customName = stringValue(item.cName).toLowerCase()
+      return name === 'accepted' || customName === 'available'
+    })
+  const specs = Array.isArray(acceptedClass?.specs) ? acceptedClass.specs : []
+
+  return uniqueStrings(specs.map((item) => {
+    const spec = asRecord(item)
+    return spec.name ?? spec.cName ?? item
+  }))
+}
+
+function signupSpecs(signup: Record<string, unknown>) {
+  const specs = [
+    signup.specName ?? signup.cSpecName ?? signup.spec ?? signup.primarySpec,
+    signup.spec2Name ?? signup.cSpec2Name ?? signup.secondarySpec,
+    signup.spec3Name ?? signup.cSpec3Name ?? signup.tertiarySpec,
+  ]
+
+  for (const key of ['specs', 'specNames', 'spec_names']) {
+    const value = signup[key]
+    if (!Array.isArray(value)) continue
+    specs.push(...value.map((item) => {
+      const spec = asRecord(item)
+      return spec.name ?? spec.cName ?? item
+    }))
+  }
+
+  return uniqueStrings(specs)
+}
+
+function uniqueStrings(values: unknown[]) {
+  const seen = new Set<string>()
+  const result: string[] = []
+  for (const value of values) {
+    const spec = stringValue(value).trim()
+    if (!spec || seen.has(spec.toLowerCase())) continue
+    seen.add(spec.toLowerCase())
+    result.push(spec)
+  }
+  return result
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
