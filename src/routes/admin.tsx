@@ -8,12 +8,12 @@ import { getCurrentEvent, getCurrentEvents } from '../lib/services'
 
 const EVENT_SECTIONS: AdminSidebarSection[] = [
   { id: 'admin-event-details', label: 'Event Details', status: 'ok' },
+  { id: 'admin-draft', label: 'Draft', status: 'ok' },
   { id: 'admin-teams', label: 'Captains & Team Setup', status: 'warning' },
   { id: 'admin-jaeger', label: 'Jaeger Assignments', status: 'ok' },
   { id: 'admin-coinflip', label: 'Coinflip', status: 'pending' },
   { id: 'admin-ratings', label: 'Rating Adjustments', status: 'ok' },
   { id: 'admin-rounds', label: 'Rounds', status: 'ok' },
-  { id: 'admin-results', label: 'Streams & Results', status: 'ok' },
   { id: 'admin-composition', label: 'Team Composition', status: 'ok' },
 ]
 
@@ -72,8 +72,7 @@ function Admin() {
 
   if (!event) {
     return (
-      <main>
-        <AdminHeader />
+      <main className="admin-main">
         <AdminLayout sections={[]}>
           <section className="panel empty-state">
             <h1>No current event</h1>
@@ -85,8 +84,7 @@ function Admin() {
   }
 
   return (
-    <main>
-      <AdminHeader />
+    <main className="admin-main">
       <AdminLayout sections={eventSections}>
         <AdminTools
           event={event}
@@ -108,13 +106,4 @@ function buildEventSections(eventJaegerWarningCount: number | null): AdminSideba
       badge: count > 0 ? count.toString() : undefined,
     }
   })
-}
-
-function AdminHeader() {
-  return (
-    <div className="admin-page-header">
-      <p className="eyebrow">Admin</p>
-      <h1>Event Controls</h1>
-    </div>
-  )
 }

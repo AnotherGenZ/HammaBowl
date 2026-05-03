@@ -452,6 +452,17 @@ main.draft-page {
   min-height: 0;
 }
 
+main.admin-main {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  width: calc(100% - 32px);
+  max-width: none;
+  height: calc(100dvh - 77px);
+  min-height: 0;
+  overflow: hidden;
+  padding: 16px 0;
+}
+
 /* ── Event hero ─────────────────────────────────────── */
 
 .event-hero {
@@ -2719,12 +2730,6 @@ main > .panel:first-child {
   gap: 16px;
 }
 
-/* ── Admin page header ───────────────────────────────────────── */
-
-.admin-page-header {
-  padding: clamp(20px, 4vw, 40px) 0 20px;
-}
-
 /* ── Admin sidebar layout ────────────────────────────────────── */
 
 .admin-sidebar-layout {
@@ -2735,6 +2740,12 @@ main > .panel:first-child {
   overflow: hidden;
   height: calc(100vh - 190px);
   min-height: 480px;
+  min-width: 0;
+}
+
+.admin-main .admin-sidebar-layout {
+  height: 100%;
+  min-height: 0;
 }
 
 .admin-sidebar {
@@ -2743,6 +2754,7 @@ main > .panel:first-child {
   display: grid;
   grid-template-rows: auto 1fr;
   overflow: hidden;
+  min-height: 0;
 }
 
 .admin-sidebar-tabs {
@@ -2782,6 +2794,7 @@ main > .panel:first-child {
 .admin-sidebar-sections {
   padding: 6px;
   overflow-y: auto;
+  min-height: 0;
 }
 
 .admin-sidebar-section {
@@ -2875,6 +2888,7 @@ main > .panel:first-child {
 .admin-sidebar-content {
   background: #13171a;
   overflow-y: auto;
+  min-height: 0;
 }
 
 .admin-sidebar-content > .panel,
@@ -2886,6 +2900,12 @@ main > .panel:first-child {
 }
 
 @media (max-width: 768px) {
+  main.admin-main {
+    height: auto;
+    min-height: calc(100dvh - 77px);
+    overflow: visible;
+  }
+
   .admin-sidebar-layout {
     grid-template-columns: 1fr;
     grid-template-rows: auto 1fr;
@@ -3247,7 +3267,7 @@ main > .panel:first-child {
 
 .coinflip-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -3268,7 +3288,7 @@ main > .panel:first-child {
 
 .round-result-row {
   display: grid;
-  grid-template-columns: minmax(74px, max-content) minmax(150px, 1fr) minmax(160px, 1fr) auto;
+  grid-template-columns: minmax(74px, max-content) minmax(150px, 1fr) minmax(160px, 1fr);
   align-items: center;
   gap: 8px;
 }
@@ -3284,6 +3304,57 @@ main > .panel:first-child {
   align-content: start;
   gap: 12px;
   min-width: 0;
+}
+
+.coinflip-flow-panel,
+.round-flow-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.045);
+  padding: 14px;
+}
+
+.coinflip-flow-panel strong,
+.round-flow-panel strong,
+.coinflip-settings-heading strong {
+  color: #f4f0e8;
+}
+
+.coinflip-flow-panel p,
+.round-flow-panel p {
+  margin: 4px 0 0;
+  color: #b4bcbb;
+}
+
+.coinflip-flow-actions,
+.round-flow-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.coinflip-call-control {
+  min-width: 172px;
+}
+
+.coinflip-settings-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.admin-section-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .event-details-card {
@@ -4949,6 +5020,18 @@ main > .panel:first-child {
   .event-link-editor-row {
     grid-template-columns: 1fr;
     align-items: stretch;
+  }
+
+  .coinflip-flow-panel,
+  .round-flow-panel {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .coinflip-flow-actions,
+  .round-flow-actions,
+  .coinflip-settings-heading {
+    justify-content: flex-start;
   }
 
   .round-list-card {

@@ -125,6 +125,8 @@ export function AdminTools({
       <div className="admin-stack">
         <EventIdentityControls event={currentEvent} busy={busy} onRun={run} onEvent={setConfiguredEvent} />
 
+        <DraftControls event={currentEvent} busy={busy} onRun={run} onEvent={setConfiguredEvent} />
+
         <TeamEditor
           event={currentEvent}
           busy={busy}
@@ -151,13 +153,6 @@ export function AdminTools({
         />
 
         <RoundControls event={currentEvent} busy={busy} onRun={run} onEvent={setConfiguredEvent} />
-
-        <EventResultControls
-          event={currentEvent}
-          busy={busy}
-          onRun={run}
-          onEvent={setConfiguredEvent}
-        />
 
         <AdminSection
           id="admin-composition"
@@ -443,28 +438,20 @@ function EventIdentityControls({
   onEvent: (event: HammaEvent) => void
 }) {
   const [nameOverride, setNameOverride] = useState(event.nameOverride ?? '')
-  const [draftStartMinutesBefore, setDraftStartMinutesBefore] = useState(
-    event.draftStartMinutesBefore?.toString() ?? '',
-  )
-  const [salaryPool, setSalaryPool] = useState(event.salaryPool.toString())
-  const [bonusPool, setBonusPool] = useState(event.bonusPool.toString())
-  const [maxPlayerBonus, setMaxPlayerBonus] = useState(event.maxPlayerBonus.toString())
-  const [bidIncrement, setBidIncrement] = useState(event.bidIncrement.toString())
   const [eventDescription, setEventDescription] = useState(event.eventDescription ?? '')
   const [eventLinks, setEventLinks] = useState<EventLink[]>(event.eventLinks)
   const [trophyId, setTrophyId] = useState<EventTrophyId>(event.trophyId)
+  const [streamUrl, setStreamUrl] = useState(event.twitchStreamUrl ?? '')
+  const [vodUrl, setVodUrl] = useState(event.twitchVodUrl ?? '')
   const [openIconPicker, setOpenIconPicker] = useState<number | null>(null)
 
   useEffect(() => {
     setNameOverride(event.nameOverride ?? '')
-    setDraftStartMinutesBefore(event.draftStartMinutesBefore?.toString() ?? '')
-    setSalaryPool(formatWholeDollarInput(event.salaryPool))
-    setBonusPool(formatWholeDollarInput(event.bonusPool))
-    setMaxPlayerBonus(formatWholeDollarInput(event.maxPlayerBonus))
-    setBidIncrement(formatWholeDollarInput(event.bidIncrement))
     setEventDescription(event.eventDescription ?? '')
     setEventLinks(event.eventLinks)
     setTrophyId(event.trophyId)
+    setStreamUrl(event.twitchStreamUrl ?? '')
+    setVodUrl(event.twitchVodUrl ?? '')
   }, [event])
 
   useEffect(() => {
@@ -511,30 +498,15 @@ function EventIdentityControls({
       eventDescription,
       eventLinks,
       trophyId,
-      salaryPool: parseWholeDollarText(salaryPool),
-      bonusPool: parseWholeDollarText(bonusPool),
-      maxPlayerBonus: parseWholeDollarText(maxPlayerBonus),
-      bidIncrement: parseWholeDollarText(bidIncrement),
-      draftStartMinutesBefore,
+      twitchStreamUrl: streamUrl,
+      twitchVodUrl: vodUrl,
     })
     if (isEventResult(result) && result.event) onEvent(result.event)
     return result
   }
 
   return (
-    <AdminSection
-      id="admin-event-details"
-      title="Event Details"
-      actions={
-        <button
-          type="button"
-          disabled={busy === 'event-details'}
-          onClick={() => void onRun('event-details', saveEventDetails)}
-        >
-          Save
-        </button>
-      }
-    >
+    <AdminSection id="admin-event-details" title="Event Details">
       <div className="event-result-grid">
         <div className="event-result-card">
           <strong>Name override</strong>
@@ -640,7 +612,85 @@ function EventIdentityControls({
         </div>
 
         <div className="event-result-card">
-          <strong>Draft budgets</strong>
+          <strong>Twitch links</strong>
+          <label>
+            Live stream
+            <input
+              type="url"
+              value={streamUrl}
+              placeholder="https://www.twitch.tv/..."
+              onChange={(event) => setStreamUrl(event.currentTarget.value)}
+            />
+          </label>
+          <label>
+            VOD
+            <input
+              type="url"
+              value={vodUrl}
+              placeholder="https://www.twitch.tv/videos/..."
+              onChange={(event) => setVodUrl(event.currentTarget.value)}
+            />
+          </label>
+        </div>
+      </div>
+      <div className="admin-section-footer">
+        <button
+          type="button"
+          disabled={busy === 'event-details'}
+          onClick={() => void onRun('event-details', saveEventDetails)}
+        >
+          Save
+        </button>
+      </div>
+    </AdminSection>
+  )
+}
+
+function DraftControls({
+  event,
+  busy,
+  onRun,
+  onEvent,
+}: {
+  event: HammaEvent
+  busy?: string
+  onRun: (label: string, action: () => Promise<unknown>) => Promise<void>
+  onEvent: (event: HammaEvent) => void
+}) {
+  const [draftStartMinutesBefore, setDraftStartMinutesBefore] = useState(
+    event.draftStartMinutesBefore?.toString() ?? '',
+  )
+  const [salaryPool, setSalaryPool] = useState(event.salaryPool.toString())
+  const [bonusPool, setBonusPool] = useState(event.bonusPool.toString())
+  const [maxPlayerBonus, setMaxPlayerBonus] = useState(event.maxPlayerBonus.toString())
+  const [bidIncrement, setBidIncrement] = useState(event.bidIncrement.toString())
+
+  useEffect(() => {
+    setDraftStartMinutesBefore(event.draftStartMinutesBefore?.toString() ?? '')
+    setSalaryPool(formatWholeDollarInput(event.salaryPool))
+    setBonusPool(formatWholeDollarInput(event.bonusPool))
+    setMaxPlayerBonus(formatWholeDollarInput(event.maxPlayerBonus))
+    setBidIncrement(formatWholeDollarInput(event.bidIncrement))
+  }, [event])
+
+  async function saveDraftSettings() {
+    const result = await postAdminJson('/api/admin/event', {
+      eventId: event.id,
+      salaryPool: parseWholeDollarText(salaryPool),
+      bonusPool: parseWholeDollarText(bonusPool),
+      maxPlayerBonus: parseWholeDollarText(maxPlayerBonus),
+      bidIncrement: parseWholeDollarText(bidIncrement),
+      draftStartMinutesBefore,
+    })
+    if (isEventResult(result) && result.event) onEvent(result.event)
+    return result
+  }
+
+  return (
+    <AdminSection id="admin-draft" title="Draft">
+      <div className="event-result-grid">
+        <div className="event-result-card">
+          <strong>Budgets</strong>
           <label>
             Total salary pool
             <input
@@ -676,7 +726,7 @@ function EventIdentityControls({
         </div>
 
         <div className="event-result-card">
-          <strong>Draft timing</strong>
+          <strong>Timing</strong>
           <label>
             Minutes before event start
             <input
@@ -691,6 +741,15 @@ function EventIdentityControls({
           </label>
           <small>Leave blank to count down to the event start after signups close.</small>
         </div>
+      </div>
+      <div className="admin-section-footer">
+        <button
+          type="button"
+          disabled={busy === 'draft-settings'}
+          onClick={() => void onRun('draft-settings', saveDraftSettings)}
+        >
+          Save draft settings
+        </button>
       </div>
     </AdminSection>
   )
@@ -744,6 +803,54 @@ function TeamEditor({
   onEvent: (event: HammaEvent) => void
   locked?: boolean
 }) {
+  const [teamDrafts, setTeamDrafts] = useState<Record<string, TeamDraft>>(() =>
+    createTeamDrafts(event.teams),
+  )
+  const changedTeams = getChangedTeamDrafts(event.teams, teamDrafts)
+
+  useEffect(() => {
+    setTeamDrafts(createTeamDrafts(event.teams))
+  }, [event.teams])
+
+  function updateTeamDraft(teamId: string, patch: Partial<TeamDraft>) {
+    setTeamDrafts((current) => {
+      const team = event.teams.find((candidate) => candidate.id === teamId)
+      const draft = current[teamId] ?? {
+        name: team?.teamName ?? '',
+        captainDiscordId: team?.captainDiscordId ?? '',
+        score: team?.score.toString() ?? '0',
+      }
+      return {
+        ...current,
+        [teamId]: { ...draft, ...patch },
+      }
+    })
+  }
+
+  async function saveTeams() {
+    let result: unknown = { ok: true, message: 'No team changes to save.', event }
+
+    for (const { team, draft } of changedTeams) {
+      result = await postAdminJson('/api/admin/team/update', {
+        eventId: event.id,
+        teamId: team.id,
+        name: draft.name,
+        captainDiscordId: draft.captainDiscordId,
+        score: Number(draft.score),
+      })
+      if (isEventResult(result)) onEvent(result.event)
+    }
+
+    if (isEventResult(result)) {
+      return {
+        ...result,
+        message: `${changedTeams.length} team${changedTeams.length === 1 ? '' : 's'} saved.`,
+      }
+    }
+
+    return result
+  }
+
   return (
     <AdminSection
       id="admin-teams"
@@ -772,19 +879,60 @@ function TeamEditor({
           {event.teams.map((team) => (
             <TeamForm
               key={team.id}
-              eventId={event.id}
               team={team}
               players={event.players}
-              busy={busy === team.id || Boolean(locked)}
-              onSaved={onEvent}
+              draft={teamDrafts[team.id]}
+              disabled={Boolean(busy) || Boolean(locked)}
+              onDraft={(patch) => updateTeamDraft(team.id, patch)}
             />
           ))}
         </div>
       ) : (
         <p>Create teams, then assign teams and names here.</p>
       )}
+      <div className="admin-section-footer">
+        <button
+          type="button"
+          disabled={busy === 'team-settings' || Boolean(locked) || !changedTeams.length}
+          onClick={() => void onRun('team-settings', saveTeams)}
+        >
+          Save teams
+        </button>
+      </div>
     </AdminSection>
   )
+}
+
+interface TeamDraft {
+  name: string
+  captainDiscordId: string
+  score: string
+}
+
+function createTeamDrafts(teams: Team[]): Record<string, TeamDraft> {
+  return Object.fromEntries(
+    teams.map((team) => [
+      team.id,
+      {
+        name: team.teamName,
+        captainDiscordId: team.captainDiscordId,
+        score: team.score.toString(),
+      },
+    ]),
+  )
+}
+
+function getChangedTeamDrafts(teams: Team[], drafts: Record<string, TeamDraft>) {
+  return teams.flatMap((team) => {
+    const draft = drafts[team.id]
+    if (!draft) return []
+    const changed =
+      draft.name !== team.teamName ||
+      draft.captainDiscordId !== team.captainDiscordId ||
+      Number(draft.score) !== team.score
+
+    return changed ? [{ team, draft }] : []
+  })
 }
 
 function EventJaegerAssignments({
@@ -1121,19 +1269,7 @@ function PlayerJaegerManager({
   const selectedPlayer = players.find((player) => player.discordId === discordId)
 
   return (
-    <AdminSection
-      id="admin-jaeger-chars"
-      title="Player Jaeger characters"
-      actions={
-        <button
-          type="button"
-          disabled={!ready || busy === 'player-jaeger' || !discordId || !names.TR.trim() || !names.VS.trim() || !names.NC.trim()}
-          onClick={() => void onRun('player-jaeger', saveCharacters)}
-        >
-          Resolve and save
-        </button>
-      }
-    >
+    <AdminSection id="admin-jaeger-chars" title="Player Jaeger characters">
       {!ready ? <div className="empty-inline">Loading players.</div> : null}
       <div className="rating-adjustment-grid">
         <label>
@@ -1183,6 +1319,15 @@ function PlayerJaegerManager({
             {character.characterName} #{character.characterId}
           </span>
         ))}
+      </div>
+      <div className="admin-section-footer">
+        <button
+          type="button"
+          disabled={!ready || busy === 'player-jaeger' || !discordId || !names.TR.trim() || !names.VS.trim() || !names.NC.trim()}
+          onClick={() => void onRun('player-jaeger', saveCharacters)}
+        >
+          Resolve and save
+        </button>
       </div>
     </AdminSection>
   )
@@ -1259,20 +1404,6 @@ function BadgeManager({
     return result
   }
 
-  async function updateBadge(targetBadgeId: string) {
-    const draft = badgeDrafts[targetBadgeId]
-    const result = await postAdminJson('/api/admin/badges', {
-      action: 'update',
-      badgeId: targetBadgeId,
-      name: draft?.name,
-      description: draft?.description,
-      color: draft?.color,
-    }) as AdminBadgeManagerData & { message?: string }
-    setData(result)
-    setBadgeDrafts(createBadgeDrafts(result))
-    return result
-  }
-
   async function deleteBadge(targetBadgeId: string) {
     const result = await postAdminJson('/api/admin/badges', {
       action: 'delete',
@@ -1285,6 +1416,44 @@ function BadgeManager({
 
   const systemBadges = data.badges.filter((badge) => badge.source === 'system')
   const customBadges = data.badges.filter((badge) => badge.source === 'manual')
+  const changedBadges = data.badges.filter((badge) => {
+    const draft = badgeDrafts[badge.id]
+    return (
+      draft &&
+      (draft.name !== badge.name ||
+        draft.description !== badge.description ||
+        draft.color !== badge.color)
+    )
+  })
+  const canSaveBadgeChanges = changedBadges.every((badge) => {
+    const draft = badgeDrafts[badge.id]
+    return draft?.name.trim() && draft.description.trim()
+  })
+
+  async function saveBadgeChanges() {
+    let result: AdminBadgeManagerData & { message?: string } = {
+      ...data,
+      message: 'No badge changes to save.',
+    }
+
+    for (const badge of changedBadges) {
+      const draft = badgeDrafts[badge.id]
+      result = await postAdminJson('/api/admin/badges', {
+        action: 'update',
+        badgeId: badge.id,
+        name: draft?.name,
+        description: draft?.description,
+        color: draft?.color,
+      }) as AdminBadgeManagerData & { message?: string }
+    }
+
+    setData(result)
+    setBadgeDrafts(createBadgeDrafts(result))
+    return {
+      ...result,
+      message: `${changedBadges.length} badge${changedBadges.length === 1 ? '' : 's'} saved.`,
+    }
+  }
 
   function renderBadgeEditor(badge: AdminBadgeManagerData['badges'][number]) {
     const draft = badgeDrafts[badge.id] ?? {
@@ -1292,10 +1461,6 @@ function BadgeManager({
       description: badge.description,
       color: badge.color,
     }
-    const changed =
-      draft.name !== badge.name ||
-      draft.description !== badge.description ||
-      draft.color !== badge.color
 
     return (
       <article className="badge-definition-card" key={`badge-${badge.id}`}>
@@ -1342,20 +1507,8 @@ function BadgeManager({
             />
           </label>
         </div>
-        <div className="badge-definition-actions">
-          <button
-            type="button"
-            disabled={
-              busy === `badge-update-${badge.id}` ||
-              !draft.name.trim() ||
-              !draft.description.trim() ||
-              !changed
-            }
-            onClick={() => void onRun(`badge-update-${badge.id}`, () => updateBadge(badge.id))}
-          >
-            Save
-          </button>
-          {badge.source === 'manual' ? (
+        {badge.source === 'manual' ? (
+          <div className="badge-definition-actions">
             <button
               type="button"
               className="text-button danger"
@@ -1364,8 +1517,8 @@ function BadgeManager({
             >
               Delete
             </button>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
       </article>
     )
   }
@@ -1419,6 +1572,20 @@ function BadgeManager({
         ) : (
           <div className="empty-inline">{loaded ? 'No badges created yet.' : 'Loading badges.'}</div>
         )}
+      </div>
+      <div className="admin-section-footer">
+        <button
+          type="button"
+          disabled={
+            !ready ||
+            busy === 'badge-definitions' ||
+            !changedBadges.length ||
+            !canSaveBadgeChanges
+          }
+          onClick={() => void onRun('badge-definitions', saveBadgeChanges)}
+        >
+          Save badge changes
+        </button>
       </div>
     </AdminSection>
   )
@@ -1474,6 +1641,22 @@ function CoinflipControls({
   )
   const completed = Boolean(coinflip?.result)
   const pending = Boolean(coinflip && !coinflip.result)
+  const savedAvailableFactions = event.availableFactions.length ? event.availableFactions : factions
+  const savedAvailableSides = event.availableSides.length ? event.availableSides : ['north', 'south']
+  const optionsChanged =
+    !completed &&
+    (!sameStringList(availableFactions, savedAvailableFactions) ||
+      !sameStringList(availableSides, savedAvailableSides))
+  const choiceChanged =
+    completed &&
+    (choiceType !== (coinflip?.choiceType ?? 'faction') ||
+      (choiceType === 'faction' &&
+        chosenFaction !== (coinflip?.chosenFaction ?? savedAvailableFactions[0] ?? 'VS')) ||
+      (choiceType === 'side' &&
+        startingSide !== (coinflip?.chosenStartingSide ?? savedAvailableSides[0] ?? 'north')))
+  const changedAssignments = completed ? getChangedCoinflipAssignments(event, assignments) : []
+  const hasCoinflipSettingChanges =
+    optionsChanged || choiceChanged || changedAssignments.length > 0
 
   useEffect(() => {
     const nextSides = event.availableSides.length ? event.availableSides : ['north', 'south']
@@ -1533,37 +1716,116 @@ function CoinflipControls({
     }))
   }
 
-  return (
-    <AdminSection
-      id="admin-coinflip"
-      title="Coinflip"
-      actions={
-        <div className="button-row">
-          <button
-            type="button"
-            disabled={busy === 'coinflip-caller' || Boolean(coinflip)}
-            onClick={() =>
-              void onRun('coinflip-caller', () =>
-                runCoinflipAction({ action: 'select-caller' }),
-              )
-            }
-          >
-            Select caller
-          </button>
-          <button
-            type="button"
-            className="danger-button"
-            disabled={busy === 'coinflip-reset' || !coinflip}
-            onClick={() =>
-              void onRun('coinflip-reset', () => runCoinflipAction({ action: 'reset' }))
-            }
-          >
-            Reset
-          </button>
-        </div>
-      }
-    >
+  async function saveCoinflipSettings() {
+    let result: unknown = { ok: true, message: 'No coinflip settings to save.', event }
 
+    if (optionsChanged) {
+      result = await runCoinflipAction({ action: 'options', availableFactions, availableSides })
+    }
+
+    if (choiceChanged) {
+      result = await runCoinflipAction({
+        action: 'choice',
+        choiceType,
+        faction: chosenFaction,
+        startingSide,
+      })
+    }
+
+    if (changedAssignments.length) {
+      result = await runCoinflipAction({
+        action: 'assignments',
+        assignments: event.teams.map((team) => ({
+          teamId: team.id,
+          faction: assignments[team.id]?.faction ?? '',
+          startingSide: assignments[team.id]?.startingSide ?? '',
+        })),
+      })
+    }
+
+    if (isEventResult(result)) {
+      return { ...result, message: 'Coinflip settings saved.' }
+    }
+
+    return result
+  }
+
+  return (
+    <AdminSection id="admin-coinflip" title="Coinflip">
+      <div className="coinflip-flow-panel">
+        <div>
+          <strong>
+            {completed ? 'Coinflip complete' : pending ? 'Coinflip ready' : 'No caller selected'}
+          </strong>
+          <p>
+            {completed && coinflip?.result
+              ? `${coinflip.result.toUpperCase()} won. ${winner?.teamName ?? 'Winning team'} chooses.`
+              : caller
+                ? `${caller.teamName} calls the coin.`
+                : 'Select a caller before flipping.'}
+          </p>
+        </div>
+        <div className="coinflip-flow-actions">
+          {!coinflip ? (
+            <button
+              type="button"
+              disabled={busy === 'coinflip-caller'}
+              onClick={() =>
+                void onRun('coinflip-caller', () =>
+                  runCoinflipAction({ action: 'select-caller' }),
+                )
+              }
+            >
+              Select caller
+            </button>
+          ) : null}
+          {pending ? (
+            <>
+              <div className="segmented-control coinflip-call-control" aria-label="Coin call">
+                <button
+                  type="button"
+                  className={call === 'heads' ? 'active' : ''}
+                  onClick={() => setCall('heads')}
+                >
+                  Heads
+                </button>
+                <button
+                  type="button"
+                  className={call === 'tails' ? 'active' : ''}
+                  onClick={() => setCall('tails')}
+                >
+                  Tails
+                </button>
+              </div>
+              <button
+                type="button"
+                disabled={busy === 'coinflip'}
+                onClick={() =>
+                  void onRun('coinflip', () => runCoinflipAction({ action: 'flip', call }))
+                }
+              >
+                Flip coin
+              </button>
+            </>
+          ) : null}
+          {coinflip ? (
+            <button
+              type="button"
+              className="danger-button"
+              disabled={busy === 'coinflip-reset'}
+              onClick={() =>
+                void onRun('coinflip-reset', () => runCoinflipAction({ action: 'reset' }))
+              }
+            >
+              Reset
+            </button>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="coinflip-settings-heading">
+        <strong>Settings</strong>
+      </div>
       <div className="coinflip-grid">
         <div className="coinflip-card">
           <strong>Available options</strong>
@@ -1609,54 +1871,6 @@ function CoinflipControls({
               />
             </div>
           </div>
-          <button
-            type="button"
-            disabled={busy === 'coinflip-options' || completed || !availableSides.length}
-            onClick={() =>
-              void onRun('coinflip-options', () =>
-                runCoinflipAction({ action: 'options', availableFactions, availableSides }),
-              )
-            }
-          >
-            Save options
-          </button>
-        </div>
-
-        <div className="coinflip-card">
-          <strong>Call</strong>
-          <p>{caller ? `${caller.teamName} calls the coin.` : 'Select a caller first.'}</p>
-          <div className="segmented-control">
-            <button
-              type="button"
-              className={call === 'heads' ? 'active' : ''}
-              disabled={!pending}
-              onClick={() => setCall('heads')}
-            >
-              Heads
-            </button>
-            <button
-              type="button"
-              className={call === 'tails' ? 'active' : ''}
-              disabled={!pending}
-              onClick={() => setCall('tails')}
-            >
-              Tails
-            </button>
-          </div>
-          <button
-            type="button"
-            disabled={busy === 'coinflip' || !pending}
-            onClick={() =>
-              void onRun('coinflip', () => runCoinflipAction({ action: 'flip', call }))
-            }
-          >
-            Flip coin
-          </button>
-          {coinflip?.result ? (
-            <small>
-              {coinflip.result.toUpperCase()} won. {winner?.teamName ?? 'Winning team'} chooses.
-            </small>
-          ) : null}
         </div>
 
         <div className="coinflip-card">
@@ -1710,22 +1924,6 @@ function CoinflipControls({
               </select>
             </label>
           )}
-          <button
-            type="button"
-            disabled={busy === 'coinflip-choice' || !completed}
-            onClick={() =>
-              void onRun('coinflip-choice', () =>
-                runCoinflipAction({
-                  action: 'choice',
-                  choiceType,
-                  faction: chosenFaction,
-                  startingSide,
-                }),
-              )
-            }
-          >
-            Save choice
-          </button>
         </div>
       </div>
 
@@ -1733,24 +1931,6 @@ function CoinflipControls({
         <div className="assignment-panel">
           <div className="assignment-heading">
             <strong>Team assignments</strong>
-            <button
-              type="button"
-              disabled={busy === 'coinflip-assignments'}
-              onClick={() =>
-                void onRun('coinflip-assignments', () =>
-                  runCoinflipAction({
-                    action: 'assignments',
-                    assignments: event.teams.map((team) => ({
-                      teamId: team.id,
-                      faction: assignments[team.id]?.faction ?? '',
-                      startingSide: assignments[team.id]?.startingSide ?? '',
-                    })),
-                  }),
-                )
-              }
-            >
-              Save assignments
-            </button>
           </div>
           <div className="assignment-grid">
             {event.teams.map((team) => {
@@ -1806,11 +1986,24 @@ function CoinflipControls({
           </div>
         </div>
       ) : null}
+      <div className="admin-section-footer">
+        <button
+          type="button"
+          disabled={
+            busy === 'coinflip-settings' ||
+            !hasCoinflipSettingChanges ||
+            (optionsChanged && (!availableFactions.length || !availableSides.length))
+          }
+          onClick={() => void onRun('coinflip-settings', saveCoinflipSettings)}
+        >
+          Save coinflip settings
+        </button>
+      </div>
     </AdminSection>
   )
 }
 
-function EventResultControls({
+function RoundControls({
   event,
   busy,
   onRun,
@@ -1821,15 +2014,23 @@ function EventResultControls({
   onRun: (label: string, action: () => Promise<unknown>) => Promise<void>
   onEvent: (event: HammaEvent) => void
 }) {
-  const [streamUrl, setStreamUrl] = useState(event.twitchStreamUrl ?? '')
-  const [vodUrl, setVodUrl] = useState(event.twitchVodUrl ?? '')
+  const [roundCount, setRoundCount] = useState(event.roundCount.toString())
+  const [roundDurationMinutes, setRoundDurationMinutes] = useState(
+    Math.max(1, Math.round(event.roundDurationSeconds / 60)).toString(),
+  )
+  const [roundResults, setRoundResults] = useState(() => buildRoundResultState(event))
   const [scoreTeamId, setScoreTeamId] = useState(event.teams[0]?.id ?? '')
   const [scoreDelta, setScoreDelta] = useState('1')
   const [winningTeamId, setWinningTeamId] = useState(getDefaultEventWinnerId(event))
+  const draftLocked = event.rounds.length > 0
+  const nextRoundNumber = event.rounds.length + 1
+  const canStartRound = nextRoundNumber <= event.roundCount
+  const changedRoundResults = getChangedRoundResults(event, roundResults)
 
   useEffect(() => {
-    setStreamUrl(event.twitchStreamUrl ?? '')
-    setVodUrl(event.twitchVodUrl ?? '')
+    setRoundCount(event.roundCount.toString())
+    setRoundDurationMinutes(Math.max(1, Math.round(event.roundDurationSeconds / 60)).toString())
+    setRoundResults(buildRoundResultState(event))
     setScoreTeamId((current) =>
       event.teams.some((team) => team.id === current) ? current : event.teams[0]?.id ?? '',
     )
@@ -1849,6 +2050,14 @@ function EventResultControls({
     return result
   }
 
+  async function saveRoundSettings() {
+    return postResult({ roundCount, roundDurationMinutes })
+  }
+
+  async function startRound() {
+    return postResult({ startRound: true })
+  }
+
   async function adjustScore() {
     const result = await postResult({ teamId: scoreTeamId, delta: Number(scoreDelta) })
     setScoreTeamId(event.teams[0]?.id ?? '')
@@ -1856,44 +2065,139 @@ function EventResultControls({
     return result
   }
 
+  async function saveRoundResults() {
+    let result: unknown = { ok: true, message: 'No round results to save.', event }
+
+    for (const round of changedRoundResults) {
+      result = await postResult({
+        roundNumber: round.roundNumber,
+        roundWinningTeamId: round.winningTeamId,
+        roundResultNote: round.resultNote,
+      })
+    }
+
+    if (isEventResult(result)) {
+      return {
+        ...result,
+        message: `${changedRoundResults.length} round result${
+          changedRoundResults.length === 1 ? '' : 's'
+        } saved.`,
+      }
+    }
+
+    return result
+  }
+
   return (
-    <AdminSection id="admin-results" title="Streams and results">
-      <div className="event-result-grid">
-        <div className="event-result-card">
-          <strong>Twitch links</strong>
-          <label>
-            Live stream
-            <input
-              type="url"
-              value={streamUrl}
-              placeholder="https://www.twitch.tv/..."
-              onChange={(event) => setStreamUrl(event.currentTarget.value)}
-            />
-          </label>
-          <label>
-            VOD
-            <input
-              type="url"
-              value={vodUrl}
-              placeholder="https://www.twitch.tv/videos/..."
-              onChange={(event) => setVodUrl(event.currentTarget.value)}
-            />
-          </label>
+    <AdminSection id="admin-rounds" title="Rounds">
+      <div className="round-flow-panel">
+        <div>
+          <strong>
+            {canStartRound ? `Round ${nextRoundNumber} ready` : 'All rounds started'}
+          </strong>
+          <p>
+            {event.rounds.length
+              ? `${event.rounds.length} of ${event.roundCount} rounds started.`
+              : 'Starting round 1 locks the draft for captains and admins.'}
+          </p>
+        </div>
+        <div className="round-flow-actions">
           <button
             type="button"
-            disabled={busy === 'event-links'}
-            onClick={() =>
-              void onRun('event-links', () =>
-                postResult({ twitchStreamUrl: streamUrl, twitchVodUrl: vodUrl }),
-              )
-            }
+            disabled={busy === 'round-start' || !canStartRound}
+            onClick={() => void onRun('round-start', startRound)}
           >
-            Save links
+            {canStartRound ? `Start round ${nextRoundNumber}` : 'All rounds started'}
           </button>
+        </div>
+      </div>
+      <div className="event-result-grid round-admin-grid">
+        <div className="event-result-card">
+          <strong>Round setup</strong>
+          <label>
+            Rounds
+            <input
+              type="number"
+              min="1"
+              max="20"
+              step="1"
+              value={roundCount}
+              disabled={draftLocked}
+              onChange={(event) => setRoundCount(event.currentTarget.value)}
+            />
+          </label>
+          <label>
+            Minutes per round
+            <input
+              type="number"
+              min="1"
+              max="240"
+              step="1"
+              value={roundDurationMinutes}
+              disabled={draftLocked}
+              onChange={(event) => setRoundDurationMinutes(event.currentTarget.value)}
+            />
+          </label>
+          {draftLocked ? <small>Round setup is locked after round 1 starts.</small> : null}
+        </div>
+
+        <div className="event-result-card round-list-card">
+          <strong>Round results</strong>
+          {event.rounds.length ? (
+            <div className="round-result-list">
+              {event.rounds.map((round) => {
+                const result = roundResults[round.roundNumber] ?? {
+                  winningTeamId: '',
+                  resultNote: '',
+                }
+                return (
+                  <div className="round-result-row" key={round.roundNumber}>
+                    <span>Round {round.roundNumber}</span>
+                    <select
+                      value={result.winningTeamId}
+                      onChange={(changeEvent) => {
+                        const winningTeamId = changeEvent.currentTarget.value
+                        setRoundResults((current) => ({
+                          ...current,
+                          [round.roundNumber]: {
+                            ...result,
+                            winningTeamId,
+                          },
+                        }))
+                      }}
+                    >
+                      <option value="">No winner</option>
+                      {event.teams.map((team) => (
+                        <option key={team.id} value={team.id}>
+                          {team.teamName}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      value={result.resultNote}
+                      placeholder="Result note"
+                      onChange={(changeEvent) => {
+                        const resultNote = changeEvent.currentTarget.value
+                        setRoundResults((current) => ({
+                          ...current,
+                          [round.roundNumber]: {
+                            ...result,
+                            resultNote,
+                          },
+                        }))
+                      }}
+                    />
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <small>No rounds have been started.</small>
+          )}
         </div>
 
         <div className="event-result-card">
-          <strong>Score</strong>
+          <strong>Score adjustments</strong>
           <label>
             Team
             <select
@@ -1957,179 +2261,21 @@ function EventResultControls({
           </button>
         </div>
       </div>
-    </AdminSection>
-  )
-}
-
-function RoundControls({
-  event,
-  busy,
-  onRun,
-  onEvent,
-}: {
-  event: HammaEvent
-  busy?: string
-  onRun: (label: string, action: () => Promise<unknown>) => Promise<void>
-  onEvent: (event: HammaEvent) => void
-}) {
-  const [roundCount, setRoundCount] = useState(event.roundCount.toString())
-  const [roundDurationMinutes, setRoundDurationMinutes] = useState(
-    Math.max(1, Math.round(event.roundDurationSeconds / 60)).toString(),
-  )
-  const [roundResults, setRoundResults] = useState(() => buildRoundResultState(event))
-  const draftLocked = event.rounds.length > 0
-  const nextRoundNumber = event.rounds.length + 1
-  const canStartRound = nextRoundNumber <= event.roundCount
-
-  useEffect(() => {
-    setRoundCount(event.roundCount.toString())
-    setRoundDurationMinutes(Math.max(1, Math.round(event.roundDurationSeconds / 60)).toString())
-    setRoundResults(buildRoundResultState(event))
-  }, [event])
-
-  async function postResult(body: Record<string, unknown>) {
-    const result = await postAdminJson('/api/admin/result', { eventId: event.id, ...body })
-    if (isEventResult(result) && result.event) onEvent(result.event)
-    return result
-  }
-
-  async function saveRoundSettings() {
-    return postResult({ roundCount, roundDurationMinutes })
-  }
-
-  async function startRound() {
-    return postResult({ startRound: true })
-  }
-
-  async function saveRoundResult(roundNumber: number) {
-    const result = roundResults[roundNumber] ?? { winningTeamId: '', resultNote: '' }
-    return postResult({
-      roundNumber,
-      roundWinningTeamId: result.winningTeamId,
-      roundResultNote: result.resultNote,
-    })
-  }
-
-  return (
-    <AdminSection id="admin-rounds" title="Rounds">
-      <div className="event-result-grid round-admin-grid">
-        <div className="event-result-card">
-          <strong>Round setup</strong>
-          <label>
-            Rounds
-            <input
-              type="number"
-              min="1"
-              max="20"
-              step="1"
-              value={roundCount}
-              disabled={draftLocked}
-              onChange={(event) => setRoundCount(event.currentTarget.value)}
-            />
-          </label>
-          <label>
-            Minutes per round
-            <input
-              type="number"
-              min="1"
-              max="240"
-              step="1"
-              value={roundDurationMinutes}
-              disabled={draftLocked}
-              onChange={(event) => setRoundDurationMinutes(event.currentTarget.value)}
-            />
-          </label>
-          <button
-            type="button"
-            disabled={busy === 'round-settings' || draftLocked}
-            onClick={() => void onRun('round-settings', saveRoundSettings)}
-          >
-            Save round setup
-          </button>
-          {draftLocked ? <small>Round setup is locked after round 1 starts.</small> : null}
-        </div>
-
-        <div className="event-result-card">
-          <strong>Round control</strong>
-          <p>
-            {event.rounds.length
-              ? `${event.rounds.length} of ${event.roundCount} rounds started.`
-              : 'Starting round 1 locks the draft for captains and admins.'}
-          </p>
-          <button
-            type="button"
-            disabled={busy === 'round-start' || !canStartRound}
-            onClick={() => void onRun('round-start', startRound)}
-          >
-            {canStartRound ? `Start round ${nextRoundNumber}` : 'All rounds started'}
-          </button>
-        </div>
-
-        <div className="event-result-card round-list-card">
-          <strong>Round results</strong>
-          {event.rounds.length ? (
-            <div className="round-result-list">
-              {event.rounds.map((round) => {
-                const result = roundResults[round.roundNumber] ?? {
-                  winningTeamId: '',
-                  resultNote: '',
-                }
-                return (
-                  <div className="round-result-row" key={round.roundNumber}>
-                    <span>Round {round.roundNumber}</span>
-                    <select
-                      value={result.winningTeamId}
-                      onChange={(changeEvent) => {
-                        const winningTeamId = changeEvent.currentTarget.value
-                        setRoundResults((current) => ({
-                          ...current,
-                          [round.roundNumber]: {
-                            ...result,
-                            winningTeamId,
-                          },
-                        }))
-                      }}
-                    >
-                      <option value="">No winner</option>
-                      {event.teams.map((team) => (
-                        <option key={team.id} value={team.id}>
-                          {team.teamName}
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      value={result.resultNote}
-                      placeholder="Result note"
-                      onChange={(changeEvent) => {
-                        const resultNote = changeEvent.currentTarget.value
-                        setRoundResults((current) => ({
-                          ...current,
-                          [round.roundNumber]: {
-                            ...result,
-                            resultNote,
-                          },
-                        }))
-                      }}
-                    />
-                    <button
-                      type="button"
-                      disabled={busy === `round-result-${round.roundNumber}`}
-                      onClick={() =>
-                        void onRun(`round-result-${round.roundNumber}`, () =>
-                          saveRoundResult(round.roundNumber),
-                        )
-                      }
-                    >
-                      Save
-                    </button>
-                  </div>
-                )
-              })}
-            </div>
-          ) : (
-            <small>No rounds have been started.</small>
-          )}
-        </div>
+      <div className="admin-section-footer">
+        <button
+          type="button"
+          disabled={busy === 'round-settings' || draftLocked}
+          onClick={() => void onRun('round-settings', saveRoundSettings)}
+        >
+          Save round setup
+        </button>
+        <button
+          type="button"
+          disabled={busy === 'round-results' || !changedRoundResults.length}
+          onClick={() => void onRun('round-results', saveRoundResults)}
+        >
+          Save round results
+        </button>
       </div>
     </AdminSection>
   )
@@ -2145,6 +2291,30 @@ function buildRoundResultState(event: HammaEvent) {
       },
     ]),
   )
+}
+
+function getChangedRoundResults(
+  event: HammaEvent,
+  roundResults: Record<number, { winningTeamId: string; resultNote: string }>,
+) {
+  return event.rounds.flatMap((round) => {
+    const result = roundResults[round.roundNumber]
+    if (!result) return []
+
+    const changed =
+      result.winningTeamId !== (round.winningTeamId ?? '') ||
+      result.resultNote !== (round.resultNote ?? '')
+
+    return changed
+      ? [
+          {
+            roundNumber: round.roundNumber,
+            winningTeamId: result.winningTeamId,
+            resultNote: result.resultNote,
+          },
+        ]
+      : []
+  })
 }
 
 function getDefaultEventWinnerId(event: HammaEvent) {
@@ -2177,6 +2347,26 @@ function buildAssignmentState(event: HammaEvent) {
       },
     ]),
   )
+}
+
+function getChangedCoinflipAssignments(
+  event: HammaEvent,
+  assignments: Record<string, { faction: string; startingSide: string }>,
+) {
+  return event.teams.flatMap((team) => {
+    const assignment = assignments[team.id]
+    if (!assignment) return []
+
+    const changed =
+      assignment.faction !== (team.faction ?? '') ||
+      assignment.startingSide !== (team.startingSide ?? '')
+
+    return changed ? [{ team, assignment }] : []
+  })
+}
+
+function sameStringList(left: string[], right: string[]) {
+  return left.length === right.length && left.every((item, index) => item === right[index])
 }
 
 function unclaimedAssignmentOptions(
@@ -2286,58 +2476,41 @@ function mergeEventOptions(options: HammaEvent[], event: HammaEvent) {
 }
 
 function TeamForm({
-  eventId,
   team,
   players,
-  busy,
-  onSaved,
+  draft,
+  disabled,
+  onDraft,
 }: {
-  eventId: string
   team: Team
   players: Player[]
-  busy: boolean
-  onSaved: (event: HammaEvent) => void
+  draft?: TeamDraft
+  disabled: boolean
+  onDraft: (patch: Partial<TeamDraft>) => void
 }) {
-  const [name, setName] = useState(team.teamName)
-  const [captainDiscordId, setCaptainDiscordId] = useState(team.captainDiscordId)
-  const [score, setScore] = useState(team.score.toString())
-  const [message, setMessage] = useState<string>()
-
-  useEffect(() => {
-    setName(team.teamName)
-    setCaptainDiscordId(team.captainDiscordId)
-    setScore(team.score.toString())
-    setMessage(undefined)
-  }, [team])
-
-  async function save() {
-    setMessage(undefined)
-    const result = await postAdminJson('/api/admin/team/update', {
-      eventId,
-      teamId: team.id,
-      name,
-      captainDiscordId,
-      score: Number(score),
-    })
-    if (isEventResult(result)) onSaved(result.event)
-    setMessage(summarizeResult(result))
-  }
-
   const sortedPlayers = [...players].sort(
     (a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }) || a.id.localeCompare(b.id),
   )
+  const name = draft?.name ?? team.teamName
+  const captainDiscordId = draft?.captainDiscordId ?? team.captainDiscordId
+  const score = draft?.score ?? team.score.toString()
 
   return (
     <article className="team-admin-card">
       <label>
         Team name
-        <input value={name} onChange={(event) => setName(event.currentTarget.value)} />
+        <input
+          value={name}
+          disabled={disabled}
+          onChange={(event) => onDraft({ name: event.currentTarget.value })}
+        />
       </label>
       <label>
         Team
         <select
           value={captainDiscordId}
-          onChange={(event) => setCaptainDiscordId(event.currentTarget.value)}
+          disabled={disabled}
+          onChange={(event) => onDraft({ captainDiscordId: event.currentTarget.value })}
         >
           <option value="">Unassigned</option>
           {sortedPlayers.map((player) => (
@@ -2353,14 +2526,11 @@ function TeamForm({
           <input
             type="number"
             value={score}
-            onChange={(event) => setScore(event.currentTarget.value)}
+            disabled={disabled}
+            onChange={(event) => onDraft({ score: event.currentTarget.value })}
           />
         </label>
       </div>
-      <button type="button" disabled={busy} onClick={() => void save()}>
-        Save team
-      </button>
-      {message ? <small>{message}</small> : null}
     </article>
   )
 }

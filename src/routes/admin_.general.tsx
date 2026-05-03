@@ -62,11 +62,7 @@ function GeneralAdmin() {
   }
 
   return (
-    <main>
-      <div className="admin-page-header">
-        <p className="eyebrow">Admin</p>
-        <h1>General Controls</h1>
-      </div>
+    <main className="admin-main">
       <AdminLayout sections={GENERAL_SECTIONS}>
         <GeneralAdminTools event={event} currentEvents={currentEvents} />
       </AdminLayout>

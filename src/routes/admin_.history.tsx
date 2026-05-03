@@ -11,6 +11,8 @@ const EVENT_TROPHY_OPTIONS: Array<{ id: EventTrophyId; label: string }> = [
   { id: 'hamma-dome-biolab', label: 'Hamma Dome I - Bitol Bio' },
 ]
 
+type HistoricalAdminAction = Record<string, unknown>
+
 const loadHistoricalAdmin = createServerFn({ method: 'GET' }).handler(async () => {
   const { getDiscordSessionUser } = await import('../lib/discord.server')
   const { getAdminHistoricalEvents } = await import('../lib/db.server')
@@ -72,25 +74,35 @@ function HistoricalAdmin() {
     setParticipants(initial.participants)
   }, [initial.events, initial.participants])
 
-  async function run(body: Record<string, unknown>) {
+  async function run(body: HistoricalAdminAction | HistoricalAdminAction[]) {
     setBusy(true)
     setMessage(undefined)
+    const actions = Array.isArray(body) ? body : [body]
     try {
-      const response = await fetch('/api/admin/history', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      })
-      if (!response.ok) throw new Error(await response.text())
-      const payload = (await response.json()) as {
+      let payload: {
         message?: string
         events: HistoricalEvent[]
         participants: RegisteredParticipant[]
+      } | undefined
+
+      for (const action of actions) {
+        const response = await fetch('/api/admin/history', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(action),
+        })
+        if (!response.ok) throw new Error(await response.text())
+        payload = (await response.json()) as {
+          message?: string
+          events: HistoricalEvent[]
+          participants: RegisteredParticipant[]
+        }
+        setEvents(payload.events)
+        setParticipants(payload.participants)
       }
-      setEvents(payload.events)
-      setParticipants(payload.participants)
-      setMessage(payload.message ?? 'Saved.')
-      if (body.action === 'create-event') {
+
+      setMessage(actions.length > 1 ? `${actions.length} changes saved.` : payload?.message ?? 'Saved.')
+      if (actions.some((action) => action.action === 'create-event')) {
         setNewEvent({ name: '', startsAt: new Date().toISOString().slice(0, 16), server: 'Manual' })
       }
       return true
@@ -103,7 +115,7 @@ function HistoricalAdmin() {
   }
 
   return (
-    <main>
+    <main className="admin-main">
       {!initial.authorized ? (
         <section className="panel empty-state">
           <h1>Admin access required</h1>
@@ -112,10 +124,6 @@ function HistoricalAdmin() {
       ) : null}
       {initial.authorized ? (
       <>
-      <div className="admin-page-header">
-        <p className="eyebrow">Admin</p>
-        <h1>Historical Events</h1>
-      </div>
       <AdminLayout sections={historySections}>
       <section className="panel">
         <div className="section-heading">
@@ -201,7 +209,7 @@ function HistoricalEventEditor({
   event: HistoricalEvent
   participants: RegisteredParticipant[]
   busy: boolean
-  onRun: (body: Record<string, unknown>) => Promise<boolean>
+  onRun: (body: HistoricalAdminAction | HistoricalAdminAction[]) => Promise<boolean>
 }) {
   const [nameOverride, setNameOverride] = useState(event.nameOverride ?? event.name)
   const [startsAt, setStartsAt] = useState(toLocalDateTimeValue(event.date))
@@ -211,6 +219,72 @@ function HistoricalEventEditor({
   const [vodUrl, setVodUrl] = useState(event.twitchVodUrl ?? '')
   const [lore, setLore] = useState(event.lore ?? '')
   const [newTeam, setNewTeam] = useState({ name: '', score: '0', captainDiscordId: '', captainName: '' })
+  const [teamDrafts, setTeamDrafts] = useState<Record<string, HistoricalTeamDraft>>(() =>
+    createHistoricalTeamDrafts(event.teams, participants),
+  )
+  const eventDetailsChanged =
+    nameOverride !== (event.nameOverride ?? event.name) ||
+    startsAt !== toLocalDateTimeValue(event.date) ||
+    server !== event.server ||
+    trophyId !== event.trophyId ||
+    streamUrl !== (event.twitchStreamUrl ?? '') ||
+    vodUrl !== (event.twitchVodUrl ?? '') ||
+    lore !== (event.lore ?? '')
+  const changedTeams = getChangedHistoricalTeamDrafts(event.teams, teamDrafts, participants)
+
+  useEffect(() => {
+    setNameOverride(event.nameOverride ?? event.name)
+    setStartsAt(toLocalDateTimeValue(event.date))
+    setServer(event.server)
+    setTrophyId(event.trophyId)
+    setStreamUrl(event.twitchStreamUrl ?? '')
+    setVodUrl(event.twitchVodUrl ?? '')
+    setLore(event.lore ?? '')
+    setTeamDrafts(createHistoricalTeamDrafts(event.teams, participants))
+  }, [event, participants])
+
+  function updateTeamDraft(teamId: string, patch: Partial<HistoricalTeamDraft>) {
+    setTeamDrafts((current) => {
+      const team = event.teams.find((candidate) => candidate.id === teamId)
+      const draft = current[teamId] ?? createHistoricalTeamDraft(team, participants)
+      return {
+        ...current,
+        [teamId]: { ...draft, ...patch },
+      }
+    })
+  }
+
+  function saveEventChanges() {
+    const actions: HistoricalAdminAction[] = []
+
+    if (eventDetailsChanged) {
+      actions.push({
+        action: 'update-event',
+        eventId: event.id,
+        nameOverride,
+        startsAt,
+        server,
+        trophyId,
+        twitchStreamUrl: streamUrl,
+        twitchVodUrl: vodUrl,
+        lore,
+      })
+    }
+
+    for (const { team, draft } of changedTeams) {
+      actions.push({
+        action: 'upsert-team',
+        eventId: event.id,
+        teamId: team.id,
+        name: draft.name,
+        score: Number(draft.score),
+        captainDiscordId: draft.captainDiscordId,
+        captainName: draft.captainName,
+      })
+    }
+
+    return onRun(actions)
+  }
 
   return (
     <article className="admin-section history-admin-event" id={historyEventSectionId(event.id)}>
@@ -219,9 +293,11 @@ function HistoricalEventEditor({
           <h2>{event.name}</h2>
           <p>{shortDate(event.date)}</p>
         </div>
-        <Link to="/hall-of-legends/$eventId" params={{ eventId: event.id }}>
-          View
-        </Link>
+        <div className="button-row">
+          <Link to="/hall-of-legends/$eventId" params={{ eventId: event.id }}>
+            View
+          </Link>
+        </div>
       </div>
       <div className="admin-section-body">
         <div className="history-admin-grid">
@@ -263,25 +339,6 @@ function HistoricalEventEditor({
           Lore
           <textarea value={lore} onChange={(event) => setLore(event.currentTarget.value)} />
         </label>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() =>
-            void onRun({
-              action: 'update-event',
-              eventId: event.id,
-              nameOverride,
-              startsAt,
-              server,
-              trophyId,
-              twitchStreamUrl: streamUrl,
-              twitchVodUrl: vodUrl,
-              lore,
-            })
-          }
-        >
-          Save event
-        </button>
 
         <div className="history-team-grid">
           {event.teams.map((team) => (
@@ -291,6 +348,8 @@ function HistoricalEventEditor({
               team={team}
               participants={participants}
               busy={busy}
+              draft={teamDrafts[team.id]}
+              onDraft={(patch) => updateTeamDraft(team.id, patch)}
               onRun={onRun}
             />
           ))}
@@ -354,6 +413,15 @@ function HistoricalEventEditor({
             Add team
           </button>
         </div>
+        <div className="admin-section-footer">
+          <button
+            type="button"
+            disabled={busy || (!eventDetailsChanged && !changedTeams.length)}
+            onClick={() => void saveEventChanges()}
+          >
+            Save event changes
+          </button>
+        </div>
       </div>
     </article>
   )
@@ -363,26 +431,83 @@ function historyEventSectionId(eventId: string) {
   return `admin-history-event-${eventId}`
 }
 
+interface HistoricalTeamDraft {
+  name: string
+  score: string
+  captainDiscordId: string
+  captainName: string
+}
+
+function createHistoricalTeamDraft(
+  team: HistoricalEvent['teams'][number] | undefined,
+  participants: RegisteredParticipant[],
+): HistoricalTeamDraft {
+  return {
+    name: team?.name ?? '',
+    score: team?.score.toString() ?? '0',
+    captainDiscordId: team ? getHistoricalCaptainDiscordId(team, participants) : '',
+    captainName: team?.captain ?? '',
+  }
+}
+
+function createHistoricalTeamDrafts(
+  teams: HistoricalEvent['teams'],
+  participants: RegisteredParticipant[],
+) {
+  return Object.fromEntries(
+    teams.map((team) => [team.id, createHistoricalTeamDraft(team, participants)]),
+  )
+}
+
+function getChangedHistoricalTeamDrafts(
+  teams: HistoricalEvent['teams'],
+  drafts: Record<string, HistoricalTeamDraft>,
+  participants: RegisteredParticipant[],
+) {
+  return teams.flatMap((team) => {
+    const draft = drafts[team.id]
+    if (!draft) return []
+
+    const changed =
+      draft.name !== team.name ||
+      Number(draft.score) !== team.score ||
+      draft.captainDiscordId !== getHistoricalCaptainDiscordId(team, participants) ||
+      draft.captainName !== (team.captain ?? '')
+
+    return changed ? [{ team, draft }] : []
+  })
+}
+
+function getHistoricalCaptainDiscordId(
+  team: HistoricalEvent['teams'][number],
+  participants: RegisteredParticipant[],
+) {
+  return participants.find((participant) => participant.name === team.captain)?.discordId ?? ''
+}
+
 function HistoricalTeamEditor({
   eventId,
   team,
   participants,
   busy,
+  draft,
+  onDraft,
   onRun,
 }: {
   eventId: string
   team: HistoricalEvent['teams'][number]
   participants: RegisteredParticipant[]
   busy: boolean
-  onRun: (body: Record<string, unknown>) => Promise<boolean>
+  draft?: HistoricalTeamDraft
+  onDraft: (patch: Partial<HistoricalTeamDraft>) => void
+  onRun: (body: HistoricalAdminAction | HistoricalAdminAction[]) => Promise<boolean>
 }) {
-  const captain = participants.find((participant) => participant.name === team.captain)
-  const [name, setName] = useState(team.name)
-  const [score, setScore] = useState(team.score.toString())
-  const [captainDiscordId, setCaptainDiscordId] = useState(captain?.discordId ?? '')
-  const [captainName, setCaptainName] = useState(team.captain ?? '')
   const [memberDiscordId, setMemberDiscordId] = useState('')
   const [memberName, setMemberName] = useState('')
+  const name = draft?.name ?? team.name
+  const score = draft?.score ?? team.score.toString()
+  const captainDiscordId = draft?.captainDiscordId ?? getHistoricalCaptainDiscordId(team, participants)
+  const captainName = draft?.captainName ?? team.captain ?? ''
 
   return (
     <section className={`history-team${team.winner ? ' winner' : ''}`}>
@@ -392,40 +517,32 @@ function HistoricalTeamEditor({
       </div>
       <label>
         Team name
-        <input value={name} onChange={(event) => setName(event.currentTarget.value)} />
+        <input value={name} disabled={busy} onChange={(event) => onDraft({ name: event.currentTarget.value })} />
       </label>
       <label>
         Score
-        <input type="number" value={score} onChange={(event) => setScore(event.currentTarget.value)} />
+        <input
+          type="number"
+          value={score}
+          disabled={busy}
+          onChange={(event) => onDraft({ score: event.currentTarget.value })}
+        />
       </label>
       <ParticipantPicker
         participants={participants}
         value={captainDiscordId}
-        onChange={setCaptainDiscordId}
+        onChange={(captainDiscordId) => onDraft({ captainDiscordId })}
         label="Team"
       />
       <label>
         Team name
-        <input value={captainName} onChange={(event) => setCaptainName(event.currentTarget.value)} />
+        <input
+          value={captainName}
+          disabled={busy}
+          onChange={(event) => onDraft({ captainName: event.currentTarget.value })}
+        />
       </label>
       <div className="button-row left">
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() =>
-            void onRun({
-              action: 'upsert-team',
-              eventId,
-              teamId: team.id,
-              name,
-              score: Number(score),
-              captainDiscordId,
-              captainName,
-            })
-          }
-        >
-          Save team
-        </button>
         <button
           type="button"
           disabled={busy}
