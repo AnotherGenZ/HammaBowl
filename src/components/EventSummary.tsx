@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { CalendarClock, Swords, UserCheck, type LucideIcon } from 'lucide-react'
-import { money, percent, shortDateWithTimeZone } from '../lib/format'
+import { money, shortDateWithTimeZone } from '../lib/format'
 import { buildTeamLedgers } from '../lib/rules'
 import type { HammaEvent } from '../lib/types'
 import { Countdown } from './Countdown'
@@ -23,6 +23,7 @@ export function EventSummary({ event }: { event: HammaEvent }) {
   return (
     <section className="event-hero">
       <div>
+        <p className="eyebrow">{isComplete ? 'Completed event' : 'Current event'}</p>
         <h1>{event.name}</h1>
         {event.eventDescription ? (
           <p className="event-description">{event.eventDescription}</p>
@@ -68,6 +69,7 @@ export function EventSummary({ event }: { event: HammaEvent }) {
           </div>
         ) : null}
       </div>
+
       {isComplete && completedLedger ? (
         <CompletedEventShowcase event={event} ledger={completedLedger} />
       ) : (
@@ -80,62 +82,37 @@ export function EventSummary({ event }: { event: HammaEvent }) {
           roundNumber={latestRound?.roundNumber}
         />
       )}
+
       {isComplete ? null : matchStarted ? (
-        <RoundProgress event={event} />
+        <div>
+          <p className="event-section-label">Round progress</p>
+          <RoundProgress event={event} />
+        </div>
       ) : (
         <div className="stat-strip">
-          <Metric label="Salary pool" value={money(event.salaryPool)} />
-          <Metric label="Signups" value={event.players.length.toString()} />
-          <Metric label="Pending Players" value={event.pendingPlayerCount.toString()} />
-          <Metric label="Drafted" value={`${drafted}/${event.players.length}`} />
+          <StatPill label="Salary pool" value={money(event.salaryPool)} accent />
+          <StatPill label="Signups" value={event.players.length.toString()} />
+          <StatPill label="Pending" value={event.pendingPlayerCount.toString()} />
+          <StatPill label="Drafted" value={`${drafted}/${event.players.length}`} />
         </div>
       )}
+
       {isComplete ? null : ledgers.length ? (
-        <div className={`team-grid${matchStarted ? ' live-team-grid' : ''}`}>
+        <div className="team-grid">
           {ledgers.map((ledger) => {
-            const memberCount = ledger.picks.length + (ledger.captainPlayer ? 1 : 0)
             const members = [
               ...(ledger.captainPlayer ? [{ player: ledger.captainPlayer, label: 'Captain' }] : []),
               ...ledger.picks.map((pick) => ({ player: pick.player, label: undefined })),
             ]
             return (
-          <article className="team-panel summary-team-panel" key={ledger.team.id}>
-            <div className="summary-team-heading">
-              <h2>{ledger.team.teamName}</h2>
-              {matchStarted ? <strong className="score">{ledger.team.score}</strong> : null}
-            </div>
-            {matchStarted ? (
-              <ul className="public-team-roster">
-                {members.map((member) => (
-                  <li key={member.player.id}>
-                    <Link to="/players/$discordId" params={{ discordId: member.player.id }}>
-                      {member.player.name}
-                    </Link>
-                    {member.label ? <small>{member.label}</small> : null}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <dl>
-                <div>
-                  <dt>Members</dt>
-                  <dd>{memberCount}</dd>
-                </div>
-                <div>
-                  <dt>Budget</dt>
-                  <dd>{money(ledger.budgetRemaining)}</dd>
-                </div>
-                <div>
-                  <dt>Bonus cap</dt>
-                  <dd>{money(ledger.bonusRemaining)}</dd>
-                </div>
-                <div>
-                  <dt>Committed</dt>
-                  <dd>{percent(ledger.salarySpent / ledger.team.budget)}</dd>
-                </div>
-              </dl>
-            )}
-          </article>
+              <TeamPanel
+                key={ledger.team.id}
+                team={ledger.team}
+                members={members}
+                matchStarted={matchStarted}
+                budget={ledger.budgetRemaining}
+                bonusCap={ledger.bonusRemaining}
+              />
             )
           })}
         </div>
@@ -145,6 +122,70 @@ export function EventSummary({ event }: { event: HammaEvent }) {
 }
 
 type EventLedger = ReturnType<typeof buildTeamLedgers>[number]
+
+/* ── Stat pill ───────────────────────────────────────────────── */
+
+function StatPill({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <div className={`stat-pill${accent ? ' stat-pill-accent' : ''}`}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  )
+}
+
+/* ── Team panel ──────────────────────────────────────────────── */
+
+function TeamPanel({
+  team,
+  members,
+  matchStarted,
+  budget,
+  bonusCap,
+}: {
+  team: HammaEvent['teams'][number]
+  members: Array<{ player: { id: string; name: string }; label?: string }>
+  matchStarted: boolean
+  budget: number
+  bonusCap: number
+}) {
+  const factionClass = team.faction ? `team-panel-${team.faction.toLowerCase()}` : ''
+
+  return (
+    <article className={`team-panel summary-team-panel ${factionClass}`}>
+      <div className="summary-team-heading">
+        {team.faction ? <span className={`team-faction-chip faction-${team.faction.toLowerCase()}`}>{team.faction}</span> : null}
+        <h2>{team.teamName}</h2>
+        {matchStarted ? <strong className="team-live-score">{team.score}</strong> : null}
+      </div>
+      {matchStarted ? (
+        <div className="team-roster-grid">
+          {members.map((member) => (
+            <div key={member.player.id} className="team-roster-member">
+              <Link to="/players/$discordId" params={{ discordId: member.player.id }}>
+                {member.player.name}
+              </Link>
+              {member.label ? <small>{member.label}</small> : null}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="team-budget-grid">
+          <div className="team-budget-card">
+            <span>Budget</span>
+            <strong>{money(budget)}</strong>
+          </div>
+          <div className="team-budget-card">
+            <span>Bonus cap</span>
+            <strong>{money(bonusCap)}</strong>
+          </div>
+        </div>
+      )}
+    </article>
+  )
+}
+
+/* ── Completed showcase ──────────────────────────────────────── */
 
 function CompletedEventShowcase({ event, ledger }: { event: HammaEvent; ledger: EventLedger }) {
   const losingScore = Math.max(
@@ -161,7 +202,7 @@ function CompletedEventShowcase({ event, ledger }: { event: HammaEvent; ledger: 
       <div className="completed-score">
         <span>Final score</span>
         <strong>
-          {ledger.team.score}-{losingScore}
+          {ledger.team.score}–{losingScore}
         </strong>
       </div>
       <div className="trophy-stage" aria-hidden="true">
@@ -178,7 +219,10 @@ function CompletedEventShowcase({ event, ledger }: { event: HammaEvent; ledger: 
         <h2>{ledger.team.teamName}</h2>
         {ledger.captainPlayer ? (
           <p>
-            Led by <strong>{ledger.captainPlayer.name}</strong>
+            Defeated{' '}
+            <strong>
+              {event.teams.find((t) => t.id !== ledger.team.id)?.teamName ?? 'the opponent'}
+            </strong>
           </p>
         ) : null}
       </div>
@@ -228,6 +272,8 @@ function HammoBowlTrophy() {
   )
 }
 
+/* ── Event time helpers ──────────────────────────────────────── */
+
 type EventTime = {
   label: string
   time: string
@@ -270,14 +316,7 @@ function buildEventTimes(event: HammaEvent) {
   return times
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="metric">
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  )
-}
+/* ── Round progress ──────────────────────────────────────────── */
 
 function RoundProgress({ event }: { event: HammaEvent }) {
   const teamsById = new Map(event.teams.map((team) => [team.id, team]))
@@ -301,6 +340,7 @@ function RoundProgress({ event }: { event: HammaEvent }) {
           <div className={`round-segment round-segment-${state}${factionClass}`} key={roundNumber}>
             <span>Round {roundNumber}</span>
             <strong>{winner?.teamName ?? (state === 'active' ? 'In progress' : 'Upcoming')}</strong>
+            {state === 'active' ? <span className="round-active-dot" /> : null}
           </div>
         )
       })}

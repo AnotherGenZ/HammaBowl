@@ -30,9 +30,11 @@ interface RealtimeAdminUpdate {
 export function AdminTools({
   event,
   currentEvents,
+  onEventJaegerWarningCount,
 }: {
   event: HammaEvent
   currentEvents: HammaEvent[]
+  onEventJaegerWarningCount?: (count: number) => void
 }) {
   const [currentEvent, setCurrentEvent] = useState(event)
   const [currentEventOptions, setCurrentEventOptions] = useState(currentEvents)
@@ -136,6 +138,7 @@ export function AdminTools({
           busy={busy}
           onRun={run}
           refreshKey={realtimeRefreshKey}
+          onWarningCount={onEventJaegerWarningCount}
         />
 
         <CoinflipControls event={currentEvent} busy={busy} onRun={run} onEvent={setConfiguredEvent} />
@@ -157,6 +160,7 @@ export function AdminTools({
         />
 
         <AdminSection
+          id="admin-composition"
           title="Team composition"
           actions={
             <button
@@ -242,7 +246,7 @@ function ActiveEventControls({
   }, [event.id])
 
   return (
-    <AdminSection title="Active event">
+    <AdminSection id="admin-active-event" title="Active event">
       <div className="event-result-grid">
         <div className="event-result-card">
           <strong>Admin target</strong>
@@ -376,6 +380,7 @@ export function GeneralAdminTools({
         ) : null}
 
         <AdminSection
+          id="admin-event-sync"
           title="Event sync"
           actions={
             <button
@@ -518,6 +523,7 @@ function EventIdentityControls({
 
   return (
     <AdminSection
+      id="admin-event-details"
       title="Event Details"
       actions={
         <button
@@ -691,11 +697,13 @@ function EventIdentityControls({
 }
 
 function AdminSection({
+  id,
   title,
   actions,
   children,
   defaultOpen = true,
 }: {
+  id?: string
   title: string
   actions?: ReactNode
   children: ReactNode
@@ -704,7 +712,7 @@ function AdminSection({
   const [open, setOpen] = useState(defaultOpen)
 
   return (
-    <section className={`admin-section${open ? '' : ' is-collapsed'}`}>
+    <section id={id} className={`admin-section${open ? '' : ' is-collapsed'}`}>
       <div className="admin-section-header">
         <button
           type="button"
@@ -738,6 +746,7 @@ function TeamEditor({
 }) {
   return (
     <AdminSection
+      id="admin-teams"
       title="Captains and team setup"
       actions={
         <button
@@ -783,21 +792,29 @@ function EventJaegerAssignments({
   busy,
   onRun,
   refreshKey,
+  onWarningCount,
 }: {
   event: HammaEvent
   busy?: string
   onRun: (label: string, action: () => Promise<unknown>) => Promise<void>
   refreshKey: number
+  onWarningCount?: (count: number) => void
 }) {
   const [assignments, setAssignments] = useState<EventPlayerCharacterAssignment[]>([])
   const [selectedDiscordId, setSelectedDiscordId] = useState('')
   const [accountPrefix, setAccountPrefix] = useState('')
   const [loaded, setLoaded] = useState(false)
   const ready = useClientReady()
+  const unresolvedAssignmentCount = countUnresolvedEventJaegerAssignments(event, assignments)
+
+  useEffect(() => {
+    if (loaded) onWarningCount?.(unresolvedAssignmentCount)
+  }, [loaded, onWarningCount, unresolvedAssignmentCount])
 
   useEffect(() => {
     let active = true
     setLoaded(false)
+    onWarningCount?.(0)
     fetch(`/api/admin/player-characters?eventId=${encodeURIComponent(event.id)}`)
       .then((response) => {
         if (!response.ok) throw new Error('Unable to load event Jaeger assignments.')
@@ -816,7 +833,7 @@ function EventJaegerAssignments({
     return () => {
       active = false
     }
-  }, [event.id, refreshKey])
+  }, [event.id, onWarningCount, refreshKey])
 
   useEffect(() => {
     if (selectedDiscordId && assignments.some((assignment) => assignment.discordId === selectedDiscordId)) return
@@ -846,6 +863,7 @@ function EventJaegerAssignments({
 
   return (
     <AdminSection
+      id="admin-jaeger"
       title="Event Jaeger assignments"
       actions={
         <>
@@ -912,6 +930,18 @@ function EventJaegerAssignments({
   )
 }
 
+function countUnresolvedEventJaegerAssignments(
+  event: HammaEvent,
+  assignments: EventPlayerCharacterAssignment[],
+) {
+  const requiredFactions = event.availableFactions.length ? event.availableFactions : (['TR', 'VS', 'NC'] as Faction[])
+
+  return assignments.filter((assignment) => {
+    const assignedFactions = new Set(assignment.assignments.map((character) => character.faction))
+    return requiredFactions.some((faction) => !assignedFactions.has(faction))
+  }).length
+}
+
 function PlayerRenameManager({
   busy,
   onRun,
@@ -976,6 +1006,7 @@ function PlayerRenameManager({
 
   return (
     <AdminSection
+      id="admin-player-names"
       title="Player names"
       actions={
         <button
@@ -1091,6 +1122,7 @@ function PlayerJaegerManager({
 
   return (
     <AdminSection
+      id="admin-jaeger-chars"
       title="Player Jaeger characters"
       actions={
         <button
@@ -1339,7 +1371,7 @@ function BadgeManager({
   }
 
   return (
-    <AdminSection title="Badges">
+    <AdminSection id="admin-badges" title="Badges">
       <div className="badge-admin-grid">
         <div className="team-admin-card">
           <label>
@@ -1503,6 +1535,7 @@ function CoinflipControls({
 
   return (
     <AdminSection
+      id="admin-coinflip"
       title="Coinflip"
       actions={
         <div className="button-row">
@@ -1824,7 +1857,7 @@ function EventResultControls({
   }
 
   return (
-    <AdminSection title="Streams and results">
+    <AdminSection id="admin-results" title="Streams and results">
       <div className="event-result-grid">
         <div className="event-result-card">
           <strong>Twitch links</strong>
@@ -1978,7 +2011,7 @@ function RoundControls({
   }
 
   return (
-    <AdminSection title="Rounds">
+    <AdminSection id="admin-rounds" title="Rounds">
       <div className="event-result-grid round-admin-grid">
         <div className="event-result-card">
           <strong>Round setup</strong>
@@ -2202,6 +2235,7 @@ function RatingAdjustments({
 
   return (
     <AdminSection
+      id="admin-ratings"
       title="Rating adjustments"
       actions={
         <button

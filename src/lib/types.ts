@@ -227,6 +227,7 @@ export interface PlayerProfileSummary {
   discordId: string
   name: string
   avatarUrl?: string
+  bannerUrl?: string
   catchphrase?: string
   eventCount: number
   winCount: number

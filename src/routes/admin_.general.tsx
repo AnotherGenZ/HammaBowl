@@ -1,9 +1,17 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { GeneralAdminTools } from '../components/AdminTools'
+import { AdminLayout, type AdminSidebarSection } from '../components/AdminSidebar'
 import { pageMeta } from '../lib/meta'
 import { getCurrentEvent, getCurrentEvents } from '../lib/services'
-import { AdminNav } from './admin'
+
+const GENERAL_SECTIONS: AdminSidebarSection[] = [
+  { id: 'admin-active-event', label: 'Active Event', status: 'ok' },
+  { id: 'admin-event-sync', label: 'Event Sync', status: 'ok' },
+  { id: 'admin-player-names', label: 'Player Names', status: 'ok' },
+  { id: 'admin-jaeger-chars', label: 'Jaeger Characters', status: 'warning' },
+  { id: 'admin-badges', label: 'Badges', status: 'ok' },
+]
 
 const requireGeneralAdmin = createServerFn({ method: 'GET' }).handler(async () => {
   const { getDiscordSessionUser } = await import('../lib/discord.server')
@@ -42,19 +50,26 @@ export const Route = createFileRoute('/admin_/general')({
 function GeneralAdmin() {
   const { authorized, event, currentEvents } = Route.useLoaderData()
 
-  return (
-    <main>
-      {authorized ? (
-        <>
-          <AdminNav />
-          <GeneralAdminTools event={event} currentEvents={currentEvents} />
-        </>
-      ) : (
+  if (!authorized) {
+    return (
+      <main>
         <section className="panel empty-state">
           <h1>Admin access required</h1>
           <p>Sign in with Discord to use HammaBowl general controls.</p>
         </section>
-      )}
+      </main>
+    )
+  }
+
+  return (
+    <main>
+      <div className="admin-page-header">
+        <p className="eyebrow">Admin</p>
+        <h1>General Controls</h1>
+      </div>
+      <AdminLayout sections={GENERAL_SECTIONS}>
+        <GeneralAdminTools event={event} currentEvents={currentEvents} />
+      </AdminLayout>
     </main>
   )
 }

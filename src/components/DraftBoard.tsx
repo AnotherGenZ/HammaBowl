@@ -562,7 +562,7 @@ export function DraftBoard({
                   </div>
                 ) : null}
               </div>
-              <span>{currentEvent.ratings.length ? money(salary) : 'TBD'}</span>
+              <span>{currentEvent.ratings.length ? money(salary) : 'UNRATED'}</span>
               {isCaptain ? (
                 <button
                   type="button"

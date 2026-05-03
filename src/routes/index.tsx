@@ -62,7 +62,7 @@ function Home() {
         <section className="panel">
           <div className="section-heading">
             <div>
-              <h2>Current signups</h2>
+              <h2>Signups</h2>
             </div>
           </div>
           {event.players.length ? (

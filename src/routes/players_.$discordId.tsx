@@ -141,7 +141,7 @@ function PlayerProfilePage() {
             <Metric label="Wins" value={profile.stats.wins.toString()} />
             <Metric
               label="Average rating"
-              value={profile.stats.averageRating === null ? 'TBD' : profile.stats.averageRating.toFixed(2)}
+              value={profile.stats.averageRating === null ? 'UNRATED' : profile.stats.averageRating.toFixed(2)}
             />
             {profile.stats.killsOnHamma > 0 ? (
               <Metric label="Kills on Hamma" value={profile.stats.killsOnHamma.toString()} />

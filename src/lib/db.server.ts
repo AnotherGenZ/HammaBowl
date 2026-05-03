@@ -2274,6 +2274,7 @@ export function searchPlayerProfiles(query = ''): PlayerProfileSummary[] {
       p.name AS name,
       p.avatar_url AS avatarUrl,
       pp.catchphrase AS catchphrase,
+      pp.banner_url AS bannerUrl,
       pp.badge_display_order AS badgeDisplayOrder,
       COALESCE(events.eventCount, 0) AS eventCount,
       COALESCE(wins.winCount, 0) AS winCount,
@@ -2313,6 +2314,7 @@ export function searchPlayerProfiles(query = ''): PlayerProfileSummary[] {
     name: string
     avatarUrl: string | null
     catchphrase: string | null
+    bannerUrl: string | null
     badgeDisplayOrder: string | null
     eventCount: number
     winCount: number
@@ -2327,6 +2329,7 @@ export function searchPlayerProfiles(query = ''): PlayerProfileSummary[] {
       discordId: row.discordId,
       name: row.name,
       avatarUrl: row.avatarUrl ?? undefined,
+      bannerUrl: row.bannerUrl ?? undefined,
       catchphrase: row.catchphrase ?? undefined,
       eventCount: Number(row.eventCount),
       winCount: Number(row.winCount),
@@ -2346,7 +2349,7 @@ function getPlayerProfileEvents(discordId: string) {
       e.starts_at AS startsAt
     FROM event_participants ep
     JOIN events e ON e.id = ep.event_id
-    WHERE ep.discord_id = ? AND ep.disqualified = 0
+    WHERE ep.discord_id = ? AND ep.disqualified = 0 AND e.phase = 'complete'
     ORDER BY e.starts_at DESC
   `).all(discordId) as Array<{
     id: string

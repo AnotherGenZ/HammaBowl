@@ -1,7 +1,7 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
-import { useEffect, useState } from 'react'
-import { AdminNav } from './admin'
+import { useEffect, useMemo, useState } from 'react'
+import { AdminLayout, type AdminSidebarSection } from '../components/AdminSidebar'
 import { shortDate } from '../lib/format'
 import { pageMeta } from '../lib/meta'
 import type { HistoricalEvent, RegisteredParticipant } from '../lib/types'
@@ -49,6 +49,18 @@ function HistoricalAdmin() {
     startsAt: new Date().toISOString().slice(0, 16),
     server: 'Manual',
   })
+  const historySections = useMemo<AdminSidebarSection[]>(
+    () => [
+      { id: 'admin-history-backfill', label: 'Backfill Event', status: 'pending' },
+      ...events.map((event) => ({
+        id: historyEventSectionId(event.id),
+        label: event.nameOverride ?? event.name,
+        status: 'ok' as const,
+        badge: shortDate(event.date),
+      })),
+    ],
+    [events],
+  )
 
   useEffect(() => {
     setEvents(initial.events)
@@ -87,15 +99,19 @@ function HistoricalAdmin() {
 
   return (
     <main>
-      {initial.authorized ? (
-        <AdminNav />
-      ) : (
+      {!initial.authorized ? (
         <section className="panel empty-state">
           <h1>Admin access required</h1>
           <p>Sign in with Discord to use HammaBowl historical controls.</p>
         </section>
-      )}
+      ) : null}
       {initial.authorized ? (
+      <>
+      <div className="admin-page-header">
+        <p className="eyebrow">Admin</p>
+        <h1>Historical Events</h1>
+      </div>
+      <AdminLayout sections={historySections}>
       <section className="panel">
         <div className="section-heading">
           <div>
@@ -104,7 +120,7 @@ function HistoricalAdmin() {
         </div>
         {message ? <div className="admin-result">{message}</div> : null}
 
-        <section className="admin-section">
+        <section className="admin-section" id="admin-history-backfill">
           <div className="admin-section-header no-toggle">
             <h2>Backfill event</h2>
           </div>
@@ -164,6 +180,8 @@ function HistoricalAdmin() {
           ))}
         </div>
       </section>
+      </AdminLayout>
+      </>
       ) : null}
     </main>
   )
@@ -189,7 +207,7 @@ function HistoricalEventEditor({
   const [newTeam, setNewTeam] = useState({ name: '', score: '0', captainDiscordId: '', captainName: '' })
 
   return (
-    <article className="admin-section history-admin-event">
+    <article className="admin-section history-admin-event" id={historyEventSectionId(event.id)}>
       <div className="admin-section-header no-toggle">
         <div>
           <h2>{event.name}</h2>
@@ -319,6 +337,10 @@ function HistoricalEventEditor({
       </div>
     </article>
   )
+}
+
+function historyEventSectionId(eventId: string) {
+  return `admin-history-event-${eventId}`
 }
 
 function HistoricalTeamEditor({

@@ -68,7 +68,7 @@ export function PlayerTable({ rows }: { rows: PlayerRatingSummary[] }) {
                 ) : row.ratingCount ? (
                   row.averageRating.toFixed(2)
                 ) : (
-                  'TBD'
+                  'UNRATED'
                 )}
               </td>
             </tr>

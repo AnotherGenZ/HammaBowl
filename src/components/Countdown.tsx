@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 
 type CountdownTarget =
-  | { label: string; time: number; variant: 'signups' | 'draft' | 'start' | 'round'; inProgress?: false }
+  | { label: string; time: number; accent: string; inProgress?: false }
   | { inProgress: true }
 
 export function Countdown({
@@ -31,20 +31,26 @@ export function Countdown({
       }),
     [closingTime, startsAt, draftStartMinutesBefore, roundStartedAt, roundDurationSeconds, roundNumber],
   )
-  const [now, setNow] = useState(() => Date.now())
+  const [now, setNow] = useState<number | null>(null)
 
   useEffect(() => {
-    const id = window.setInterval(() => setNow(Date.now()), 1000)
+    const updateNow = () => setNow(Date.now())
+    updateNow()
+    const id = window.setInterval(updateNow, 1000)
     return () => window.clearInterval(id)
   }, [])
+
+  if (now === null) {
+    return <div className="countdown-block countdown-loading" aria-hidden="true" />
+  }
 
   const target = selectCountdownTarget(schedule, now)
   if (!target) return null
 
   if (target.inProgress) {
     return (
-      <div className="countdown countdown-start">
-        <span>Event status</span>
+      <div className="countdown countdown-in-progress">
+        <span className="countdown-pulse" />
         <strong>Event in progress</strong>
       </div>
     )
@@ -58,14 +64,25 @@ export function Countdown({
   const seconds = totalSeconds % 60
 
   return (
-    <div className={`countdown countdown-${target.variant}`}>
-      <span>{target.label}</span>
-      <strong>
-        {days ? `${days}d ` : ''}
-        {hours.toString().padStart(2, '0')}:
-        {minutes.toString().padStart(2, '0')}:
-        {seconds.toString().padStart(2, '0')}
-      </strong>
+    <div className="countdown-block">
+      <p className="countdown-label" style={{ color: target.accent }}>{target.label}</p>
+      <div className="countdown-units">
+        {days > 0 ? <CountdownUnit value={days} label="Days" /> : null}
+        <CountdownUnit value={hours} label="Hours" />
+        <span className="countdown-sep">:</span>
+        <CountdownUnit value={minutes} label="Mins" />
+        <span className="countdown-sep">:</span>
+        <CountdownUnit value={seconds} label="Secs" />
+      </div>
+    </div>
+  )
+}
+
+function CountdownUnit({ value, label }: { value: number; label: string }) {
+  return (
+    <div className="countdown-unit">
+      <div className="countdown-digit">{String(value).padStart(2, '0')}</div>
+      <span className="countdown-unit-label">{label}</span>
     </div>
   )
 }
@@ -116,12 +133,12 @@ function selectCountdownTarget(
     return {
       label: `Round ${schedule.roundNumber ?? ''} ends in`.trim(),
       time: schedule.roundEndTime,
-      variant: 'round',
+      accent: '#e4b45e',
     }
   }
 
   if (Number.isFinite(schedule.signupCloseTime) && now < schedule.signupCloseTime) {
-    return { label: 'Signups close in', time: schedule.signupCloseTime, variant: 'signups' }
+    return { label: 'Signups close in', time: schedule.signupCloseTime, accent: '#e4b45e' }
   }
 
   if (
@@ -129,11 +146,11 @@ function selectCountdownTarget(
     Number.isFinite(schedule.draftStartTime) &&
     now < schedule.draftStartTime
   ) {
-    return { label: 'Draft starts in', time: schedule.draftStartTime, variant: 'draft' }
+    return { label: 'Draft starts in', time: schedule.draftStartTime, accent: '#84bdf5' }
   }
 
   if (Number.isFinite(schedule.startTime) && now < schedule.startTime) {
-    return { label: 'Event starts in', time: schedule.startTime, variant: 'start' }
+    return { label: 'Event starts in', time: schedule.startTime, accent: '#47bf8f' }
   }
 
   if (Number.isFinite(schedule.startTime)) {
