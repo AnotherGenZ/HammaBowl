@@ -64,7 +64,7 @@ export function getDraftReadiness(event: HammaEvent) {
     }
   }
 
-  if (!event.coinflip?.result || !event.coinflip.choiceType) {
+  if (!event.coinflip?.result || !event.coinflip.winningTeamId) {
     return {
       ready: false,
       label: 'Waiting for coinflip',
