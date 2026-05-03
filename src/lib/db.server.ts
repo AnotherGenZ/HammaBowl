@@ -2166,10 +2166,11 @@ export function searchPlayerProfiles(query = ''): PlayerProfileSummary[] {
     FROM participants p
     LEFT JOIN player_profiles pp ON pp.discord_id = p.discord_id
     LEFT JOIN (
-      SELECT discord_id, COUNT(*) AS eventCount
-      FROM event_participants
-      WHERE disqualified = 0
-      GROUP BY discord_id
+      SELECT ep.discord_id, COUNT(*) AS eventCount
+      FROM event_participants ep
+      JOIN events e ON e.id = ep.event_id
+      WHERE ep.disqualified = 0 AND e.phase = 'complete'
+      GROUP BY ep.discord_id
     ) events ON events.discord_id = p.discord_id
     LEFT JOIN (
       SELECT discord_id, COUNT(*) AS winCount
@@ -2544,7 +2545,12 @@ function getRatingHistory(discordId: string): PlayerProfile['stats']['ratingHist
 
 function countPlayerEvents(discordId: string) {
   const row = sqlite
-    .prepare('SELECT COUNT(*) AS count FROM event_participants WHERE discord_id = ? AND disqualified = 0')
+    .prepare(`
+      SELECT COUNT(*) AS count
+      FROM event_participants ep
+      JOIN events e ON e.id = ep.event_id
+      WHERE ep.discord_id = ? AND ep.disqualified = 0 AND e.phase = 'complete'
+    `)
     .get(discordId) as { count: number } | undefined
   return Number(row?.count ?? 0)
 }
