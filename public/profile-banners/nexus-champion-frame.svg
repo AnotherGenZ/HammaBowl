@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" role="img" aria-label="Nexus Champion Frame profile banner">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b1118"/>
+      <stop offset=".46" stop-color="#143144"/>
+      <stop offset="1" stop-color="#16100a"/>
+    </linearGradient>
+    <radialGradient id="center" cx="50%" cy="46%" r="48%">
+      <stop offset="0" stop-color="#6fe7df" stop-opacity=".42"/>
+      <stop offset=".48" stop-color="#e7bf55" stop-opacity=".16"/>
+      <stop offset="1" stop-color="#e7bf55" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="metal" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#aab7bd"/>
+      <stop offset=".2" stop-color="#f6fbf8"/>
+      <stop offset=".5" stop-color="#c89a3d"/>
+      <stop offset=".8" stop-color="#f6fbf8"/>
+      <stop offset="1" stop-color="#aab7bd"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="360" fill="url(#bg)"/>
+  <rect width="1200" height="360" fill="url(#center)"/>
+  <path d="M0 274c145-27 297-22 456 14s332 31 517-12c95-22 171-20 227 4v80H0z" fill="#05070a" opacity=".68"/>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M78 56h1044v248H78z" stroke="#080b0d" stroke-width="26"/>
+    <path d="M92 70h1016v220H92z" stroke="url(#metal)" stroke-width="12"/>
+    <path d="M160 70h230m420 0h230M160 290h230m420 0h230" stroke="#e7bf55" stroke-width="8"/>
+    <path d="M92 121v118m1016-118v118" stroke="#6fe7df" stroke-width="7" opacity=".78"/>
+  </g>
+  <path d="M522 38h156l34 38H488zM522 322h156l34-38H488z" fill="#0b1014" stroke="url(#metal)" stroke-width="7"/>
+  <path d="M600 47 622 75h-44zM600 313l22-28h-44z" fill="#e7bf55"/>
+  <g fill="#6fe7df" opacity=".42">
+    <rect x="182" y="104" width="146" height="8"/>
+    <rect x="872" y="104" width="146" height="8"/>
+    <rect x="218" y="248" width="110" height="8"/>
+    <rect x="872" y="248" width="110" height="8"/>
+  </g>
+</svg>

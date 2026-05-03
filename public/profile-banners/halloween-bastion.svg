@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" role="img" aria-label="Halloween Bastion profile banner">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#080a0d"/>
+      <stop offset=".5" stop-color="#17202a"/>
+      <stop offset="1" stop-color="#2a1009"/>
+    </linearGradient>
+    <radialGradient id="moon" cx="82%" cy="34%" r="18%">
+      <stop offset="0" stop-color="#fff0c7"/>
+      <stop offset=".45" stop-color="#d7d9cc"/>
+      <stop offset="1" stop-color="#d7d9cc" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="pumpkinGlow" cx="31%" cy="70%" r="22%">
+      <stop offset="0" stop-color="#ffbd41" stop-opacity=".82"/>
+      <stop offset=".44" stop-color="#ff6b1a" stop-opacity=".32"/>
+      <stop offset="1" stop-color="#ff6b1a" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="360" fill="url(#bg)"/>
+  <rect width="1200" height="360" fill="url(#moon)"/>
+  <rect width="1200" height="360" fill="url(#pumpkinGlow)"/>
+  <path d="M654 104h294l54 35H600z" fill="#080b0f"/>
+  <path d="M709 86h187l-35 18H748zM752 139h151l24 22H729z" fill="#111820"/>
+  <path d="M0 276 127 232l96 24 95-70 115 70 111-33 85 32 114-72 99 59 87-28 271 78v68H0z" fill="#050608"/>
+  <path d="M301 212c-46 10-84 55-84 104h188c0-51-45-111-104-104z" fill="#8d3c10" stroke="#170804" stroke-width="9"/>
+  <path d="M265 263 246 294h38zm69 0 22 31h-43zm-74 58c26-24 62-24 91 0" fill="#ffd05b"/>
+  <path d="M297 208c5-27 20-40 43-40" fill="none" stroke="#31592b" stroke-width="10" stroke-linecap="round"/>
+</svg>

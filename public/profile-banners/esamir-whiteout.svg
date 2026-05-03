@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" role="img" aria-label="Esamir Whiteout profile banner">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#dff7ff"/>
+      <stop offset=".45" stop-color="#7ab8cf"/>
+      <stop offset="1" stop-color="#f0c987"/>
+    </linearGradient>
+    <radialGradient id="sun" cx="78%" cy="34%" r="32%">
+      <stop offset="0" stop-color="#fff6c8"/>
+      <stop offset=".38" stop-color="#fff6c8" stop-opacity=".42"/>
+      <stop offset="1" stop-color="#fff6c8" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="360" fill="url(#sky)"/>
+  <rect width="1200" height="360" fill="url(#sun)"/>
+  <path d="M0 239 101 197l80 24 105-66 102 65 89-27 94 38 112-81 102 62 76-27 339 90v85H0z" fill="#e8f4f5"/>
+  <path d="M0 276c151-31 300-28 447 9s313 36 497-5c104-23 189-19 256 13v67H0z" fill="#c6dfe8"/>
+  <path d="M0 317c170-23 316-19 438 12s249 31 381 0 259-32 381-1v32H0z" fill="#f5fbfb"/>
+  <g fill="#426578" opacity=".28">
+    <rect x="142" y="235" width="148" height="18"/>
+    <rect x="826" y="222" width="214" height="22"/>
+    <rect x="70" y="291" width="90" height="12"/>
+    <rect x="1017" y="298" width="108" height="12"/>
+  </g>
+</svg>

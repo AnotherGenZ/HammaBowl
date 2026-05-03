@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" role="img" aria-label="PS1 Legacy profile banner">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#050607"/>
+      <stop offset=".5" stop-color="#11161a"/>
+      <stop offset="1" stop-color="#050607"/>
+    </linearGradient>
+    <radialGradient id="gold" cx="50%" cy="48%" r="34%">
+      <stop offset="0" stop-color="#f7d96d" stop-opacity=".86"/>
+      <stop offset=".44" stop-color="#f7d96d" stop-opacity=".24"/>
+      <stop offset="1" stop-color="#f7d96d" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="360" fill="url(#bg)"/>
+  <rect width="1200" height="360" fill="url(#gold)"/>
+  <g fill="none" stroke="#e8e8de" stroke-linecap="round" stroke-linejoin="round" opacity=".92">
+    <path d="M600 63c84 33 143 94 178 183M600 63c-84 33-143 94-178 183" stroke-width="8"/>
+    <path d="M600 51v236M490 113c60 29 160 29 220 0M455 184c88 36 202 36 290 0M422 246c113 42 243 42 356 0" stroke-width="6"/>
+    <path d="M600 104 638 191h94l-76 55 29 90-85-57-85 57 29-90-76-55h94z" stroke-width="10"/>
+  </g>
+  <path d="M0 306h1200v54H0z" fill="#030405" opacity=".78"/>
+  <path d="M74 87h240m572 0h240" stroke="#d7d7d0" stroke-width="4" stroke-linecap="round" opacity=".24"/>
+</svg>

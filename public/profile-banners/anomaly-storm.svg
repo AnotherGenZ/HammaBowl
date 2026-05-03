@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" role="img" aria-label="Anomaly Storm profile banner">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#06131c"/>
+      <stop offset=".46" stop-color="#17374b"/>
+      <stop offset=".78" stop-color="#28345d"/>
+      <stop offset="1" stop-color="#0d1117"/>
+    </linearGradient>
+    <radialGradient id="aurora" cx="46%" cy="30%" r="56%">
+      <stop offset="0" stop-color="#6dffe8" stop-opacity=".62"/>
+      <stop offset=".38" stop-color="#52ba8d" stop-opacity=".32"/>
+      <stop offset="1" stop-color="#52ba8d" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="beam" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#67f6dd" stop-opacity=".05"/>
+      <stop offset=".55" stop-color="#67f6dd" stop-opacity=".7"/>
+      <stop offset="1" stop-color="#67f6dd" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="360" fill="url(#sky)"/>
+  <rect width="1200" height="360" fill="url(#aurora)"/>
+  <path d="M350 0c-76 94-97 172-63 236M457 0c-54 91-50 172 13 244M547 0c-18 88 12 163 91 225M690 0c52 78 62 145 31 202" fill="none" stroke="#68f2d8" stroke-width="24" stroke-linecap="round" opacity=".22"/>
+  <path d="M579 58h42l70 246H509z" fill="url(#beam)" opacity=".78"/>
+  <path d="M0 245 111 200l88 28 97-76 118 73 109-37 87 39 94-83 141 86 88-34 267 78v86H0z" fill="#0b1217"/>
+  <path d="M0 292c140-32 260-28 360 12s214 42 342 5 294-34 498 11v40H0z" fill="#05080b" opacity=".7"/>
+  <g stroke="#7dffeb" stroke-linecap="round" opacity=".65">
+    <path d="M151 207l34-56M977 205l51-73" stroke-width="8"/>
+    <path d="M252 224l24-39M890 228l29-49" stroke-width="5"/>
+  </g>
+</svg>

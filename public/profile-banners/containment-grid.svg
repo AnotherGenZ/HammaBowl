@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" role="img" aria-label="Containment Grid profile banner">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#151713"/>
+      <stop offset=".5" stop-color="#29302c"/>
+      <stop offset="1" stop-color="#10110f"/>
+    </linearGradient>
+    <pattern id="mesh" width="72" height="72" patternUnits="userSpaceOnUse">
+      <path d="M0 0h72v72H0z" fill="none" stroke="#d7aa4a" stroke-width="2" opacity=".36"/>
+      <path d="M0 36h72M36 0v72" stroke="#d7aa4a" stroke-width="1" opacity=".22"/>
+    </pattern>
+    <radialGradient id="smoke" cx="74%" cy="45%" r="46%">
+      <stop offset="0" stop-color="#eef1e7" stop-opacity=".5"/>
+      <stop offset=".4" stop-color="#c3c8bc" stop-opacity=".22"/>
+      <stop offset="1" stop-color="#c3c8bc" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="360" fill="url(#bg)"/>
+  <rect width="1200" height="360" fill="url(#mesh)"/>
+  <rect width="1200" height="360" fill="url(#smoke)"/>
+  <path d="M0 0h1200v360H0z" fill="#050607" opacity=".22"/>
+  <g fill="none" stroke-linecap="round">
+    <path d="M201 280C317 174 452 129 608 146s282-9 380-77" stroke="#e8edf0" stroke-width="17" opacity=".16"/>
+    <path d="M251 298c130-76 247-101 352-75s220 18 345-23" stroke="#f0cf71" stroke-width="8" opacity=".22"/>
+  </g>
+  <path d="M0 300h1200v60H0z" fill="#050607" opacity=".7"/>
+  <path d="M85 80h236v34H85zm797 190h228v28H882z" fill="#d7aa4a" opacity=".3"/>
+</svg>

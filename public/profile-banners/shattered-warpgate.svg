@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" role="img" aria-label="Shattered Warpgate profile banner">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#050b12"/>
+      <stop offset=".45" stop-color="#14304a"/>
+      <stop offset=".78" stop-color="#551819"/>
+      <stop offset="1" stop-color="#120708"/>
+    </linearGradient>
+    <radialGradient id="blast" cx="72%" cy="45%" r="38%">
+      <stop offset="0" stop-color="#ffede0" stop-opacity=".82"/>
+      <stop offset=".25" stop-color="#ff6845" stop-opacity=".54"/>
+      <stop offset="1" stop-color="#ff6845" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="360" fill="url(#sky)"/>
+  <rect width="1200" height="360" fill="url(#blast)"/>
+  <path d="M519 70h162l-81 207z" fill="#101820" stroke="#66e7df" stroke-width="8" opacity=".82"/>
+  <path d="M600 67v215M524 107l152 78M676 107l-152 78" stroke="#66e7df" stroke-width="5" opacity=".54"/>
+  <path d="M0 256 110 216l84 23 104-80 118 77 100-41 86 45 118-90 106 72 88-26 286 83v81H0z" fill="#090d10"/>
+  <g fill="#ffdd9b" opacity=".58">
+    <path d="M837 134 948 94l-65 94zM769 197l139 28-133 48zM954 178l158-15-132 75z"/>
+  </g>
+  <path d="M0 306h1200v54H0z" fill="#040607" opacity=".68"/>
+</svg>

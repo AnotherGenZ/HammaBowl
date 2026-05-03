@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" role="img" aria-label="VS Blueprint Grid profile banner">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#120c2a"/>
+      <stop offset=".48" stop-color="#33205c"/>
+      <stop offset="1" stop-color="#0b1f27"/>
+    </linearGradient>
+    <pattern id="grid" width="42" height="42" patternUnits="userSpaceOnUse">
+      <path d="M42 0H0v42" fill="none" stroke="#61e4dc" stroke-width="1" opacity=".26"/>
+    </pattern>
+    <radialGradient id="core" cx="54%" cy="50%" r="45%">
+      <stop offset="0" stop-color="#a875ff" stop-opacity=".48"/>
+      <stop offset=".45" stop-color="#61e4dc" stop-opacity=".18"/>
+      <stop offset="1" stop-color="#61e4dc" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="360" fill="url(#bg)"/>
+  <rect width="1200" height="360" fill="url(#grid)"/>
+  <rect width="1200" height="360" fill="url(#core)"/>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M277 221h168l58-76h233l64 76h145" stroke="#e5d6ff" stroke-width="9" opacity=".82"/>
+    <path d="M343 183h112l42-48h220l46 48h95" stroke="#61e4dc" stroke-width="5" opacity=".76"/>
+    <path d="M500 145 391 74m326 61 110-65M445 221l-76 78m431-78 76 78" stroke="#e5d6ff" stroke-width="4" opacity=".42"/>
+    <path d="M503 145h233l-40 76H548z" stroke="#c4a1ff" stroke-width="7" opacity=".9"/>
+    <path d="M565 166h104M541 192h162" stroke="#61e4dc" stroke-width="5" opacity=".76"/>
+  </g>
+  <path d="M228 88h142v24H228zm661 172h180v22H889z" fill="#61e4dc" opacity=".4"/>
+  <path d="M0 304c164-26 328-23 492 8s343 26 536-13c70-14 128-13 172 1v60H0z" fill="#05070b" opacity=".72"/>
+</svg>

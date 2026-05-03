@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" role="img" aria-label="NC Armory Sunburst profile banner">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#071a33"/>
+      <stop offset=".48" stop-color="#16437a"/>
+      <stop offset="1" stop-color="#d2a422"/>
+    </linearGradient>
+    <radialGradient id="core" cx="50%" cy="58%" r="48%">
+      <stop offset="0" stop-color="#ffd95f" stop-opacity=".85"/>
+      <stop offset=".38" stop-color="#ffd95f" stop-opacity=".2"/>
+      <stop offset="1" stop-color="#ffd95f" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="360" fill="url(#bg)"/>
+  <rect width="1200" height="360" fill="url(#core)"/>
+  <g fill="#f2c84b" opacity=".72">
+    <path d="M600 188 392 0h68l140 126L740 0h68z"/>
+    <path d="M600 188 170 0h126l304 116L904 0h126z" opacity=".58"/>
+    <path d="M600 188 0 72V24l600 90 600-90v48z" opacity=".4"/>
+  </g>
+  <circle cx="600" cy="190" r="78" fill="#0b2440" stroke="#f2c84b" stroke-width="14"/>
+  <path d="M600 128 618 171h47l-38 27 15 46-42-28-42 28 15-46-38-27h47z" fill="#f2c84b"/>
+  <g fill="#07111b" stroke="#f2c84b" stroke-width="7">
+    <path d="M128 246h300v35H128z"/>
+    <path d="M772 246h300v35H772z"/>
+    <path d="M191 208h174v38H191z"/>
+    <path d="M835 208h174v38H835z"/>
+  </g>
+  <path d="M0 294h1200v66H0z" fill="#05080c" opacity=".78"/>
+  <path d="M114 304h310M776 304h310" stroke="#f2c84b" stroke-width="8" stroke-linecap="round" opacity=".5"/>
+</svg>

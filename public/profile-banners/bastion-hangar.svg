@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" role="img" aria-label="Bastion Hangar profile banner">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#081014"/>
+      <stop offset=".45" stop-color="#192c31"/>
+      <stop offset="1" stop-color="#10161a"/>
+    </linearGradient>
+    <linearGradient id="floor" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#26393e"/>
+      <stop offset="1" stop-color="#070a0c"/>
+    </linearGradient>
+    <radialGradient id="bay" cx="50%" cy="43%" r="34%">
+      <stop offset="0" stop-color="#5ee4dc" stop-opacity=".72"/>
+      <stop offset=".34" stop-color="#2a7c80" stop-opacity=".24"/>
+      <stop offset="1" stop-color="#2a7c80" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="360" fill="url(#bg)"/>
+  <rect width="1200" height="360" fill="url(#bay)"/>
+  <path d="M0 232h1200v128H0z" fill="url(#floor)"/>
+  <path d="M0 67h292l56 72H0zm1200 0H908l-56 72h348z" fill="#0e171b"/>
+  <path d="M343 74h514l69 86H274z" fill="#101d22" stroke="#43676c" stroke-width="5"/>
+  <path d="M392 96h416l34 40H358z" fill="#223238"/>
+  <path d="M292 245h616l86 115H206z" fill="#070b0d"/>
+  <path d="M336 245h528l-58 72H394z" fill="#172328"/>
+  <g fill="#5ee4dc" opacity=".72">
+    <rect x="87" y="151" width="168" height="11"/>
+    <rect x="945" y="151" width="168" height="11"/>
+    <rect x="458" y="165" width="284" height="13"/>
+    <rect x="506" y="196" width="188" height="8"/>
+  </g>
+  <g fill="none" stroke="#6fb5b5" stroke-width="3" opacity=".32">
+    <path d="M115 235h970M169 277h862M259 321h682"/>
+    <path d="M379 232 300 360M821 232l79 128M500 232l-31 128M700 232l31 128"/>
+  </g>
+</svg>

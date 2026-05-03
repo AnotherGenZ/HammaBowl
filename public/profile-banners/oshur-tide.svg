@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" role="img" aria-label="Oshur Tide profile banner">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#06344a"/>
+      <stop offset=".45" stop-color="#22a5a3"/>
+      <stop offset="1" stop-color="#f0c66b"/>
+    </linearGradient>
+    <radialGradient id="sun" cx="72%" cy="30%" r="24%">
+      <stop offset="0" stop-color="#fff3ba"/>
+      <stop offset=".45" stop-color="#fff3ba" stop-opacity=".44"/>
+      <stop offset="1" stop-color="#fff3ba" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="360" fill="url(#sky)"/>
+  <rect width="1200" height="360" fill="url(#sun)"/>
+  <path d="M0 242c104-37 193-56 267-58s142 10 205 36 137 27 222 1 165-32 242-17 165 42 264 82v74H0z" fill="#164823"/>
+  <path d="M0 288c119-22 229-19 330 9s214 26 339-6 302-23 531 27v42H0z" fill="#08333b"/>
+  <path d="M0 316c148-20 282-18 402 7s239 25 357 0 265-24 441 5v32H0z" fill="#72d1c5" opacity=".76"/>
+  <path d="M271 226c24-64 61-98 111-102M838 225c-34-66-75-99-123-99" fill="none" stroke="#0b2313" stroke-width="11" stroke-linecap="round" opacity=".7"/>
+  <path d="M116 104h166v22H116zm827 48h148v22H943z" fill="#fff3ba" opacity=".38"/>
+</svg>

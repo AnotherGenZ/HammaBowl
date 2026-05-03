@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" role="img" aria-label="Auraxium Lattice profile banner">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#07151c"/>
+      <stop offset=".42" stop-color="#15414f"/>
+      <stop offset=".72" stop-color="#2d213d"/>
+      <stop offset="1" stop-color="#0b0d12"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff2a5" stop-opacity=".08"/>
+      <stop offset=".48" stop-color="#f2d35d" stop-opacity=".72"/>
+      <stop offset="1" stop-color="#fff2a5" stop-opacity=".04"/>
+    </linearGradient>
+    <pattern id="diamonds" width="132" height="132" patternUnits="userSpaceOnUse" patternTransform="translate(-28 -46)">
+      <path d="M66 6 126 66 66 126 6 66z" fill="none" stroke="#d9f6f2" stroke-width="4" opacity=".62"/>
+      <path d="M66 18 114 66 66 114 18 66z" fill="none" stroke="#f0c842" stroke-width="3" opacity=".42"/>
+      <circle cx="66" cy="6" r="5" fill="#f4d96a"/>
+      <circle cx="6" cy="66" r="4" fill="#7ce4df"/>
+      <circle cx="126" cy="66" r="4" fill="#7ce4df"/>
+    </pattern>
+    <radialGradient id="glow" cx="58%" cy="46%" r="52%">
+      <stop offset="0" stop-color="#59ddd4" stop-opacity=".5"/>
+      <stop offset=".45" stop-color="#7b4fd6" stop-opacity=".24"/>
+      <stop offset="1" stop-color="#7b4fd6" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="360" fill="url(#bg)"/>
+  <rect width="1200" height="360" fill="url(#glow)"/>
+  <rect width="1200" height="360" fill="url(#diamonds)" opacity=".86"/>
+  <path d="M0 281c122-36 235-36 339 0s219 37 345 4 285-29 516 20v55H0z" fill="#05080b" opacity=".7"/>
+  <path d="M128 0h90L0 260v-98zm944 0h128v126L948 360h-94z" fill="url(#shine)" opacity=".52"/>
+</svg>

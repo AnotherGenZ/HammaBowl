@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" role="img" aria-label="TR Armory Rising profile banner">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#17090a"/>
+      <stop offset=".48" stop-color="#7f1617"/>
+      <stop offset="1" stop-color="#221112"/>
+    </linearGradient>
+    <radialGradient id="sun" cx="50%" cy="64%" r="56%">
+      <stop offset="0" stop-color="#fff1c0" stop-opacity=".58"/>
+      <stop offset=".38" stop-color="#d33629" stop-opacity=".28"/>
+      <stop offset="1" stop-color="#d33629" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="360" fill="url(#bg)"/>
+  <rect width="1200" height="360" fill="url(#sun)"/>
+  <g fill="#f1ddd0" opacity=".72">
+    <path d="M600 190 448 0h54l98 117 98-117h54z"/>
+    <path d="M600 190 260 0h105l235 122L835 0h105z" opacity=".64"/>
+    <path d="M600 190 0 10v54l600 118 600-118V10z" opacity=".44"/>
+    <path d="M600 190 74 360h157l369-112 369 112h157z" opacity=".34"/>
+  </g>
+  <path d="M600 83 681 223H519z" fill="#161719" stroke="#1b0506" stroke-width="18"/>
+  <path d="M600 113 648 202H552z" fill="#c52123"/>
+  <g fill="#150607" stroke="#f1ddd0" stroke-width="7" opacity=".95">
+    <path d="M124 250h300v30H124z"/>
+    <path d="M776 250h300v30H776z"/>
+    <path d="M210 202h192v32H210z"/>
+    <path d="M798 202h192v32H798z"/>
+    <path d="M336 294h528v28H336z"/>
+  </g>
+  <path d="M0 318h1200v42H0z" fill="#070405" opacity=".82"/>
+</svg>
