@@ -47,6 +47,13 @@ function PlayerProfilePage() {
   if (!profile) {
     return (
       <main>
+        <nav className="breadcrumb-nav" aria-label="Breadcrumb">
+          <Link to="/players" activeOptions={{ exact: true }}>
+            Players
+          </Link>
+          <span aria-hidden="true">/</span>
+          <span aria-current="page">Player not found</span>
+        </nav>
         <section className="panel empty-state">
           <h1>Player not found</h1>
         </section>
@@ -61,6 +68,13 @@ function PlayerProfilePage() {
 
   return (
     <main>
+      <nav className="breadcrumb-nav" aria-label="Breadcrumb">
+        <Link to="/players" activeOptions={{ exact: true }}>
+          Players
+        </Link>
+        <span aria-hidden="true">/</span>
+        <span aria-current="page">{profile.name}</span>
+      </nav>
       <section
         className="profile-hero"
         style={profile.bannerUrl ? { backgroundImage: `url(${profile.bannerUrl})` } : undefined}

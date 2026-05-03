@@ -891,12 +891,37 @@ dd {
 
 /* ── Player profile hero ────────────────────────────── */
 
+.breadcrumb-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 24px;
+  color: #a9b3b2;
+  font-size: 0.84rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.breadcrumb-nav a {
+  color: #f3d99d;
+  transition: color 120ms ease;
+}
+
+.breadcrumb-nav a:hover {
+  color: #fff7e6;
+}
+
+.breadcrumb-nav span:last-child {
+  color: #d8dedc;
+}
+
 .profile-hero {
   min-height: 280px;
   display: grid;
   align-items: end;
   padding: clamp(20px, 4vw, 36px);
-  margin-top: 24px;
+  margin-top: 12px;
   border-radius: 8px;
   background:
     linear-gradient(135deg, rgba(177, 52, 42, 0.28), transparent 42%),
