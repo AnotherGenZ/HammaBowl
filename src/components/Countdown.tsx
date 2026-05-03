@@ -89,7 +89,11 @@ function selectCountdownTarget(
     return { label: 'Signups close in', time: schedule.signupCloseTime, variant: 'signups' }
   }
 
-  if (schedule.hasDraftOffset && Number.isFinite(schedule.draftStartTime)) {
+  if (
+    schedule.hasDraftOffset &&
+    Number.isFinite(schedule.draftStartTime) &&
+    now < schedule.draftStartTime
+  ) {
     return { label: 'Draft starts in', time: schedule.draftStartTime, variant: 'draft' }
   }
 
