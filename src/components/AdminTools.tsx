@@ -886,18 +886,6 @@ function EventJaegerAssignments({
           />
         </label>
       </div>
-      <div className="resolved-list admin-assignment-list">
-        {assignments.map((assignment) => (
-          <span key={assignment.discordId}>
-            <strong>{assignment.playerName}</strong>
-            {assignment.assignments.length
-              ? assignment.assignments
-                .map((character) => `${character.faction} ${character.characterName} #${character.characterId}`)
-                .join(', ')
-              : 'Needs an event character'}
-          </span>
-        ))}
-      </div>
     </AdminSection>
   )
 }
