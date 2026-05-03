@@ -7,10 +7,23 @@ import { pageMeta } from '../lib/meta'
 import type { HistoricalEvent, RegisteredParticipant } from '../lib/types'
 
 const loadHistoricalAdmin = createServerFn({ method: 'GET' }).handler(async () => {
-  const { requireAdminSession } = await import('../lib/discord.server')
+  const { getDiscordSessionUser } = await import('../lib/discord.server')
   const { getAdminHistoricalEvents } = await import('../lib/db.server')
-  await requireAdminSession()
-  return getAdminHistoricalEvents()
+  const user = await getDiscordSessionUser()
+  if (!user?.roles.includes('admin')) {
+    return {
+      authorized: false as const,
+      events: [],
+      participants: [],
+    }
+  }
+
+  const data = await getAdminHistoricalEvents()
+  return {
+    authorized: true as const,
+    events: data.events,
+    participants: data.participants,
+  }
 })
 
 export const Route = createFileRoute('/admin_/history')({
@@ -74,7 +87,15 @@ function HistoricalAdmin() {
 
   return (
     <main>
-      <AdminNav />
+      {initial.authorized ? (
+        <AdminNav />
+      ) : (
+        <section className="panel empty-state">
+          <h1>Admin access required</h1>
+          <p>Sign in with Discord to use HammaBowl historical controls.</p>
+        </section>
+      )}
+      {initial.authorized ? (
       <section className="panel">
         <div className="section-heading">
           <div>
@@ -143,6 +164,7 @@ function HistoricalAdmin() {
           ))}
         </div>
       </section>
+      ) : null}
     </main>
   )
 }

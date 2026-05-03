@@ -1,4 +1,4 @@
-import { env, requireEnv } from './env'
+import { env, envList, requireEnv } from './env'
 import type { Role } from './types'
 
 const DISCORD_API_BASE_URL = 'https://discord.com/api/v10'
@@ -91,7 +91,7 @@ export async function getDiscordIdentity(accessToken: string) {
   ])
 
   const roleIds = member.roles ?? []
-  const roles = mapDiscordRoleIds(roleIds)
+  const roles = mapDiscordRoles(user.id, roleIds)
 
   return {
     discordId: user.id,
@@ -106,11 +106,16 @@ export async function getDiscordIdentity(accessToken: string) {
   }
 }
 
-export function mapDiscordRoleIds(roleIds: string[]): Role[] {
+export function mapDiscordRoles(discordId: string, roleIds: string[]): Role[] {
   const roles = new Set<Role>(['viewer'])
 
-  if (roleIds.includes(env('DISCORD_ADMIN_ROLE_ID'))) {
+  if (envList('DISCORD_ADMIN_USER_IDS').includes(discordId)) {
     roles.add('admin')
+  }
+
+  const modRoleId = env('DISCORD_MOD_ROLE_ID')
+  if (modRoleId && roleIds.includes(modRoleId)) {
+    roles.add('mod')
   }
 
   return Array.from(roles)

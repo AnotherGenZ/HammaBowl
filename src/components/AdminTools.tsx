@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useState } from 'react'
+import { type CSSProperties, type ReactNode, useEffect, useState } from 'react'
 import type {
   AdminBadgeManagerData,
   AdminPlayerCharacterConfig,
@@ -1182,7 +1182,11 @@ function BadgeManager({
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [color, setColor] = useState('#e4b45e')
-  const [badgeColors, setBadgeColors] = useState<Record<string, string>>({})
+  const [badgeDrafts, setBadgeDrafts] = useState<Record<string, {
+    name: string
+    description: string
+    color: string
+  }>>({})
   const ready = useClientReady()
 
   useEffect(() => {
@@ -1196,7 +1200,7 @@ function BadgeManager({
       .then((payload) => {
         if (!active) return
         setData(payload)
-        setBadgeColors(Object.fromEntries(payload.badges.map((badge) => [badge.id, badge.color])))
+        setBadgeDrafts(createBadgeDrafts(payload))
         setLoaded(true)
       })
       .catch(() => {
@@ -1216,22 +1220,122 @@ function BadgeManager({
       color,
     }) as AdminBadgeManagerData & { message?: string }
     setData(result)
-    setBadgeColors(Object.fromEntries(result.badges.map((badge) => [badge.id, badge.color])))
+    setBadgeDrafts(createBadgeDrafts(result))
     setName('')
     setDescription('')
     setColor('#e4b45e')
     return result
   }
 
-  async function updateBadgeColor(targetBadgeId: string) {
+  async function updateBadge(targetBadgeId: string) {
+    const draft = badgeDrafts[targetBadgeId]
     const result = await postAdminJson('/api/admin/badges', {
-      action: 'update-color',
+      action: 'update',
       badgeId: targetBadgeId,
-      color: badgeColors[targetBadgeId],
+      name: draft?.name,
+      description: draft?.description,
+      color: draft?.color,
     }) as AdminBadgeManagerData & { message?: string }
     setData(result)
-    setBadgeColors(Object.fromEntries(result.badges.map((badge) => [badge.id, badge.color])))
+    setBadgeDrafts(createBadgeDrafts(result))
     return result
+  }
+
+  async function deleteBadge(targetBadgeId: string) {
+    const result = await postAdminJson('/api/admin/badges', {
+      action: 'delete',
+      badgeId: targetBadgeId,
+    }) as AdminBadgeManagerData & { message?: string }
+    setData(result)
+    setBadgeDrafts(createBadgeDrafts(result))
+    return result
+  }
+
+  const systemBadges = data.badges.filter((badge) => badge.source === 'system')
+  const customBadges = data.badges.filter((badge) => badge.source === 'manual')
+
+  function renderBadgeEditor(badge: AdminBadgeManagerData['badges'][number]) {
+    const draft = badgeDrafts[badge.id] ?? {
+      name: badge.name,
+      description: badge.description,
+      color: badge.color,
+    }
+    const changed =
+      draft.name !== badge.name ||
+      draft.description !== badge.description ||
+      draft.color !== badge.color
+
+    return (
+      <article className="badge-definition-card" key={`badge-${badge.id}`}>
+        <strong style={{ '--badge-color': draft.color } as CSSProperties}>{badge.name}</strong>
+        <div className="badge-definition-fields">
+          <label>
+            Name
+            <input
+              value={draft.name}
+              onChange={(event) => {
+                const nextName = event.currentTarget.value
+                setBadgeDrafts((current) => ({
+                  ...current,
+                  [badge.id]: { ...draft, name: nextName },
+                }))
+              }}
+            />
+          </label>
+          <label>
+            Description
+            <input
+              value={draft.description}
+              onChange={(event) => {
+                const nextDescription = event.currentTarget.value
+                setBadgeDrafts((current) => ({
+                  ...current,
+                  [badge.id]: { ...draft, description: nextDescription },
+                }))
+              }}
+            />
+          </label>
+          <label className="inline-color-field">
+            Color
+            <input
+              type="color"
+              value={draft.color}
+              onChange={(event) => {
+                const nextColor = event.currentTarget.value
+                setBadgeDrafts((current) => ({
+                  ...current,
+                  [badge.id]: { ...draft, color: nextColor },
+                }))
+              }}
+            />
+          </label>
+        </div>
+        <div className="badge-definition-actions">
+          <button
+            type="button"
+            disabled={
+              busy === `badge-update-${badge.id}` ||
+              !draft.name.trim() ||
+              !draft.description.trim() ||
+              !changed
+            }
+            onClick={() => void onRun(`badge-update-${badge.id}`, () => updateBadge(badge.id))}
+          >
+            Save
+          </button>
+          {badge.source === 'manual' ? (
+            <button
+              type="button"
+              className="text-button danger"
+              disabled={busy === `badge-delete-${badge.id}`}
+              onClick={() => void onRun(`badge-delete-${badge.id}`, () => deleteBadge(badge.id))}
+            >
+              Delete
+            </button>
+          ) : null}
+        </div>
+      </article>
+    )
   }
 
   return (
@@ -1260,41 +1364,44 @@ function BadgeManager({
         </div>
       </div>
 
-      <div className="resolved-list badge-definition-list">
+      <div className="badge-definition-list">
         {data.badges.length ? (
-          data.badges.map((badge) => (
-            <span key={`badge-color-${badge.id}`}>
-              <strong>{badge.name}</strong>
-              <label className="inline-color-field">
-                Color
-                <input
-                  type="color"
-                  value={badgeColors[badge.id] ?? badge.color}
-                  disabled={badge.source !== 'manual'}
-                  onChange={(event) => {
-                    const nextColor = event.currentTarget.value
-                    setBadgeColors((current) => ({ ...current, [badge.id]: nextColor }))
-                  }}
-                />
-              </label>
-              <button
-                type="button"
-                disabled={
-                  badge.source !== 'manual' ||
-                  busy === `badge-color-${badge.id}` ||
-                  (badgeColors[badge.id] ?? badge.color) === badge.color
-                }
-                onClick={() => void onRun(`badge-color-${badge.id}`, () => updateBadgeColor(badge.id))}
-              >
-                Save color
-              </button>
-            </span>
-          ))
+          <>
+            <section className="badge-definition-group">
+              <h3>System Badges</h3>
+              <div className="badge-definition-cards">
+                {systemBadges.length ? systemBadges.map(renderBadgeEditor) : (
+                  <div className="empty-inline">No system badges created yet.</div>
+                )}
+              </div>
+            </section>
+            <section className="badge-definition-group">
+              <h3>Custom Badges</h3>
+              <div className="badge-definition-cards">
+                {customBadges.length ? customBadges.map(renderBadgeEditor) : (
+                  <div className="empty-inline">No custom badges created yet.</div>
+                )}
+              </div>
+            </section>
+          </>
         ) : (
-          <div className="empty-inline">{loaded ? 'No manual badges created yet.' : 'Loading badges.'}</div>
+          <div className="empty-inline">{loaded ? 'No badges created yet.' : 'Loading badges.'}</div>
         )}
       </div>
     </AdminSection>
+  )
+}
+
+function createBadgeDrafts(data: AdminBadgeManagerData) {
+  return Object.fromEntries(
+    data.badges.map((badge) => [
+      badge.id,
+      {
+        name: badge.name,
+        description: badge.description,
+        color: badge.color,
+      },
+    ]),
   )
 }
 

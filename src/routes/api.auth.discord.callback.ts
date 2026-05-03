@@ -5,7 +5,11 @@ import {
   isDiscordGuildMemberNotFound,
 } from '../lib/discord'
 import { getHammaSession } from '../lib/discord.server'
-import { hasCompletePlayerCharacters, upsertParticipantProfileIdentity } from '../lib/db.server'
+import {
+  hasCompletePlayerCharacters,
+  syncSystemBadgeAssignmentsForUser,
+  upsertParticipantProfileIdentity,
+} from '../lib/db.server'
 import { discordInviteUrl } from '../lib/env'
 
 export const Route = createFileRoute('/api/auth/discord/callback')({
@@ -51,7 +55,13 @@ export const Route = createFileRoute('/api/auth/discord/callback')({
           roleIds: identity.roleIds,
           roles: identity.roles,
         })
-        upsertParticipantProfileIdentity(identity.discordId, identity.displayName, identity.avatarUrl)
+        upsertParticipantProfileIdentity(
+          identity.discordId,
+          identity.displayName,
+          identity.avatarUrl,
+          identity.roleIds,
+        )
+        syncSystemBadgeAssignmentsForUser(identity.discordId, identity.roles)
 
         return new Response(null, {
           status: 302,

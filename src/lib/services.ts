@@ -84,7 +84,7 @@ export async function requireCurrentEvent(): Promise<HammaEvent> {
   return event
 }
 
-export async function requireEventByIdOrCurrent(eventId?: string): Promise<HammaEvent> {
+export const requireEventByIdOrCurrent = createServerOnlyFn(async (eventId?: string): Promise<HammaEvent> => {
   const trimmedEventId = eventId?.trim()
   if (!trimmedEventId) return requireCurrentEvent()
 
@@ -92,7 +92,7 @@ export async function requireEventByIdOrCurrent(eventId?: string): Promise<Hamma
   const event = await getDbEvent(trimmedEventId)
   if (!event) throw new Response('Event not found.', { status: 404 })
   return event
-}
+})
 
 export async function getSessionUser(): Promise<SessionUser | null> {
   return null
@@ -254,7 +254,7 @@ export async function syncParticipantNameOverrideToRaidHelper(
   return { synced }
 }
 
-export async function syncEventParticipantNameOverridesToRaidHelper(event: HammaEvent) {
+export const syncEventParticipantNameOverridesToRaidHelper = createServerOnlyFn(async (event: HammaEvent) => {
   if (!event.raidHelperEventId || !isRaidHelperConfigured()) return { synced: 0 }
 
   const { getEventParticipantNameOverrides } = await import('./db.server')
@@ -281,4 +281,4 @@ export async function syncEventParticipantNameOverridesToRaidHelper(event: Hamma
   }
 
   return { synced }
-}
+})

@@ -485,7 +485,7 @@ function PlayerBadgeEditor({
             )
           })
         ) : (
-          <div className="empty-inline">No manual badges have been created yet.</div>
+          <div className="empty-inline">No badges have been created yet.</div>
         )}
       </div>
     </section>

@@ -43,6 +43,7 @@ export const participants = sqliteTable('participants', {
   discordId: text('discord_id').primaryKey(),
   name: text('name').notNull(),
   avatarUrl: text('avatar_url'),
+  roleIds: text('role_ids'),
   nameOverridden: integer('name_overridden', { mode: 'boolean' }).notNull().default(false),
   updatedAt: text('updated_at').notNull(),
 })

@@ -1,6 +1,7 @@
 import { useSession } from '@tanstack/react-start/server'
 import { env, sessionPassword } from './env'
 import type { DiscordSessionData } from './discord'
+import { mapDiscordRoles } from './discord'
 
 const SESSION_NAME = 'hammabowl'
 
@@ -22,14 +23,20 @@ export async function getDiscordSessionUser() {
   const session = await getHammaSession()
   const data = session.data
 
-  if (!data.discordId || !data.username || !data.roles) return null
+  if (!data.discordId || !data.username) return null
   const { isParticipantInAnyEvent } = await import('./db.server')
   const { hasCompletePlayerCharacters } = await import('./db.server')
-  const roles = new Set(data.roles)
+  const { syncSystemBadgeAssignmentsForUser } = await import('./db.server')
+  const { updateParticipantDiscordRoleIds } = await import('./db.server')
+  const roleIds = data.roleIds ?? []
+  const roles = new Set(mapDiscordRoles(data.discordId, roleIds))
 
   if (isParticipantInAnyEvent(data.discordId)) {
     roles.add('participant')
   }
+
+  updateParticipantDiscordRoleIds(data.discordId, roleIds)
+  syncSystemBadgeAssignmentsForUser(data.discordId, Array.from(roles))
 
   return {
     id: data.discordId,
@@ -43,7 +50,7 @@ export async function getDiscordSessionUser() {
 export async function requireAdminSession() {
   const user = await getDiscordSessionUser()
   if (!user?.roles.includes('admin')) {
-    throw new Response('Admin Discord role required', { status: 403 })
+    throw new Response('Admin access required', { status: 403 })
   }
   return user
 }

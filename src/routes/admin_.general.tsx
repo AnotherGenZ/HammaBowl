@@ -6,16 +6,25 @@ import { getCurrentEvent, getCurrentEvents } from '../lib/services'
 import { AdminNav } from './admin'
 
 const requireGeneralAdmin = createServerFn({ method: 'GET' }).handler(async () => {
-  const { requireAdminSession } = await import('../lib/discord.server')
-  await requireAdminSession()
-  return { ok: true }
+  const { getDiscordSessionUser } = await import('../lib/discord.server')
+  const user = await getDiscordSessionUser()
+  return { ok: Boolean(user?.roles.includes('admin')) }
 })
 
 export const Route = createFileRoute('/admin_/general')({
   loader: async () => {
-    await requireGeneralAdmin()
+    const access = await requireGeneralAdmin()
+    if (!access.ok) {
+      return {
+        authorized: false,
+        event: null,
+        currentEvents: [],
+      }
+    }
+
     const event = await getCurrentEvent()
     return {
+      authorized: true,
       event,
       currentEvents: await getCurrentEvents(),
     }
@@ -31,12 +40,21 @@ export const Route = createFileRoute('/admin_/general')({
 })
 
 function GeneralAdmin() {
-  const { event, currentEvents } = Route.useLoaderData()
+  const { authorized, event, currentEvents } = Route.useLoaderData()
 
   return (
     <main>
-      <AdminNav />
-      <GeneralAdminTools event={event} currentEvents={currentEvents} />
+      {authorized ? (
+        <>
+          <AdminNav />
+          <GeneralAdminTools event={event} currentEvents={currentEvents} />
+        </>
+      ) : (
+        <section className="panel empty-state">
+          <h1>Admin access required</h1>
+          <p>Sign in with Discord to use HammaBowl general controls.</p>
+        </section>
+      )}
     </main>
   )
 }

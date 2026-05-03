@@ -2232,23 +2232,108 @@ dd {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.badge-definition-list {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.badge-assignment-list span,
-.badge-definition-list span {
+.badge-assignment-list span {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
 }
 
-.badge-assignment-list strong,
-.badge-definition-list strong {
+.badge-assignment-list strong {
   grid-column: 1 / -1;
 }
 
+.badge-definition-list {
+  display: grid;
+  gap: 18px;
+}
+
+.badge-definition-group {
+  display: grid;
+  gap: 10px;
+}
+
+.badge-definition-group h3 {
+  margin: 0;
+  color: #fff7e6;
+  font-size: 0.95rem;
+  letter-spacing: 0;
+}
+
+.badge-definition-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.badge-definition-card {
+  min-height: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.035)),
+    #15171b;
+  padding: 14px;
+  color: #cbd5d3;
+}
+
+.badge-definition-card > strong {
+  width: fit-content;
+  max-width: 100%;
+  border: 1px solid color-mix(in srgb, var(--badge-color, #e4b45e) 56%, white 10%);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--badge-color, #e4b45e) 18%, transparent);
+  color: color-mix(in srgb, var(--badge-color, #e4b45e) 72%, white 28%);
+  padding: 5px 10px;
+  overflow-wrap: anywhere;
+}
+
+.badge-definition-fields {
+  display: grid;
+  gap: 10px;
+}
+
+.badge-definition-fields label {
+  display: grid;
+  gap: 6px;
+  color: #b4bcbb;
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.badge-definition-fields input:not([type='color']) {
+  min-height: 40px;
+  min-width: 0;
+  width: 100%;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: #101216;
+  color: #f4f0e8;
+  padding: 0 10px;
+  font-weight: 650;
+  text-transform: none;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.badge-definition-fields input:not([type='color']):focus {
+  border-color: rgba(228, 180, 94, 0.62);
+  background: #15181d;
+  outline: none;
+}
+
+.badge-definition-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 2px;
+}
+
 .badge-assignment-list button,
-.badge-definition-list button {
+.badge-definition-actions button {
   min-height: 32px;
   padding: 0 10px;
 }
@@ -3562,6 +3647,7 @@ dd {
   .profile-directory-grid,
   .banner-picker,
   .badge-admin-grid,
+  .badge-definition-cards,
   .badge-definition-list,
   .badge-assignment-list {
     grid-template-columns: 1fr;

@@ -2,6 +2,13 @@ export function env(name: string, fallback = '') {
   return process.env[name] ?? fallback
 }
 
+export function envList(name: string) {
+  return env(name)
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean)
+}
+
 export function requireEnv(name: string) {
   const value = process.env[name]
   if (!value) {

@@ -3,9 +3,10 @@ import { requireAdminSession } from '../lib/discord.server'
 import {
   assignManualBadge,
   createManualBadge,
+  deleteManualBadge,
   getAdminBadgeManagerData,
   unassignManualBadge,
-  updateManualBadgeColor,
+  updateBadgeDefinition,
 } from '../lib/db.server'
 import { publishEventUpdate } from '../lib/realtime.server'
 
@@ -41,11 +42,25 @@ export const Route = createFileRoute('/api/admin/badges')({
           return Response.json(result)
         }
 
-        if (body.action === 'update-color') {
+        if (body.action === 'update') {
           const result = {
             ok: true,
-            message: 'Badge color updated.',
-            ...updateManualBadgeColor(String(body.badgeId ?? ''), String(body.color ?? '')),
+            message: 'Badge updated.',
+            ...updateBadgeDefinition(String(body.badgeId ?? ''), {
+              name: body.name,
+              description: body.description,
+              color: body.color,
+            }),
+          }
+          publishEventUpdate('general', 'badges.updated')
+          return Response.json(result)
+        }
+
+        if (body.action === 'delete') {
+          const result = {
+            ok: true,
+            message: 'Badge deleted.',
+            ...deleteManualBadge(String(body.badgeId ?? '')),
           }
           publishEventUpdate('general', 'badges.updated')
           return Response.json(result)

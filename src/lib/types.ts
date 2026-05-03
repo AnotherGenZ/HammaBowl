@@ -1,4 +1,4 @@
-export type Role = 'viewer' | 'participant' | 'admin'
+export type Role = 'viewer' | 'participant' | 'mod' | 'admin'
 export type Faction = 'VS' | 'NC' | 'TR'
 export type StartingSide = string
 
@@ -188,7 +188,7 @@ export interface PlayerBadge {
   name: string
   description: string
   color: string
-  source?: 'automatic' | 'manual'
+  source?: 'automatic' | 'system' | 'manual'
 }
 
 export interface PlayerProfile {
@@ -245,7 +245,7 @@ export interface AdminBadgeDefinition {
   name: string
   description: string
   color: string
-  source: 'automatic' | 'manual'
+  source: 'system' | 'manual'
   createdAt: string
 }
 

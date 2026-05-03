@@ -6,7 +6,7 @@ import { randomUUID } from 'node:crypto'
 import Database from 'better-sqlite3'
 import { and, desc, eq } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
-import { env } from './env'
+import { env, envList } from './env'
 import { normalizeProfileBanner } from './profileBanners'
 import {
   activeDraftBids,
@@ -64,11 +64,28 @@ import type {
   PlayerProfileSummary,
   Rating,
   RegisteredParticipant,
+  Role,
   StartingSide,
 } from './types'
 
 const dbPath = env('DATABASE_URL', path.join(process.cwd(), 'data', 'hammabowl.sqlite'))
 const ACTIVE_EVENT_SETTING_KEY = 'active_event_id'
+const ADMIN_BADGE_ID = 'system-admin'
+const MOD_BADGE_ID = 'system-mod'
+const SYSTEM_BADGES = [
+  {
+    id: ADMIN_BADGE_ID,
+    name: 'Admin',
+    description: 'HammaBowl administrator.',
+    color: '#ef6461',
+  },
+  {
+    id: MOD_BADGE_ID,
+    name: 'Mod',
+    description: 'HammaBowl moderator.',
+    color: '#61a5ef',
+  },
+]
 fs.mkdirSync(path.dirname(dbPath), { recursive: true })
 
 const sqlite = new Database(dbPath)
@@ -1871,7 +1888,12 @@ export function renameParticipant(discordId: string, name: string) {
   return getRegisteredPlayerList()
 }
 
-export function upsertParticipantProfileIdentity(discordId: string, name: string, avatarUrl?: string | null) {
+export function upsertParticipantProfileIdentity(
+  discordId: string,
+  name: string,
+  avatarUrl?: string | null,
+  roleIds?: string[],
+) {
   const now = new Date().toISOString()
   const normalizedId = discordId.trim()
   const normalizedName = name.trim() || normalizedId
@@ -1884,6 +1906,7 @@ export function upsertParticipantProfileIdentity(discordId: string, name: string
       discordId: normalizedId,
       name: displayName,
       avatarUrl: avatarUrl ?? undefined,
+      roleIds: JSON.stringify(roleIds ?? []),
       nameOverridden: existing?.nameOverridden ?? false,
       updatedAt: now,
     })
@@ -1892,6 +1915,7 @@ export function upsertParticipantProfileIdentity(discordId: string, name: string
       set: {
         name: displayName,
         avatarUrl: avatarUrl ?? undefined,
+        roleIds: JSON.stringify(roleIds ?? []),
         updatedAt: now,
       },
     })
@@ -1906,6 +1930,19 @@ export function upsertParticipantProfileIdentity(discordId: string, name: string
       target: playerProfiles.discordId,
       set: { updatedAt: now },
     })
+    .run()
+}
+
+export function updateParticipantDiscordRoleIds(discordId: string, roleIds: string[]) {
+  const normalizedId = discordId.trim()
+  if (!normalizedId) return
+
+  db.update(participants)
+    .set({
+      roleIds: JSON.stringify(roleIds),
+      updatedAt: new Date().toISOString(),
+    })
+    .where(eq(participants.discordId, normalizedId))
     .run()
 }
 
@@ -2349,6 +2386,7 @@ export function getPlayerProfile(discordId: string): PlayerProfile | null {
 }
 
 export function getAdminBadgeManagerData(): AdminBadgeManagerData {
+  syncSystemBadgeAssignments()
   const badges = db
     .select()
     .from(badgeDefinitions)
@@ -2358,7 +2396,7 @@ export function getAdminBadgeManagerData(): AdminBadgeManagerData {
       name: badge.name,
       description: badge.description,
       color: normalizeBadgeColor(badge.color),
-      source: badge.source === 'automatic' ? 'automatic' as const : 'manual' as const,
+      source: badge.source === 'system' ? 'system' as const : 'manual' as const,
       createdAt: badge.createdAt,
     }))
     .sort((a, b) => a.name.localeCompare(b.name))
@@ -2410,13 +2448,35 @@ export function createManualBadge(values: { name: string; description: string; c
   return getAdminBadgeManagerData()
 }
 
-export function updateManualBadgeColor(badgeId: string, color: string) {
+export function updateBadgeDefinition(
+  badgeId: string,
+  values: { name?: string; description?: string; color?: string },
+) {
   const badge = db.select().from(badgeDefinitions).where(eq(badgeDefinitions.id, badgeId)).get()
   if (!badge) throw new Error('Badge not found.')
-  if (badge.source !== 'manual') throw new Error('Only manual badges can be configured here.')
+  const name = normalizeOptionalBadgeField(values.name, 48) ?? badge.name
+  const description = normalizeOptionalBadgeField(values.description, 160) ?? badge.description
+  if (!name) throw new Error('Badge name is required.')
+  if (!description) throw new Error('Badge description is required.')
 
   db.update(badgeDefinitions)
-    .set({ color: normalizeBadgeColor(color) })
+    .set({
+      name,
+      description,
+      color: normalizeBadgeColor(values.color ?? badge.color),
+    })
+    .where(eq(badgeDefinitions.id, badgeId))
+    .run()
+
+  return getAdminBadgeManagerData()
+}
+
+export function deleteManualBadge(badgeId: string) {
+  const badge = db.select().from(badgeDefinitions).where(eq(badgeDefinitions.id, badgeId)).get()
+  if (!badge) throw new Error('Badge not found.')
+  if (badge.source !== 'manual') throw new Error('System badges cannot be deleted.')
+
+  db.delete(badgeDefinitions)
     .where(eq(badgeDefinitions.id, badgeId))
     .run()
 
@@ -2464,7 +2524,7 @@ export function getAdminPlayerProfileEditorData(discordId: string): AdminPlayerP
       name: badge.name,
       description: badge.description,
       color: normalizeBadgeColor(badge.color),
-      source: badge.source === 'automatic' ? 'automatic' as const : 'manual' as const,
+      source: badge.source === 'system' ? 'system' as const : 'manual' as const,
       createdAt: badge.createdAt,
     }))
     .sort((a, b) => a.name.localeCompare(b.name))
@@ -2504,6 +2564,113 @@ export function unassignPlayerManualBadge(discordId: string, badgeId: string) {
 export function resetPlayerCatchphrase(discordId: string) {
   updatePlayerProfile(discordId, { catchphrase: '' })
   return getAdminPlayerProfileEditorData(discordId)
+}
+
+export function syncSystemBadgeAssignmentsForUser(discordId: string, roles: Role[]) {
+  ensureSystemBadges()
+  const normalizedId = discordId.trim()
+  if (!normalizedId) return
+
+  const roleSet = new Set(roles)
+  setSystemBadgeAssignment(normalizedId, ADMIN_BADGE_ID, roleSet.has('admin'))
+  setSystemBadgeAssignment(normalizedId, MOD_BADGE_ID, roleSet.has('mod'))
+}
+
+function syncSystemBadgeAssignments() {
+  ensureSystemBadges()
+  const adminIds = new Set(envList('DISCORD_ADMIN_USER_IDS'))
+  const modRoleId = env('DISCORD_MOD_ROLE_ID')
+  const adminAssignments = db
+    .select()
+    .from(playerBadgeAssignments)
+    .where(eq(playerBadgeAssignments.badgeId, ADMIN_BADGE_ID))
+    .all()
+  const modAssignments = db
+    .select()
+    .from(playerBadgeAssignments)
+    .where(eq(playerBadgeAssignments.badgeId, MOD_BADGE_ID))
+    .all()
+  const modIds = new Set(
+    modRoleId
+      ? db.select()
+        .from(participants)
+        .all()
+        .filter((participant) => parsePersistedRoleIds(participant.roleIds).includes(modRoleId))
+        .map((participant) => participant.discordId)
+      : [],
+  )
+
+  for (const discordId of adminIds) {
+    setSystemBadgeAssignment(discordId, ADMIN_BADGE_ID, true)
+  }
+  for (const assignment of adminAssignments) {
+    if (!adminIds.has(assignment.discordId)) {
+      setSystemBadgeAssignment(assignment.discordId, ADMIN_BADGE_ID, false)
+    }
+  }
+  for (const discordId of modIds) {
+    setSystemBadgeAssignment(discordId, MOD_BADGE_ID, true)
+  }
+  for (const assignment of modAssignments) {
+    if (!modIds.has(assignment.discordId)) {
+      setSystemBadgeAssignment(assignment.discordId, MOD_BADGE_ID, false)
+    }
+  }
+}
+
+function setSystemBadgeAssignment(discordId: string, badgeId: string, assigned: boolean) {
+  const normalizedId = discordId.trim()
+  if (!normalizedId) return
+
+  if (!assigned) {
+    db.delete(playerBadgeAssignments)
+      .where(and(eq(playerBadgeAssignments.badgeId, badgeId), eq(playerBadgeAssignments.discordId, normalizedId)))
+      .run()
+    return
+  }
+
+  db.insert(playerBadgeAssignments)
+    .values({
+      badgeId,
+      discordId: normalizedId,
+      assignedAt: new Date().toISOString(),
+    })
+    .onConflictDoNothing()
+    .run()
+}
+
+function ensureSystemBadges() {
+  const now = new Date().toISOString()
+  for (const badge of SYSTEM_BADGES) {
+    const existing = db.select().from(badgeDefinitions).where(eq(badgeDefinitions.id, badge.id)).get()
+    if (existing) {
+      if (existing.source !== 'system') {
+        db.update(badgeDefinitions)
+          .set({ source: 'system' })
+          .where(eq(badgeDefinitions.id, badge.id))
+          .run()
+      }
+      continue
+    }
+
+    db.insert(badgeDefinitions)
+      .values({
+        ...badge,
+        source: 'system',
+        createdAt: now,
+      })
+      .run()
+  }
+}
+
+function parsePersistedRoleIds(value?: string | null) {
+  if (!value) return []
+  try {
+    const parsed = JSON.parse(value)
+    return Array.isArray(parsed) ? parsed.filter((roleId): roleId is string => typeof roleId === 'string') : []
+  } catch {
+    return []
+  }
 }
 
 function upsertParticipant(discordId: string, name: string, updatedAt = new Date().toISOString()) {
@@ -2747,7 +2914,7 @@ function getManualPlayerBadges(discordId: string): PlayerBadge[] {
     name: row.name,
     description: row.description,
     color: normalizeBadgeColor(row.color),
-    source: row.source === 'automatic' ? 'automatic' : 'manual',
+    source: row.source === 'system' ? 'system' : 'manual',
   }))
 }
 
@@ -2812,6 +2979,11 @@ function normalizeOptionalText(value: string | undefined, maxLength: number) {
   return trimmed ? trimmed.slice(0, maxLength) : null
 }
 
+function normalizeOptionalBadgeField(value: string | undefined, maxLength: number) {
+  if (value === undefined) return null
+  return value.trim().slice(0, maxLength)
+}
+
 function normalizeBadgeColor(value?: string | null) {
   const color = String(value ?? '').trim()
   return /^#[0-9a-fA-F]{6}$/.test(color) ? color.toLowerCase() : '#e4b45e'
@@ -2869,6 +3041,7 @@ function bootstrap() {
       discord_id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       avatar_url TEXT,
+      role_ids TEXT,
       name_overridden INTEGER NOT NULL DEFAULT 0,
       updated_at TEXT NOT NULL
     );
@@ -3038,10 +3211,12 @@ function bootstrap() {
   addColumnIfMissing('events', 'trophy_id', "TEXT NOT NULL DEFAULT 'hammo-bowl-cup'")
   addColumnIfMissing('events', 'lore', 'TEXT')
   addColumnIfMissing('participants', 'avatar_url', 'TEXT')
+  addColumnIfMissing('participants', 'role_ids', 'TEXT')
   addColumnIfMissing('participants', 'name_overridden', 'INTEGER NOT NULL DEFAULT 0')
   addColumnIfMissing('player_profiles', 'no_personal_jaeger_account', 'INTEGER NOT NULL DEFAULT 0')
   addColumnIfMissing('player_profiles', 'badge_display_order', 'TEXT')
   addColumnIfMissing('badge_definitions', 'color', "TEXT NOT NULL DEFAULT '#e4b45e'")
+  addColumnIfMissing('badge_definitions', 'source', "TEXT NOT NULL DEFAULT 'manual'")
   addColumnIfMissing('event_participants', 'winner', 'INTEGER NOT NULL DEFAULT 0')
   addColumnIfMissing('coinflips', 'calling_team_id', 'TEXT REFERENCES teams(id) ON DELETE SET NULL')
   addColumnIfMissing('coinflips', 'caller_call', 'TEXT')
@@ -3062,6 +3237,8 @@ function bootstrap() {
       updated_at = excluded.updated_at
       WHERE participants.name_overridden = 0;
   `)
+  ensureSystemBadges()
+  syncSystemBadgeAssignments()
 }
 
 function migrateEventPlayerCharactersPrimaryKey() {

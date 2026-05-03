@@ -52,7 +52,7 @@ function Admin() {
         </>
       ) : (
         <section className="panel empty-state">
-          <h1>Discord admin role required</h1>
+          <h1>Admin access required</h1>
           <p>Sign in with Discord to use HammaBowl event controls.</p>
         </section>
       )}
