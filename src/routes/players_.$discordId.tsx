@@ -36,13 +36,15 @@ function PlayerProfilePage() {
   const navigate = useNavigate()
   const [badges, setBadges] = useState<PlayerBadge[]>(profile?.badges ?? [])
   const [catchphrase, setCatchphrase] = useState(profile?.catchphrase ?? '')
+  const [displayName, setDisplayName] = useState(profile?.name ?? '')
   const [profileEditorOpen, setProfileEditorOpen] = useState(false)
   const [chartExpanded, setChartExpanded] = useState(false)
 
   useEffect(() => {
     setBadges(profile?.badges ?? [])
     setCatchphrase(profile?.catchphrase ?? '')
-  }, [profile?.discordId, profile?.badges, profile?.catchphrase])
+    setDisplayName(profile?.name ?? '')
+  }, [profile?.discordId, profile?.badges, profile?.catchphrase, profile?.name])
 
   if (!profile) {
     return (
@@ -73,7 +75,7 @@ function PlayerProfilePage() {
           Players
         </Link>
         <span aria-hidden="true">/</span>
-        <span aria-current="page">{profile.name}</span>
+        <span aria-current="page">{displayName}</span>
       </nav>
       <section
         className="profile-hero"
@@ -100,10 +102,10 @@ function PlayerProfilePage() {
           </button>
         ) : null}
         <div className="profile-identity">
-          {profile.avatarUrl ? <img src={profile.avatarUrl} alt="" /> : <span>{profile.name.slice(0, 1)}</span>}
+          {profile.avatarUrl ? <img src={profile.avatarUrl} alt="" /> : <span>{displayName.slice(0, 1)}</span>}
           <div>
             <p className="eyebrow">Player profile</p>
-            <h1>{profile.name}</h1>
+            <h1>{displayName}</h1>
             {catchphrase ? <p className="profile-catchphrase">{catchphrase}</p> : null}
             {badges.length ? (
               <div className="profile-hero-badges">
@@ -121,10 +123,11 @@ function PlayerProfilePage() {
       {isAdmin && profileEditorOpen ? (
         <AdminProfileEditorModal
           discordId={profile.discordId}
-          playerName={profile.name}
+          playerName={displayName}
           onClose={() => setProfileEditorOpen(false)}
           onBadgesChanged={setBadges}
           onCatchphraseChanged={setCatchphrase}
+          onNameChanged={setDisplayName}
         />
       ) : null}
 
@@ -249,12 +252,14 @@ function AdminProfileEditorModal({
   onClose,
   onBadgesChanged,
   onCatchphraseChanged,
+  onNameChanged,
 }: {
   discordId: string
   playerName: string
   onClose: () => void
   onBadgesChanged: (badges: PlayerBadge[]) => void
   onCatchphraseChanged: (catchphrase: string) => void
+  onNameChanged: (name: string) => void
 }) {
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
@@ -278,6 +283,7 @@ function AdminProfileEditorModal({
           discordId={discordId}
           onBadgesChanged={onBadgesChanged}
           onCatchphraseChanged={onCatchphraseChanged}
+          onNameChanged={onNameChanged}
         />
       </section>
     </div>
@@ -288,12 +294,15 @@ function PlayerBadgeEditor({
   discordId,
   onBadgesChanged,
   onCatchphraseChanged,
+  onNameChanged,
 }: {
   discordId: string
   onBadgesChanged: (badges: PlayerBadge[]) => void
   onCatchphraseChanged: (catchphrase: string) => void
+  onNameChanged: (name: string) => void
 }) {
   const [data, setData] = useState<AdminPlayerProfileEditorData>()
+  const [name, setName] = useState('')
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState('')
 
@@ -307,15 +316,42 @@ function PlayerBadgeEditor({
     if (!response.ok) throw new Error(await response.text())
     const payload = await response.json() as AdminPlayerProfileEditorData
     setData(payload)
+    setName(payload.player.name)
     onBadgesChanged(payload.visibleBadges)
     onCatchphraseChanged(payload.catchphrase)
+    onNameChanged(payload.player.name)
   }
 
   function applyEditorPayload(payload: AdminPlayerProfileEditorData & { message?: string }) {
     setData(payload)
+    setName(payload.player.name)
     onBadgesChanged(payload.visibleBadges)
     onCatchphraseChanged(payload.catchphrase)
+    onNameChanged(payload.player.name)
     setMessage(payload.message ?? 'Profile updated.')
+  }
+
+  async function renamePlayer() {
+    setBusy('name')
+    setMessage('')
+    try {
+      const response = await fetch('/api/admin/player-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'rename',
+          discordId,
+          name,
+        }),
+      })
+      if (!response.ok) throw new Error(await response.text())
+      const payload = await response.json() as AdminPlayerProfileEditorData & { message?: string }
+      applyEditorPayload(payload)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Unable to rename player.')
+    } finally {
+      setBusy('')
+    }
   }
 
   async function toggleBadge(badgeId: string, checked: boolean) {
@@ -380,6 +416,30 @@ function PlayerBadgeEditor({
         <h2>Profile controls</h2>
       </div>
       {message ? <div className="admin-result">{message}</div> : null}
+      <div className="badge-settings-list">
+        <article className="badge-settings-row" data-selected={name.trim() !== data.player.name}>
+          <label className="profile-name-field">
+            <span>
+              <strong>Display name</strong>
+              <small>Shown across player profiles, events, and admin tools.</small>
+            </span>
+            <input
+              value={name}
+              maxLength={80}
+              disabled={busy === 'name'}
+              onChange={(event) => setName(event.currentTarget.value)}
+            />
+          </label>
+          <button
+            type="button"
+            disabled={busy === 'name' || !name.trim() || name.trim() === data.player.name}
+            onClick={() => void renamePlayer()}
+          >
+            {busy === 'name' ? <span className="spinner" aria-label="Saving" /> : null}
+            Rename player
+          </button>
+        </article>
+      </div>
       <div className="badge-settings-list">
         <article className="badge-settings-row" data-selected={Boolean(data.catchphrase)}>
           <span>

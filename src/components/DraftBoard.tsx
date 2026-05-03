@@ -291,7 +291,7 @@ export function DraftBoard({
         </div>
         {draftLocked ? (
           <div className="toast toast-neutral" role="status">
-            The first round has started. Draft picks, bids, and admin draft edits are locked.
+            The first round has started. Draft is locked.
           </div>
         ) : null}
         {ledgers.length ? (

@@ -3,10 +3,12 @@ import { requireAdminSession } from '../lib/discord.server'
 import {
   assignPlayerManualBadge,
   getAdminPlayerProfileEditorData,
+  renameParticipant,
   resetPlayerCatchphrase,
   unassignPlayerManualBadge,
 } from '../lib/db.server'
 import { publishEventUpdate } from '../lib/realtime.server'
+import { clearCurrentEventCache, syncParticipantNameOverrideToRaidHelper } from '../lib/services'
 
 export const Route = createFileRoute('/api/admin/player-profile')({
   server: {
@@ -22,9 +24,25 @@ export const Route = createFileRoute('/api/admin/player-profile')({
           action?: string
           discordId?: string
           badgeId?: string
+          name?: string
         }
         const discordId = String(body.discordId ?? '')
         const badgeId = String(body.badgeId ?? '')
+
+        if (body.action === 'rename') {
+          const name = String(body.name ?? '').trim().slice(0, 80)
+          renameParticipant(discordId, name)
+          const raidHelperSync = await syncParticipantNameOverrideToRaidHelper(discordId, name)
+          clearCurrentEventCache()
+          publishEventUpdate('current', 'participant.renamed')
+          return Response.json({
+            ok: true,
+            message: raidHelperSync.synced
+              ? `Player renamed and synced to ${raidHelperSync.synced} Raid Helper event${raidHelperSync.synced === 1 ? '' : 's'}.`
+              : 'Player renamed.',
+            ...getAdminPlayerProfileEditorData(discordId),
+          })
+        }
 
         if (body.action === 'assign') {
           const result = {
