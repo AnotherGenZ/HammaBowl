@@ -67,6 +67,16 @@ export interface Coinflip {
   updatedAt?: string
 }
 
+export interface EventRound {
+  eventId: string
+  roundNumber: number
+  startedAt: string
+  durationSeconds: number
+  winningTeamId?: string
+  resultNote?: string
+  updatedAt: string
+}
+
 export interface EventLink {
   url: string
   name: string
@@ -83,6 +93,8 @@ export interface HammaEvent {
   endsAt?: string
   closingTime?: string
   draftStartMinutesBefore?: number
+  roundCount: number
+  roundDurationSeconds: number
   phase: 'signups' | 'rating' | 'draft' | 'locked' | 'complete'
   salaryPool: number
   bonusPool: number
@@ -98,6 +110,7 @@ export interface HammaEvent {
   activeDraftBid?: ActiveDraftBid
   nextPickTeamId?: string
   coinflip?: Coinflip
+  rounds: EventRound[]
   winningTeamId?: string
   twitchStreamUrl?: string
   twitchVodUrl?: string

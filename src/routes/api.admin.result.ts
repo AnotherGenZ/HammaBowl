@@ -1,7 +1,15 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { requireAdminSession } from '../lib/discord.server'
 import { clearCurrentEventCache, requireEventByIdOrCurrent } from '../lib/services'
-import { adjustScore, getDbEvent, setWinningTeam, updateEventLinks } from '../lib/db.server'
+import {
+  adjustScore,
+  getDbEvent,
+  setWinningTeam,
+  startNextRound,
+  updateEventLinks,
+  updateEventRoundSettings,
+  updateRoundResult,
+} from '../lib/db.server'
 import { publishEventUpdate } from '../lib/realtime.server'
 
 export const Route = createFileRoute('/api/admin/result')({
@@ -18,6 +26,24 @@ export const Route = createFileRoute('/api/admin/result')({
         }
 
         const messages: string[] = []
+        if ('roundCount' in body || 'roundDurationMinutes' in body) {
+          const result = await updateEventRoundSettings(event.id, {
+            roundCount: String(body.roundCount ?? ''),
+            roundDurationMinutes: String(body.roundDurationMinutes ?? ''),
+          })
+          messages.push(result.message)
+        }
+        if (body.startRound) {
+          const result = await startNextRound(event.id)
+          messages.push(result.message)
+        }
+        if ('roundNumber' in body && ('roundWinningTeamId' in body || 'roundResultNote' in body)) {
+          const result = await updateRoundResult(event.id, Number(body.roundNumber), {
+            winningTeamId: String(body.roundWinningTeamId ?? ''),
+            resultNote: String(body.roundResultNote ?? ''),
+          })
+          messages.push(result.message)
+        }
         if ('twitchStreamUrl' in body || 'twitchVodUrl' in body) {
           await updateEventLinks(event.id, {
             twitchStreamUrl: String(body.twitchStreamUrl ?? ''),
@@ -41,7 +67,12 @@ export const Route = createFileRoute('/api/admin/result')({
 
         clearCurrentEventCache()
         const updated = await getDbEvent(event.id)
-        publishEventUpdate(event.id, body.winner ? 'event.result.recorded' : 'event.updated')
+        publishEventUpdate(
+          event.id,
+          body.winner || body.startRound || 'roundNumber' in body
+            ? 'event.result.recorded'
+            : 'event.updated',
+        )
         return Response.json({ ok: true, message: messages.join(' ') || 'Result saved.', event: updated })
       },
     },

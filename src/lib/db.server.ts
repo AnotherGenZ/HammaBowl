@@ -14,6 +14,7 @@ import {
   badgeDefinitions,
   coinflips,
   draftPicks,
+  eventRounds,
   eventPlayerCharacters,
   eventParticipants,
   events,
@@ -89,6 +90,8 @@ export async function upsertEventFromRaidHelper(event: HammaEvent) {
       endsAt: event.endsAt,
       closingTime: event.closingTime,
       draftStartMinutesBefore: event.draftStartMinutesBefore,
+      roundCount: event.roundCount ?? 3,
+      roundDurationSeconds: event.roundDurationSeconds ?? 900,
       phase: event.phase,
       salaryPool: event.salaryPool,
       bonusPool: event.bonusPool,
@@ -182,6 +185,12 @@ export async function getDbEvent(eventId: string): Promise<HammaEvent | null> {
   const teamRows = db.select().from(teams).where(eq(teams.eventId, event.id)).all()
   const ratingRows = db.select().from(ratings).where(eq(ratings.eventId, event.id)).all()
   const pickRows = db.select().from(draftPicks).where(eq(draftPicks.eventId, event.id)).all()
+  const roundRows = db
+    .select()
+    .from(eventRounds)
+    .where(eq(eventRounds.eventId, event.id))
+    .all()
+    .sort((a, b) => a.roundNumber - b.roundNumber)
   const activeBidRow = db
     .select()
     .from(activeDraftBids)
@@ -241,6 +250,8 @@ export async function getDbEvent(eventId: string): Promise<HammaEvent | null> {
     endsAt: event.endsAt ?? undefined,
     closingTime: event.closingTime ?? undefined,
     draftStartMinutesBefore: event.draftStartMinutesBefore ?? undefined,
+    roundCount: event.roundCount,
+    roundDurationSeconds: event.roundDurationSeconds,
     phase: event.phase as HammaEvent['phase'],
     salaryPool: event.salaryPool,
     bonusPool: event.bonusPool,
@@ -281,6 +292,15 @@ export async function getDbEvent(eventId: string): Promise<HammaEvent | null> {
           updatedAt: coinflipRow.updatedAt ?? undefined,
         }
       : undefined,
+    rounds: roundRows.map((round) => ({
+      eventId: round.eventId,
+      roundNumber: round.roundNumber,
+      startedAt: round.startedAt,
+      durationSeconds: round.durationSeconds,
+      winningTeamId: round.winningTeamId ?? undefined,
+      resultNote: round.resultNote ?? undefined,
+      updatedAt: round.updatedAt,
+    })),
     winningTeamId: event.winningTeamId ?? undefined,
     twitchStreamUrl: event.twitchStreamUrl ?? undefined,
     twitchVodUrl: event.twitchVodUrl ?? undefined,
@@ -370,6 +390,7 @@ export async function setActiveEvent(eventId: string): Promise<HammaEvent> {
 }
 
 export async function ensureDefaultTeams(event: HammaEvent) {
+  assertDraftUnlocked(event.id)
   const now = new Date().toISOString()
   const existing = db.select().from(teams).where(eq(teams.eventId, event.id)).all()
   if (existing.length >= 2) return existing
@@ -414,6 +435,7 @@ export async function updateTeamSettings(
     score?: number
   },
 ) {
+  assertDraftUnlocked(eventId)
   const team = db
     .select()
     .from(teams)
@@ -604,6 +626,7 @@ export async function updateTeamAssignments(
   eventId: string,
   assignments: Array<{ teamId: string; faction?: string; startingSide?: string }>,
 ) {
+  assertDraftUnlocked(eventId)
   const event = db.select().from(events).where(eq(events.id, eventId)).get()
   if (!event) throw new Error('Event not found.')
 
@@ -788,6 +811,112 @@ export async function updateEventAdminSettings(
   return { ok: true }
 }
 
+export async function updateEventRoundSettings(
+  eventId: string,
+  values: { roundCount?: string; roundDurationMinutes?: string },
+) {
+  const event = db.select().from(events).where(eq(events.id, eventId)).get()
+  if (!event) throw new Error('Event not found.')
+  if (isDraftLocked(eventId)) {
+    throw new Error('Round settings cannot be changed after the first round starts.')
+  }
+
+  const roundCount = normalizeRoundCount(values.roundCount, event.roundCount)
+  const roundDurationSeconds = normalizeRoundDurationMinutes(
+    values.roundDurationMinutes,
+    event.roundDurationSeconds,
+  )
+
+  db.update(events)
+    .set({
+      roundCount,
+      roundDurationSeconds,
+      updatedAt: new Date().toISOString(),
+    })
+    .where(eq(events.id, eventId))
+    .run()
+
+  return { ok: true, message: 'Round settings saved.' }
+}
+
+export async function startNextRound(eventId: string) {
+  const event = db.select().from(events).where(eq(events.id, eventId)).get()
+  if (!event) throw new Error('Event not found.')
+
+  const activeBid = db
+    .select()
+    .from(activeDraftBids)
+    .where(and(eq(activeDraftBids.eventId, eventId), eq(activeDraftBids.status, 'active')))
+    .get()
+  if (activeBid) throw new Error('Finish or cancel the active draft bid before starting a round.')
+
+  const existingRounds = db
+    .select()
+    .from(eventRounds)
+    .where(eq(eventRounds.eventId, eventId))
+    .all()
+  const nextRoundNumber = existingRounds.length
+    ? Math.max(...existingRounds.map((round) => round.roundNumber)) + 1
+    : 1
+  if (nextRoundNumber > event.roundCount) {
+    throw new Error('All configured rounds have already been started.')
+  }
+
+  const now = new Date().toISOString()
+  db.insert(eventRounds)
+    .values({
+      eventId,
+      roundNumber: nextRoundNumber,
+      startedAt: now,
+      durationSeconds: event.roundDurationSeconds,
+      updatedAt: now,
+    })
+    .run()
+  db.update(events)
+    .set({ phase: 'locked', updatedAt: now })
+    .where(eq(events.id, eventId))
+    .run()
+
+  return { ok: true, message: `Round ${nextRoundNumber} started.` }
+}
+
+export async function updateRoundResult(
+  eventId: string,
+  roundNumber: number,
+  values: { winningTeamId?: string; resultNote?: string },
+) {
+  const round = db
+    .select()
+    .from(eventRounds)
+    .where(and(eq(eventRounds.eventId, eventId), eq(eventRounds.roundNumber, roundNumber)))
+    .get()
+  if (!round) throw new Error('Round not found.')
+
+  const winningTeamId = values.winningTeamId?.trim() || null
+  if (winningTeamId) {
+    const team = db
+      .select()
+      .from(teams)
+      .where(and(eq(teams.eventId, eventId), eq(teams.id, winningTeamId)))
+      .get()
+    if (!team) throw new Error('Winning team not found.')
+  }
+
+  const now = new Date().toISOString()
+  db.update(eventRounds)
+    .set({
+      winningTeamId,
+      resultNote: values.resultNote?.trim() || null,
+      updatedAt: now,
+    })
+    .where(and(eq(eventRounds.eventId, eventId), eq(eventRounds.roundNumber, roundNumber)))
+    .run()
+  recalculateScoresFromRounds(eventId)
+  db.update(events).set({ updatedAt: now }).where(eq(events.id, eventId)).run()
+
+  return { ok: true, message: `Round ${roundNumber} result saved.` }
+}
+
 function normalizeEvenPool(value: string | undefined, current: number, label: string) {
   const amount = normalizeNonNegativeInteger(value, current, label)
   if (amount % 2 !== 0) throw new Error(`${label} must be evenly divisible by 2.`)
@@ -809,6 +938,28 @@ function normalizePositiveInteger(value: string | undefined, current: number, la
   const amount = normalizeNonNegativeInteger(value, current, label)
   if (amount <= 0) throw new Error(`${label} must be greater than 0.`)
   return amount
+}
+
+function normalizeRoundCount(value: string | undefined, current: number) {
+  if (value === undefined) return current
+  const trimmed = value.trim()
+  if (!trimmed) throw new Error('Round count is required.')
+  const count = Number(trimmed)
+  if (!Number.isInteger(count) || count < 1 || count > 20) {
+    throw new Error('Round count must be a whole number from 1 to 20.')
+  }
+  return count
+}
+
+function normalizeRoundDurationMinutes(value: string | undefined, currentSeconds: number) {
+  if (value === undefined) return currentSeconds
+  const trimmed = value.trim()
+  if (!trimmed) throw new Error('Round duration is required.')
+  const minutes = Number(trimmed)
+  if (!Number.isInteger(minutes) || minutes < 1 || minutes > 240) {
+    throw new Error('Round duration must be a whole number from 1 to 240 minutes.')
+  }
+  return minutes * 60
 }
 
 function normalizeDraftStartMinutesBefore(value: string | undefined, current: number | null) {
@@ -1096,6 +1247,7 @@ export async function confirmDraftPick(
   contestedByTeamId?: string,
   openedByTeamId?: string,
 ) {
+  assertDraftUnlocked(event.id)
   const team = event.teams.find((captain) => captain.id === teamId)
   if (!team) throw new Error('Team not found.')
 
@@ -1141,6 +1293,7 @@ export async function confirmDraftPick(
 }
 
 export async function openDraftBid(event: HammaEvent, teamId: string, playerDiscordId: string) {
+  assertDraftUnlocked(event.id)
   if (event.activeDraftBid) throw new Error('A bid is already open.')
   const readiness = getDraftReadiness(event)
   if (!readiness.ready) throw new Error(readiness.label)
@@ -1191,6 +1344,7 @@ export async function openDraftBid(event: HammaEvent, teamId: string, playerDisc
 }
 
 export async function pickDraftPlayer(event: HammaEvent, teamId: string, playerDiscordId: string) {
+  assertDraftUnlocked(event.id)
   const readiness = getDraftReadiness(event)
   if (!readiness.ready) throw new Error(readiness.label)
   if (event.activeDraftBid) throw new Error('A bid is already open.')
@@ -1215,6 +1369,7 @@ export async function pickDraftPlayer(event: HammaEvent, teamId: string, playerD
 }
 
 export async function bumpDraftBid(event: HammaEvent, bidId: string, teamId: string) {
+  assertDraftUnlocked(event.id)
   const bid = getActiveBid(event.id, bidId)
   if (bid.nextTeamId !== teamId) throw new Error('It is not your turn to raise this bid.')
 
@@ -1280,6 +1435,7 @@ export async function bumpDraftBid(event: HammaEvent, bidId: string, teamId: str
 }
 
 export async function forfeitDraftBid(event: HammaEvent, bidId: string, teamId: string) {
+  assertDraftUnlocked(event.id)
   const bid = getActiveBid(event.id, bidId)
   if (bid.nextTeamId !== teamId) throw new Error('It is not your turn to forfeit this bid.')
   const nextPickTeamId = oppositeTeamId(event, bid.openedByTeamId)
@@ -1305,6 +1461,7 @@ export async function forfeitDraftBid(event: HammaEvent, bidId: string, teamId: 
 }
 
 export async function resetDraftPick(eventId: string, pickId: string) {
+  assertDraftUnlocked(eventId)
   const activeBid = db
     .select()
     .from(activeDraftBids)
@@ -1357,6 +1514,7 @@ export async function resetDraftPick(eventId: string, pickId: string) {
 }
 
 export async function cancelActiveDraftBid(eventId: string) {
+  assertDraftUnlocked(eventId)
   const bid = db
     .select()
     .from(activeDraftBids)
@@ -1386,6 +1544,31 @@ function getActiveBid(eventId: string, bidId: string) {
     .get()
   if (!bid) throw new Error('Active bid not found.')
   return bid
+}
+
+function assertDraftUnlocked(eventId: string) {
+  if (isDraftLocked(eventId)) {
+    throw new Error('The draft is locked because the first round has started.')
+  }
+}
+
+function isDraftLocked(eventId: string) {
+  return Boolean(
+    db.select()
+      .from(eventRounds)
+      .where(eq(eventRounds.eventId, eventId))
+      .limit(1)
+      .get(),
+  )
+}
+
+function recalculateScoresFromRounds(eventId: string) {
+  const teamRows = db.select().from(teams).where(eq(teams.eventId, eventId)).all()
+  const rounds = db.select().from(eventRounds).where(eq(eventRounds.eventId, eventId)).all()
+  for (const team of teamRows) {
+    const score = rounds.filter((round) => round.winningTeamId === team.id).length
+    db.update(teams).set({ score }).where(eq(teams.id, team.id)).run()
+  }
 }
 
 export async function setRatingDisqualified(
@@ -2559,6 +2742,8 @@ function bootstrap() {
       ends_at TEXT,
       closing_time TEXT,
       draft_start_minutes_before INTEGER,
+      round_count INTEGER NOT NULL DEFAULT 3,
+      round_duration_seconds INTEGER NOT NULL DEFAULT 900,
       phase TEXT NOT NULL DEFAULT 'signups',
       salary_pool INTEGER NOT NULL DEFAULT ${SALARY_POOL},
       bonus_pool INTEGER NOT NULL DEFAULT ${BONUS_POOL},
@@ -2697,6 +2882,16 @@ function bootstrap() {
       reason TEXT,
       created_at TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS event_rounds (
+      event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+      round_number INTEGER NOT NULL,
+      started_at TEXT NOT NULL,
+      duration_seconds INTEGER NOT NULL,
+      winning_team_id TEXT REFERENCES teams(id) ON DELETE SET NULL,
+      result_note TEXT,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (event_id, round_number)
+    );
     CREATE TABLE IF NOT EXISTS coinflips (
       id TEXT PRIMARY KEY,
       event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
@@ -2716,6 +2911,8 @@ function bootstrap() {
   addColumnIfMissing('events', 'name_override', 'TEXT')
   addColumnIfMissing('events', 'ends_at', 'TEXT')
   addColumnIfMissing('events', 'draft_start_minutes_before', 'INTEGER')
+  addColumnIfMissing('events', 'round_count', 'INTEGER NOT NULL DEFAULT 3')
+  addColumnIfMissing('events', 'round_duration_seconds', 'INTEGER NOT NULL DEFAULT 900')
   addColumnIfMissing('events', 'pending_signup_count', 'INTEGER NOT NULL DEFAULT 0')
   addColumnIfMissing('events', 'bonus_pool', `INTEGER NOT NULL DEFAULT ${BONUS_POOL}`)
   addColumnIfMissing('events', 'max_player_bonus', `INTEGER NOT NULL DEFAULT ${MAX_PLAYER_BONUS}`)

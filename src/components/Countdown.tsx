@@ -1,21 +1,35 @@
 import { useEffect, useMemo, useState } from 'react'
 
 type CountdownTarget =
-  | { label: string; time: number; variant: 'signups' | 'draft' | 'start'; inProgress?: false }
+  | { label: string; time: number; variant: 'signups' | 'draft' | 'start' | 'round'; inProgress?: false }
   | { inProgress: true }
 
 export function Countdown({
   closingTime,
   startsAt,
   draftStartMinutesBefore,
+  roundStartedAt,
+  roundDurationSeconds,
+  roundNumber,
 }: {
   closingTime?: string
   startsAt: string
   draftStartMinutesBefore?: number
+  roundStartedAt?: string
+  roundDurationSeconds?: number
+  roundNumber?: number
 }) {
   const schedule = useMemo(
-    () => buildCountdownSchedule({ closingTime, startsAt, draftStartMinutesBefore }),
-    [closingTime, startsAt, draftStartMinutesBefore],
+    () =>
+      buildCountdownSchedule({
+        closingTime,
+        startsAt,
+        draftStartMinutesBefore,
+        roundStartedAt,
+        roundDurationSeconds,
+        roundNumber,
+      }),
+    [closingTime, startsAt, draftStartMinutesBefore, roundStartedAt, roundDurationSeconds, roundNumber],
   )
   const [now, setNow] = useState(() => Date.now())
 
@@ -60,12 +74,23 @@ function buildCountdownSchedule({
   closingTime,
   startsAt,
   draftStartMinutesBefore,
+  roundStartedAt,
+  roundDurationSeconds,
+  roundNumber,
 }: {
   closingTime?: string
   startsAt: string
   draftStartMinutesBefore?: number
+  roundStartedAt?: string
+  roundDurationSeconds?: number
+  roundNumber?: number
 }) {
   const startTime = new Date(startsAt).getTime()
+  const roundStartTime = roundStartedAt ? new Date(roundStartedAt).getTime() : Number.NaN
+  const roundEndTime =
+    Number.isFinite(roundStartTime) && typeof roundDurationSeconds === 'number'
+      ? roundStartTime + roundDurationSeconds * 1000
+      : Number.NaN
   const signupCloseTime = closingTime ? new Date(closingTime).getTime() : Number.NaN
   const hasDraftOffset = typeof draftStartMinutesBefore === 'number'
   const draftStartTime =
@@ -77,6 +102,8 @@ function buildCountdownSchedule({
     signupCloseTime,
     draftStartTime,
     startTime,
+    roundEndTime,
+    roundNumber,
     hasDraftOffset,
   }
 }
@@ -85,6 +112,14 @@ function selectCountdownTarget(
   schedule: ReturnType<typeof buildCountdownSchedule>,
   now: number,
 ): CountdownTarget | null {
+  if (Number.isFinite(schedule.roundEndTime) && now < schedule.roundEndTime) {
+    return {
+      label: `Round ${schedule.roundNumber ?? ''} ends in`.trim(),
+      time: schedule.roundEndTime,
+      variant: 'round',
+    }
+  }
+
   if (Number.isFinite(schedule.signupCloseTime) && now < schedule.signupCloseTime) {
     return { label: 'Signups close in', time: schedule.signupCloseTime, variant: 'signups' }
   }

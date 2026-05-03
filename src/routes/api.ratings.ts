@@ -38,6 +38,9 @@ export const Route = createFileRoute('/api/ratings')({
         if (!isEventParticipant(event.id, user.id) && !user.roles.includes('admin')) {
           throw new Response('Current event participant role required', { status: 403 })
         }
+        if (!user.roles.includes('admin') && hasDraftStarted(event)) {
+          throw new Response('Ratings are locked after the draft starts.', { status: 403 })
+        }
 
         const body = await request.json()
         const requestedFromDiscordId = String(body.fromDiscordId ?? '').trim()
@@ -72,4 +75,18 @@ async function requireCurrentRatingsEvent() {
   const event = await getCurrentEvent()
   if (!event) throw new Response('No current Raid Helper event found.', { status: 404 })
   return event
+}
+
+function hasDraftStarted(event: Awaited<ReturnType<typeof requireCurrentRatingsEvent>>) {
+  if (event.phase === 'draft' || event.phase === 'locked' || event.phase === 'complete') return true
+  if (event.activeDraftBid || event.draftPicks.length || event.rounds.length) return true
+
+  if (typeof event.draftStartMinutesBefore === 'number') {
+    const startTime = Date.parse(event.startsAt)
+    if (Number.isFinite(startTime)) {
+      return Date.now() >= startTime - event.draftStartMinutesBefore * 60_000
+    }
+  }
+
+  return false
 }

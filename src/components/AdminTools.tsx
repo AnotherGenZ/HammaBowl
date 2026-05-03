@@ -35,6 +35,7 @@ export function AdminTools({
   const [busy, setBusy] = useState<string>()
   const undraftedPlayers = undraftedDraftEligiblePlayers(currentEvent)
   const canSyncTeams = undraftedPlayers.length === 0
+  const draftLocked = currentEvent.rounds.length > 0
 
   function setConfiguredEvent(event: HammaEvent) {
     setCurrentEvent(event)
@@ -121,6 +122,7 @@ export function AdminTools({
           busy={busy}
           onRun={run}
           onEvent={setConfiguredEvent}
+          locked={draftLocked}
         />
 
         <EventJaegerAssignments
@@ -138,6 +140,8 @@ export function AdminTools({
           onRun={run}
           onEvent={setConfiguredEvent}
         />
+
+        <RoundControls event={currentEvent} busy={busy} onRun={run} onEvent={setConfiguredEvent} />
 
         <EventResultControls
           event={currentEvent}
@@ -702,11 +706,13 @@ function TeamEditor({
   busy,
   onRun,
   onEvent,
+  locked,
 }: {
   event: HammaEvent
   busy?: string
   onRun: (label: string, action: () => Promise<unknown>) => Promise<void>
   onEvent: (event: HammaEvent) => void
+  locked?: boolean
 }) {
   return (
     <AdminSection
@@ -714,7 +720,7 @@ function TeamEditor({
       actions={
         <button
           type="button"
-          disabled={busy === 'teams'}
+          disabled={busy === 'teams' || locked}
           onClick={() =>
             void onRun('teams', async () => {
               const result = await postAdminJson('/api/admin/teams/ensure', { eventId: event.id })
@@ -728,6 +734,8 @@ function TeamEditor({
       }
     >
 
+      {locked ? <p>The draft is locked because the first round has started.</p> : null}
+
       {event.teams.length ? (
         <div className="team-admin-grid">
           {event.teams.map((team) => (
@@ -736,7 +744,7 @@ function TeamEditor({
               eventId={event.id}
               team={team}
               players={event.players}
-              busy={busy === team.id}
+              busy={busy === team.id || Boolean(locked)}
               onSaved={onEvent}
             />
           ))}
@@ -1667,18 +1675,23 @@ function EventResultControls({
   const [vodUrl, setVodUrl] = useState(event.twitchVodUrl ?? '')
   const [scoreTeamId, setScoreTeamId] = useState(event.teams[0]?.id ?? '')
   const [scoreDelta, setScoreDelta] = useState('1')
-  const [winningTeamId, setWinningTeamId] = useState(event.winningTeamId ?? event.teams[0]?.id ?? '')
+  const [winningTeamId, setWinningTeamId] = useState(getDefaultEventWinnerId(event))
 
   useEffect(() => {
     setStreamUrl(event.twitchStreamUrl ?? '')
     setVodUrl(event.twitchVodUrl ?? '')
-    if (!event.teams.some((team) => team.id === scoreTeamId)) {
-      setScoreTeamId(event.teams[0]?.id ?? '')
-    }
-    if (!event.teams.some((team) => team.id === winningTeamId)) {
-      setWinningTeamId(event.winningTeamId ?? event.teams[0]?.id ?? '')
-    }
-  }, [event, scoreTeamId, winningTeamId])
+    setScoreTeamId((current) =>
+      event.teams.some((team) => team.id === current) ? current : event.teams[0]?.id ?? '',
+    )
+    setWinningTeamId((current) => {
+      if (event.winningTeamId) return event.winningTeamId
+
+      const suggestedWinnerId = getSuggestedEventWinnerId(event)
+      if (suggestedWinnerId) return suggestedWinnerId
+
+      return event.teams.some((team) => team.id === current) ? current : event.teams[0]?.id ?? ''
+    })
+  }, [event])
 
   async function postResult(body: Record<string, unknown>) {
     const result = await postAdminJson('/api/admin/result', { eventId: event.id, ...body })
@@ -1779,7 +1792,7 @@ function EventResultControls({
             </select>
           </label>
           <p>
-            Marking complete records the winner and marks that team&apos;s captain and drafted players as event winners.
+            Marking complete records the selected winner and marks that team&apos;s captain and drafted players as event winners.
           </p>
           <button
             type="button"
@@ -1796,6 +1809,212 @@ function EventResultControls({
       </div>
     </AdminSection>
   )
+}
+
+function RoundControls({
+  event,
+  busy,
+  onRun,
+  onEvent,
+}: {
+  event: HammaEvent
+  busy?: string
+  onRun: (label: string, action: () => Promise<unknown>) => Promise<void>
+  onEvent: (event: HammaEvent) => void
+}) {
+  const [roundCount, setRoundCount] = useState(event.roundCount.toString())
+  const [roundDurationMinutes, setRoundDurationMinutes] = useState(
+    Math.max(1, Math.round(event.roundDurationSeconds / 60)).toString(),
+  )
+  const [roundResults, setRoundResults] = useState(() => buildRoundResultState(event))
+  const draftLocked = event.rounds.length > 0
+  const nextRoundNumber = event.rounds.length + 1
+  const canStartRound = nextRoundNumber <= event.roundCount
+
+  useEffect(() => {
+    setRoundCount(event.roundCount.toString())
+    setRoundDurationMinutes(Math.max(1, Math.round(event.roundDurationSeconds / 60)).toString())
+    setRoundResults(buildRoundResultState(event))
+  }, [event])
+
+  async function postResult(body: Record<string, unknown>) {
+    const result = await postAdminJson('/api/admin/result', { eventId: event.id, ...body })
+    if (isEventResult(result) && result.event) onEvent(result.event)
+    return result
+  }
+
+  async function saveRoundSettings() {
+    return postResult({ roundCount, roundDurationMinutes })
+  }
+
+  async function startRound() {
+    return postResult({ startRound: true })
+  }
+
+  async function saveRoundResult(roundNumber: number) {
+    const result = roundResults[roundNumber] ?? { winningTeamId: '', resultNote: '' }
+    return postResult({
+      roundNumber,
+      roundWinningTeamId: result.winningTeamId,
+      roundResultNote: result.resultNote,
+    })
+  }
+
+  return (
+    <AdminSection title="Rounds">
+      <div className="event-result-grid round-admin-grid">
+        <div className="event-result-card">
+          <strong>Round setup</strong>
+          <label>
+            Rounds
+            <input
+              type="number"
+              min="1"
+              max="20"
+              step="1"
+              value={roundCount}
+              disabled={draftLocked}
+              onChange={(event) => setRoundCount(event.currentTarget.value)}
+            />
+          </label>
+          <label>
+            Minutes per round
+            <input
+              type="number"
+              min="1"
+              max="240"
+              step="1"
+              value={roundDurationMinutes}
+              disabled={draftLocked}
+              onChange={(event) => setRoundDurationMinutes(event.currentTarget.value)}
+            />
+          </label>
+          <button
+            type="button"
+            disabled={busy === 'round-settings' || draftLocked}
+            onClick={() => void onRun('round-settings', saveRoundSettings)}
+          >
+            Save round setup
+          </button>
+          {draftLocked ? <small>Round setup is locked after round 1 starts.</small> : null}
+        </div>
+
+        <div className="event-result-card">
+          <strong>Round control</strong>
+          <p>
+            {event.rounds.length
+              ? `${event.rounds.length} of ${event.roundCount} rounds started.`
+              : 'Starting round 1 locks the draft for captains and admins.'}
+          </p>
+          <button
+            type="button"
+            disabled={busy === 'round-start' || !canStartRound}
+            onClick={() => void onRun('round-start', startRound)}
+          >
+            {canStartRound ? `Start round ${nextRoundNumber}` : 'All rounds started'}
+          </button>
+        </div>
+
+        <div className="event-result-card round-list-card">
+          <strong>Round results</strong>
+          {event.rounds.length ? (
+            <div className="round-result-list">
+              {event.rounds.map((round) => {
+                const result = roundResults[round.roundNumber] ?? {
+                  winningTeamId: '',
+                  resultNote: '',
+                }
+                return (
+                  <div className="round-result-row" key={round.roundNumber}>
+                    <span>Round {round.roundNumber}</span>
+                    <select
+                      value={result.winningTeamId}
+                      onChange={(changeEvent) => {
+                        const winningTeamId = changeEvent.currentTarget.value
+                        setRoundResults((current) => ({
+                          ...current,
+                          [round.roundNumber]: {
+                            ...result,
+                            winningTeamId,
+                          },
+                        }))
+                      }}
+                    >
+                      <option value="">No winner</option>
+                      {event.teams.map((team) => (
+                        <option key={team.id} value={team.id}>
+                          {team.teamName}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      value={result.resultNote}
+                      placeholder="Result note"
+                      onChange={(changeEvent) => {
+                        const resultNote = changeEvent.currentTarget.value
+                        setRoundResults((current) => ({
+                          ...current,
+                          [round.roundNumber]: {
+                            ...result,
+                            resultNote,
+                          },
+                        }))
+                      }}
+                    />
+                    <button
+                      type="button"
+                      disabled={busy === `round-result-${round.roundNumber}`}
+                      onClick={() =>
+                        void onRun(`round-result-${round.roundNumber}`, () =>
+                          saveRoundResult(round.roundNumber),
+                        )
+                      }
+                    >
+                      Save
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <small>No rounds have been started.</small>
+          )}
+        </div>
+      </div>
+    </AdminSection>
+  )
+}
+
+function buildRoundResultState(event: HammaEvent) {
+  return Object.fromEntries(
+    event.rounds.map((round) => [
+      round.roundNumber,
+      {
+        winningTeamId: round.winningTeamId ?? '',
+        resultNote: round.resultNote ?? '',
+      },
+    ]),
+  )
+}
+
+function getDefaultEventWinnerId(event: HammaEvent) {
+  return event.winningTeamId ?? getSuggestedEventWinnerId(event) ?? event.teams[0]?.id ?? ''
+}
+
+function getSuggestedEventWinnerId(event: HammaEvent) {
+  const roundCount = Math.max(1, event.roundCount)
+  const roundsByNumber = new Map(event.rounds.map((round) => [round.roundNumber, round]))
+  const hasAllRoundWinners = Array.from({ length: roundCount }, (_, index) => {
+    const round = roundsByNumber.get(index + 1)
+    return Boolean(round?.winningTeamId)
+  }).every(Boolean)
+
+  if (!hasAllRoundWinners) return ''
+
+  const highestScore = Math.max(...event.teams.map((team) => team.score))
+  const leaders = event.teams.filter((team) => team.score === highestScore)
+
+  return leaders.length === 1 ? leaders[0].id : ''
 }
 
 function buildAssignmentState(event: HammaEvent) {

@@ -53,22 +53,25 @@ function Home() {
   }
 
   const ratings = calculatePlayerRatingSummaries(event)
+  const matchStarted = event.rounds.length > 0
 
   return (
     <main>
       <EventSummary event={event} />
-      <section className="panel">
-        <div className="section-heading">
-          <div>
-            <h2>Current signups</h2>
+      {!matchStarted ? (
+        <section className="panel">
+          <div className="section-heading">
+            <div>
+              <h2>Current signups</h2>
+            </div>
           </div>
-        </div>
-        {event.players.length ? (
-          <PlayerTable rows={ratings} />
-        ) : (
-          <div className="empty-inline">No accepted signups are available for this event yet.</div>
-        )}
-      </section>
+          {event.players.length ? (
+            <PlayerTable rows={ratings} />
+          ) : (
+            <div className="empty-inline">No accepted signups are available for this event yet.</div>
+          )}
+        </section>
+      ) : null}
     </main>
   )
 }

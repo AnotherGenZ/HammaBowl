@@ -11,6 +11,8 @@ export const events = sqliteTable('events', {
   endsAt: text('ends_at'),
   closingTime: text('closing_time'),
   draftStartMinutesBefore: integer('draft_start_minutes_before'),
+  roundCount: integer('round_count').notNull().default(3),
+  roundDurationSeconds: integer('round_duration_seconds').notNull().default(900),
   phase: text('phase').notNull().default('signups'),
   salaryPool: integer('salary_pool').notNull().default(250_000_000),
   bonusPool: integer('bonus_pool').notNull().default(50_000_000),
@@ -182,6 +184,20 @@ export const scoreAdjustments = sqliteTable('score_adjustments', {
   createdAt: text('created_at').notNull(),
 })
 
+export const eventRounds = sqliteTable(
+  'event_rounds',
+  {
+    eventId: text('event_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
+    roundNumber: integer('round_number').notNull(),
+    startedAt: text('started_at').notNull(),
+    durationSeconds: integer('duration_seconds').notNull(),
+    winningTeamId: text('winning_team_id').references(() => teams.id, { onDelete: 'set null' }),
+    resultNote: text('result_note'),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.eventId, table.roundNumber] })],
+)
+
 export const coinflips = sqliteTable('coinflips', {
   id: text('id').primaryKey(),
   eventId: text('event_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
@@ -204,4 +220,5 @@ export const eventRelations = relations(events, ({ many }) => ({
   ratings: many(ratings),
   draftPicks: many(draftPicks),
   activeDraftBids: many(activeDraftBids),
+  rounds: many(eventRounds),
 }))

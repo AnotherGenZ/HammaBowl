@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { pageMeta } from '../lib/meta'
 import { isCaptainPlayer } from '../lib/rules'
 import { useSession } from '../lib/SessionContext'
+import type { HammaEvent } from '../lib/types'
 
 type RatingsSortMode = 'name' | 'rating-desc' | 'rating-asc'
 
@@ -65,6 +66,7 @@ function Ratings() {
 
   const isAdmin = Boolean(user?.roles.includes('admin'))
   const canRate = user?.roles.some((role) => role === 'participant' || role === 'admin')
+  const ratingsLocked = Boolean(event && !isAdmin && hasDraftStarted(event))
   const preferencesKey = event && user
     ? `${RATINGS_PREFERENCES_PREFIX}:${event.id}:${user.id}`
     : undefined
@@ -385,6 +387,11 @@ function Ratings() {
             You are viewing and editing {selectedRater?.name ?? 'another rater'}'s submissions, not your own.
           </div>
         ) : null}
+        {ratingsLocked ? (
+          <div className="toast toast-neutral" role="status">
+            Ratings are locked because the draft has started.
+          </div>
+        ) : null}
         {event && canRate ? (
           <>
             <div className="rating-legend">
@@ -453,7 +460,7 @@ function Ratings() {
                           <button
                             type="button"
                             className={ratings[player.id] === score ? 'active' : undefined}
-                            disabled={saving === player.id}
+                            disabled={ratingsLocked || saving === player.id}
                             aria-pressed={ratings[player.id] === score}
                             onClick={(event) => {
                               event.currentTarget.blur()
@@ -485,6 +492,20 @@ function Ratings() {
       </section>
     </main>
   )
+}
+
+function hasDraftStarted(event: HammaEvent) {
+  if (event.phase === 'draft' || event.phase === 'locked' || event.phase === 'complete') return true
+  if (event.activeDraftBid || event.draftPicks.length || event.rounds.length) return true
+
+  if (typeof event.draftStartMinutesBefore === 'number') {
+    const startTime = Date.parse(event.startsAt)
+    if (Number.isFinite(startTime)) {
+      return Date.now() >= startTime - event.draftStartMinutesBefore * 60_000
+    }
+  }
+
+  return false
 }
 
 function readRatingsPreferences(preferencesKey: string): {

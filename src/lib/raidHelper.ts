@@ -153,6 +153,8 @@ async function hydrateRemoteEvent(
     endsAt: remoteEvent.endsAt,
     closingTime: remoteEvent.closingTime,
     draftStartMinutesBefore: undefined,
+    roundCount: 3,
+    roundDurationSeconds: 900,
     phase: 'signups' as const,
     salaryPool: SALARY_POOL,
     bonusPool: BONUS_POOL,
@@ -165,6 +167,7 @@ async function hydrateRemoteEvent(
     players: signupPlayers(signups),
     ratings: [],
     draftPicks: [],
+    rounds: [],
     eventLinks: [],
   }
 }

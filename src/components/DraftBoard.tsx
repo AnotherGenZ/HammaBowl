@@ -46,6 +46,7 @@ export function DraftBoard({
   }
 
   const canCancelBid = canManageAll
+  const draftLocked = currentEvent.rounds.length > 0
   const ledgers = buildTeamLedgers(currentEvent)
   const latestPickId = [...currentEvent.draftPicks]
     .sort((a, b) => Date.parse(b.confirmedAt) - Date.parse(a.confirmedAt))[0]?.id
@@ -284,8 +285,15 @@ export function DraftBoard({
           <div>
             <h1>Draft</h1>
           </div>
-          <span className={`draft-status ${draftStatus.tone}`}>{draftStatus.label}</span>
+          <span className={`draft-status ${draftLocked ? 'blocked' : draftStatus.tone}`}>
+            {draftLocked ? 'Locked' : draftStatus.label}
+          </span>
         </div>
+        {draftLocked ? (
+          <div className="toast toast-neutral" role="status">
+            The first round has started. Draft picks, bids, and admin draft edits are locked.
+          </div>
+        ) : null}
         {ledgers.length ? (
           <div className="team-grid compact">
             {ledgers.map((ledger, ledgerIndex) => {
@@ -367,7 +375,7 @@ export function DraftBoard({
                             ) : null}
                           </small>
                         </div>
-                        {canManageAll && pick.id === latestPickId ? (
+                        {canManageAll && !draftLocked && pick.id === latestPickId ? (
                           <button
                             className="text-button danger"
                             type="button"
@@ -448,7 +456,7 @@ export function DraftBoard({
                   <>
                     <button
                       type="button"
-                      disabled={savingBid || !canRaiseBid}
+                      disabled={draftLocked || savingBid || !canRaiseBid}
                       onClick={() => void runBidAction('bump')}
                     >
                       {savingBid ? <span className="spinner" aria-label="Saving" /> : null}
@@ -457,7 +465,7 @@ export function DraftBoard({
                     <button
                       className="text-button danger"
                       type="button"
-                      disabled={savingBid || !canActOnBid}
+                      disabled={draftLocked || savingBid || !canActOnBid}
                       onClick={() => void runBidAction('forfeit')}
                     >
                       Forfeit
@@ -468,7 +476,7 @@ export function DraftBoard({
                   <button
                     className="text-button danger"
                     type="button"
-                    disabled={savingBid}
+                    disabled={draftLocked || savingBid}
                     onClick={() => void cancelBid()}
                   >
                     Cancel bid
@@ -490,6 +498,7 @@ export function DraftBoard({
               : undefined
             const canPickPlayer = Boolean(
               canBid &&
+                !draftLocked &&
                 isMyTurn &&
                 draftReady &&
                 !activeBid &&
