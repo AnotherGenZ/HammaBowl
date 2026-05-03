@@ -52,6 +52,7 @@ import type {
   DraftPick,
   EventPlayerCharacterAssignment,
   EventLink,
+  EventTrophyId,
   Faction,
   HammaEvent,
   HistoricalEvent,
@@ -100,6 +101,7 @@ export async function upsertEventFromRaidHelper(event: HammaEvent) {
       pendingSignupCount: event.pendingPlayerCount ?? 0,
       availableFactions: JSON.stringify(event.availableFactions ?? ['VS', 'NC', 'TR']),
       availableSides: JSON.stringify(event.availableSides ?? ['north', 'south']),
+      trophyId: event.trophyId ?? 'hammo-bowl-cup',
       updatedAt: now,
     })
     .onConflictDoUpdate({
@@ -306,6 +308,7 @@ export async function getDbEvent(eventId: string): Promise<HammaEvent | null> {
     twitchVodUrl: event.twitchVodUrl ?? undefined,
     eventDescription: event.eventDescription ?? undefined,
     eventLinks: parseEventLinks(event.eventLinks),
+    trophyId: normalizeEventTrophyId(event.trophyId),
     lore: event.lore ?? undefined,
   }
 }
@@ -744,6 +747,7 @@ export async function updateEventAdminSettings(
     twitchVodUrl?: string
     eventDescription?: string
     eventLinks?: unknown
+    trophyId?: string
     draftStartMinutesBefore?: string
     salaryPool?: string
     bonusPool?: string
@@ -798,6 +802,10 @@ export async function updateEventAdminSettings(
         values.eventLinks === undefined
           ? event.eventLinks
           : JSON.stringify(normalizeEventLinks(values.eventLinks)),
+      trophyId:
+        values.trophyId === undefined
+          ? normalizeEventTrophyId(event.trophyId)
+          : normalizeEventTrophyId(values.trophyId),
       draftStartMinutesBefore: nextDraftStartMinutesBefore,
       salaryPool: nextSalaryPool,
       bonusPool: nextBonusPool,
@@ -974,6 +982,10 @@ function normalizeDraftStartMinutesBefore(value: string | undefined, current: nu
   }
 
   return minutes
+}
+
+function normalizeEventTrophyId(value: string | null | undefined): EventTrophyId {
+  return value === 'hamma-dome-biolab' ? 'hamma-dome-biolab' : 'hammo-bowl-cup'
 }
 
 export async function setWinningTeam(eventId: string, teamId: string) {
@@ -2758,6 +2770,7 @@ function bootstrap() {
       twitch_vod_url TEXT,
       event_description TEXT,
       event_links TEXT,
+      trophy_id TEXT NOT NULL DEFAULT 'hammo-bowl-cup',
       lore TEXT,
       updated_at TEXT NOT NULL
     );
@@ -2925,6 +2938,7 @@ function bootstrap() {
   addColumnIfMissing('events', 'twitch_vod_url', 'TEXT')
   addColumnIfMissing('events', 'event_description', 'TEXT')
   addColumnIfMissing('events', 'event_links', 'TEXT')
+  addColumnIfMissing('events', 'trophy_id', "TEXT NOT NULL DEFAULT 'hammo-bowl-cup'")
   addColumnIfMissing('events', 'lore', 'TEXT')
   addColumnIfMissing('participants', 'avatar_url', 'TEXT')
   addColumnIfMissing('participants', 'name_overridden', 'INTEGER NOT NULL DEFAULT 0')

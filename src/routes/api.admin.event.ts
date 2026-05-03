@@ -47,6 +47,7 @@ export const Route = createFileRoute('/api/admin/event')({
           eventDescription:
             'eventDescription' in body ? String(body.eventDescription ?? '') : undefined,
           eventLinks: 'eventLinks' in body ? body.eventLinks : undefined,
+          trophyId: 'trophyId' in body ? String(body.trophyId ?? '') : undefined,
           draftStartMinutesBefore:
             'draftStartMinutesBefore' in body
               ? String(body.draftStartMinutesBefore ?? '')

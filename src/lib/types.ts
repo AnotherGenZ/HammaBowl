@@ -83,6 +83,8 @@ export interface EventLink {
   icon: string
 }
 
+export type EventTrophyId = 'hammo-bowl-cup' | 'hamma-dome-biolab'
+
 export interface HammaEvent {
   id: string
   raidHelperEventId: string
@@ -116,6 +118,7 @@ export interface HammaEvent {
   twitchVodUrl?: string
   eventDescription?: string
   eventLinks: EventLink[]
+  trophyId: EventTrophyId
   lore?: string
 }
 

@@ -27,6 +27,7 @@ export const events = sqliteTable('events', {
   twitchVodUrl: text('twitch_vod_url'),
   eventDescription: text('event_description'),
   eventLinks: text('event_links'),
+  trophyId: text('trophy_id').notNull().default('hammo-bowl-cup'),
   lore: text('lore'),
   updatedAt: text('updated_at').notNull(),
 })

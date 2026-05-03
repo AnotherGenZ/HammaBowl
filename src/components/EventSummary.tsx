@@ -171,7 +171,7 @@ function CompletedEventShowcase({ event, ledger }: { event: HammaEvent; ledger: 
         <span className="confetti confetti-4" />
         <span className="confetti confetti-5" />
         <span className="confetti confetti-6" />
-        <TrophySvg />
+        <EventTrophy event={event} />
       </div>
       <div className="winner-details">
         <span>Event winner</span>
@@ -196,44 +196,35 @@ function CompletedEventShowcase({ event, ledger }: { event: HammaEvent; ledger: 
   )
 }
 
-function TrophySvg() {
+function EventTrophy({ event }: { event: HammaEvent }) {
+  if (event.trophyId === 'hamma-dome-biolab') {
+    return <HammaDomeBiolabTrophy />
+  }
+
+  return <HammoBowlTrophy />
+}
+
+function HammaDomeBiolabTrophy() {
   return (
-    <svg className="winner-trophy" viewBox="0 0 260 260" role="img" aria-label="Winning trophy">
-      <defs>
-        <linearGradient id="trophy-gold" x1="54" x2="206" y1="38" y2="222">
-          <stop offset="0" stopColor="#fff0a8" />
-          <stop offset="0.45" stopColor="#e4b45e" />
-          <stop offset="1" stopColor="#a9672d" />
-        </linearGradient>
-        <linearGradient id="trophy-shadow" x1="80" x2="180" y1="160" y2="230">
-          <stop offset="0" stopColor="#b87935" />
-          <stop offset="1" stopColor="#5f321d" />
-        </linearGradient>
-      </defs>
-      <path
-        d="M72 58H36v26c0 42 25 67 66 72"
-        fill="none"
-        stroke="url(#trophy-gold)"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="18"
+    <div className="winner-trophy biolab-trophy">
+      <img
+        className="biolab-trophy-image"
+        src="/trophies/hamma-dome-i.png"
+        alt="Hamma Dome I champion trophy"
       />
-      <path
-        d="M188 58h36v26c0 42-25 67-66 72"
-        fill="none"
-        stroke="url(#trophy-gold)"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="18"
+    </div>
+  )
+}
+
+function HammoBowlTrophy() {
+  return (
+    <div className="winner-trophy hamma-bowl-trophy">
+      <img
+        className="hamma-bowl-trophy-image"
+        src="/trophies/hamma-bowl.png"
+        alt="Hamma Bowl champion trophy"
       />
-      <path
-        d="M74 42h112v58c0 42-22 78-56 78s-56-36-56-78V42Z"
-        fill="url(#trophy-gold)"
-      />
-      <path d="M112 171h36v35h-36z" fill="url(#trophy-shadow)" />
-      <path d="M84 206h92l14 28H70l14-28Z" fill="url(#trophy-gold)" />
-      <path d="M98 68h64" fill="none" stroke="#fff5bd" strokeLinecap="round" strokeWidth="12" />
-    </svg>
+    </div>
   )
 }
 

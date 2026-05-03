@@ -791,11 +791,33 @@ main.draft-page {
 }
 
 .winner-trophy {
+  position: relative;
+  display: grid;
+  justify-items: center;
   width: clamp(190px, 34vw, 330px);
   max-width: 100%;
   filter:
     drop-shadow(0 24px 34px rgba(0, 0, 0, 0.32))
     drop-shadow(0 0 34px rgba(228, 180, 94, 0.28));
+}
+
+.hamma-bowl-trophy {
+  aspect-ratio: 1122 / 1402;
+}
+
+.biolab-trophy {
+  display: grid;
+  place-items: center;
+  width: 116%;
+  aspect-ratio: 1122 / 1402;
+}
+
+.hamma-bowl-trophy-image,
+.biolab-trophy-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .confetti {

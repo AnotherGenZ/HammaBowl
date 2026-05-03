@@ -3,6 +3,7 @@ import type {
   AdminBadgeManagerData,
   AdminPlayerCharacterConfig,
   EventLink,
+  EventTrophyId,
   Team,
   EventPlayerCharacterAssignment,
   Faction,
@@ -14,6 +15,11 @@ import type {
 import { shortDate } from '../lib/format'
 import { undraftedDraftEligiblePlayers } from '../lib/rules'
 import { EVENT_LINK_ICON_OPTIONS, EventLinkIcon } from './EventLinkIcons'
+
+const EVENT_TROPHY_OPTIONS: Array<{ id: EventTrophyId; label: string }> = [
+  { id: 'hammo-bowl-cup', label: 'HammaBowl Cup' },
+  { id: 'hamma-dome-biolab', label: 'Hamma Dome I - Bitol Bio' },
+]
 
 interface RealtimeAdminUpdate {
   type: string
@@ -441,6 +447,7 @@ function EventIdentityControls({
   const [bidIncrement, setBidIncrement] = useState(event.bidIncrement.toString())
   const [eventDescription, setEventDescription] = useState(event.eventDescription ?? '')
   const [eventLinks, setEventLinks] = useState<EventLink[]>(event.eventLinks)
+  const [trophyId, setTrophyId] = useState<EventTrophyId>(event.trophyId)
   const [openIconPicker, setOpenIconPicker] = useState<number | null>(null)
 
   useEffect(() => {
@@ -452,6 +459,7 @@ function EventIdentityControls({
     setBidIncrement(formatWholeDollarInput(event.bidIncrement))
     setEventDescription(event.eventDescription ?? '')
     setEventLinks(event.eventLinks)
+    setTrophyId(event.trophyId)
   }, [event])
 
   useEffect(() => {
@@ -497,6 +505,7 @@ function EventIdentityControls({
       nameOverride,
       eventDescription,
       eventLinks,
+      trophyId,
       salaryPool: parseWholeDollarText(salaryPool),
       bonusPool: parseWholeDollarText(bonusPool),
       maxPlayerBonus: parseWholeDollarText(maxPlayerBonus),
@@ -530,6 +539,19 @@ function EventIdentityControls({
               placeholder={event.name}
               onChange={(event) => setNameOverride(event.currentTarget.value)}
             />
+          </label>
+          <label>
+            Trophy
+            <select
+              value={trophyId}
+              onChange={(event) => setTrophyId(event.currentTarget.value as EventTrophyId)}
+            >
+              {EVENT_TROPHY_OPTIONS.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
           </label>
         </div>
 

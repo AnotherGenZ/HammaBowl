@@ -169,6 +169,7 @@ async function hydrateRemoteEvent(
     draftPicks: [],
     rounds: [],
     eventLinks: [],
+    trophyId: 'hammo-bowl-cup',
   }
 }
 
