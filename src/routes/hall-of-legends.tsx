@@ -1,26 +1,13 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { useEffect, useRef, useState } from 'react'
-import { HallOfLegendsUnderConstruction } from '../components/HallOfLegendsUnderConstruction'
-import { canViewHallOfLegends } from '../lib/featureFlags'
 import { shortDateWithTimeZone } from '../lib/format'
 import { pageMeta } from '../lib/meta'
 import type { HistoricalEvent } from '../lib/types'
 
 const loadHistoricalEvents = createServerFn({ method: 'GET' }).handler(async () => {
-  const { getDiscordSessionUser } = await import('../lib/discord.server')
-  const user = await getDiscordSessionUser()
-
-  if (!canViewHallOfLegends(user)) {
-    return {
-      enabled: false,
-      events: [],
-    }
-  }
-
   const { getHistoricalEvents } = await import('../lib/db.server')
   return {
-    enabled: true,
     events: await getHistoricalEvents(),
   }
 })
@@ -37,7 +24,7 @@ export const Route = createFileRoute('/hall-of-legends')({
 })
 
 function HallOfLegends() {
-  const { enabled, events } = Route.useLoaderData()
+  const { events } = Route.useLoaderData()
   const [focusedIndex, setFocusedIndex] = useState(0)
   const carouselRef = useRef<HTMLDivElement | null>(null)
   const focusedIndexRef = useRef(0)
@@ -48,8 +35,6 @@ function HallOfLegends() {
   const horizontalWheelTimer = useRef<number | null>(null)
 
   useEffect(() => {
-    if (!enabled) return
-
     document.body.classList.add('fixed-document')
 
     const track = carouselRef.current
@@ -135,11 +120,7 @@ function HallOfLegends() {
       if (wheelEndTimer.current !== null) window.clearTimeout(wheelEndTimer.current)
       if (horizontalWheelTimer.current !== null) window.clearTimeout(horizontalWheelTimer.current)
     }
-  }, [enabled, events.length])
-
-  if (!enabled) {
-    return <HallOfLegendsUnderConstruction />
-  }
+  }, [events.length])
 
   function updateFocusedCard(track: HTMLDivElement) {
     if (scrollFrame.current !== null) window.cancelAnimationFrame(scrollFrame.current)

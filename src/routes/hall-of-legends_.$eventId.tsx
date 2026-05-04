@@ -1,9 +1,7 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { ArrowLeft, BookOpen } from 'lucide-react'
-import { HallOfLegendsUnderConstruction } from '../components/HallOfLegendsUnderConstruction'
 import { EventLinkIcon } from '../components/EventLinkIcons'
-import { canViewHallOfLegends } from '../lib/featureFlags'
 import { shortDateWithTimeZone } from '../lib/format'
 import { pageMeta } from '../lib/meta'
 import type { HistoricalEvent } from '../lib/types'
@@ -11,19 +9,8 @@ import type { HistoricalEvent } from '../lib/types'
 const loadHistoricalEvent = createServerFn({ method: 'GET' })
   .inputValidator((input: { eventId: string }) => input)
   .handler(async ({ data }) => {
-    const { getDiscordSessionUser } = await import('../lib/discord.server')
-    const user = await getDiscordSessionUser()
-
-    if (!canViewHallOfLegends(user)) {
-      return {
-        enabled: false,
-        event: null,
-      }
-    }
-
     const { getHistoricalEvent } = await import('../lib/db.server')
     return {
-      enabled: true,
       event: await getHistoricalEvent(data.eventId),
     }
   })
@@ -42,11 +29,7 @@ export const Route = createFileRoute('/hall-of-legends_/$eventId')({
 })
 
 function HistoricalEventPage() {
-  const { enabled, event } = Route.useLoaderData()
-
-  if (!enabled) {
-    return <HallOfLegendsUnderConstruction />
-  }
+  const { event } = Route.useLoaderData()
 
   if (!event) {
     return (
