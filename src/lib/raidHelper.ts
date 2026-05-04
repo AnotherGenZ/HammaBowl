@@ -506,15 +506,15 @@ function normalizeAvailableSpecs(payload: unknown) {
 
   return uniqueStrings(specs.map((item) => {
     const spec = asRecord(item)
-    return spec.name ?? spec.cName ?? item
+    return spec.cName ?? spec.name ?? item
   }))
 }
 
 function signupSpecs(signup: Record<string, unknown>) {
   const specs = [
-    signup.specName ?? signup.cSpecName ?? signup.spec ?? signup.primarySpec,
-    signup.spec2Name ?? signup.cSpec2Name ?? signup.secondarySpec,
-    signup.spec3Name ?? signup.cSpec3Name ?? signup.tertiarySpec,
+    signup.cSpecName ?? signup.specName ?? signup.spec ?? signup.primarySpec,
+    signup.cSpec2Name ?? signup.spec2Name ?? signup.secondarySpec,
+    signup.cSpec3Name ?? signup.spec3Name ?? signup.tertiarySpec,
   ]
 
   for (const key of ['specs', 'specNames', 'spec_names']) {
@@ -522,7 +522,7 @@ function signupSpecs(signup: Record<string, unknown>) {
     if (!Array.isArray(value)) continue
     specs.push(...value.map((item) => {
       const spec = asRecord(item)
-      return spec.name ?? spec.cName ?? item
+      return spec.cName ?? spec.name ?? item
     }))
   }
 
