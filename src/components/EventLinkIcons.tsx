@@ -1,5 +1,6 @@
 import {
   Calendar,
+  ChartColumnIncreasingIcon,
   FileText,
   Globe,
   Link,
@@ -7,6 +8,7 @@ import {
   MessageCircle,
   Play,
   ScrollText,
+  Siren,
   Trophy,
   Users,
   Video,
@@ -23,8 +25,10 @@ export const EVENT_LINK_ICON_OPTIONS = [
   { name: 'MessageCircle', label: 'Discord' },
   { name: 'FileText', label: 'Document' },
   { name: 'Map', label: 'Map' },
+  { name: 'Siren', label: 'Alert' },
   { name: 'Users', label: 'Players' },
   { name: 'ScrollText', label: 'Rules' },
+  { name: 'ChartColumnIncreasingIcon', label: 'Stats' }
 ] as const
 
 const eventLinkIcons: Record<string, LucideIcon> = {
@@ -36,9 +40,11 @@ const eventLinkIcons: Record<string, LucideIcon> = {
   MessageCircle,
   Play,
   ScrollText,
+  Siren,
   Trophy,
   Users,
   Video,
+  ChartColumnIncreasingIcon
 }
 
 export function EventLinkIcon({ name, size = 16 }: { name: string; size?: number }) {

@@ -30,6 +30,8 @@ export interface Team {
   budget: number
   bonusCap: number
   score: number
+  honuReportUrl?: string
+  honuReportCreatedAt?: string
 }
 
 export interface DraftPick {
@@ -122,6 +124,9 @@ export interface HammaEvent {
   eventLinks: EventLink[]
   trophyId: EventTrophyId
   lore?: string
+  honuZoneId: number
+  honuAlertId?: number
+  honuAlertCreatedAt?: string
 }
 
 export interface PlayerRatingSummary {
@@ -157,6 +162,8 @@ export interface HistoricalEvent {
   twitchStreamUrl?: string
   twitchVodUrl?: string
   lore?: string
+  honuAlertId?: number
+  honuAlertCreatedAt?: string
   winningTeam?: {
     id: string
     name: string
@@ -179,6 +186,8 @@ export interface HistoricalEvent {
       name: string
     }>
     winner: boolean
+    honuReportUrl?: string
+    honuReportCreatedAt?: string
   }>
 }
 
@@ -288,4 +297,14 @@ export interface AdminPlayerCharacterConfig {
   name: string
   noPersonalJaegerAccount: boolean
   characters: PlayerCharacter[]
+}
+
+export interface HonuPsbAccountSuggestion {
+  accountId: number
+  tag: string
+  name: string
+  playerName: string
+  label: string
+  characters: PlayerCharacter[]
+  updatedAt: string
 }

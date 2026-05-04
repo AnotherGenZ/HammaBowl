@@ -637,6 +637,18 @@ main.admin-main {
   background: rgba(228, 180, 94, 0.2);
 }
 
+.meta-row a.honu-alert-badge {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.08);
+  color: #d8dedc;
+  font-weight: 400;
+}
+
+.meta-row a.honu-alert-badge:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #f4f0e8;
+}
+
 .stat-strip {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -3185,6 +3197,39 @@ main > .panel:first-child {
   padding: 0;
 }
 
+.team-report-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: fit-content;
+  min-height: 34px;
+  padding: 7px 10px;
+  border: 1px solid rgba(161, 227, 203, 0.25);
+  border-radius: 8px;
+  color: #d6f6ea;
+  font-size: 0.84rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.team-report-link:hover {
+  border-color: rgba(161, 227, 203, 0.5);
+  background: rgba(161, 227, 203, 0.08);
+}
+
+.history-field-link {
+  width: fit-content;
+  color: #f4d59a;
+  font-size: 0.76rem;
+  font-weight: 900;
+  text-transform: none;
+}
+
+.history-field-link:hover {
+  color: #fff7e6;
+}
+
 .team-admin-card label,
 .history-admin-grid label,
 .full-field,
@@ -3200,6 +3245,7 @@ main > .panel:first-child {
 .team-admin-card input,
 .team-admin-card select,
 .history-admin-grid input,
+.history-admin-grid select,
 .history-team input,
 .full-field textarea {
   min-height: 40px;
@@ -3246,6 +3292,16 @@ main > .panel:first-child {
   text-transform: uppercase;
 }
 
+.rating-adjustment-grid .psb-account-combobox {
+  position: relative;
+  display: grid;
+  gap: 6px;
+  color: #b4bcbb;
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
 .rating-adjustment-grid select,
 .rating-adjustment-grid input {
   min-height: 40px;
@@ -3259,6 +3315,61 @@ main > .panel:first-child {
   text-transform: none;
   font-weight: 600;
   transition: border-color 120ms ease;
+}
+
+.psb-account-results {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 6px;
+  background: #121417;
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.35);
+  text-transform: none;
+}
+
+.psb-account-results button {
+  display: grid;
+  width: 100%;
+  gap: 2px;
+  justify-content: stretch;
+  justify-items: start;
+  align-items: start;
+  border: 0;
+  border-radius: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: transparent;
+  color: #f4f0e8;
+  padding: 9px 10px;
+  text-align: left;
+}
+
+.psb-account-results button:last-child {
+  border-bottom: 0;
+}
+
+.psb-account-results button:hover,
+.psb-account-results button:focus-visible {
+  background: rgba(228, 180, 94, 0.14);
+}
+
+.psb-account-results strong {
+  color: #fff7e6;
+  font-size: 0.88rem;
+}
+
+.psb-account-results span,
+.psb-account-empty {
+  color: #9aa4a1;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.psb-account-empty {
+  padding: 10px;
 }
 
 .admin-assignment-list {
@@ -4444,6 +4555,55 @@ main > .panel:first-child {
   font-weight: 850;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.legend-detail-score-list .legend-score-team {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.legend-detail-score-list .legend-score-team > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.legend-team-report-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: fit-content;
+  min-height: 32px;
+  border: 1px solid rgba(161, 227, 203, 0.25);
+  border-radius: 999px;
+  background: rgba(161, 227, 203, 0.07);
+  color: #d6f6ea;
+  padding: 0 10px;
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.legend-team-report-link:hover {
+  border-color: rgba(161, 227, 203, 0.48);
+  background: rgba(161, 227, 203, 0.12);
+  color: #f1fff8;
+}
+
+.legend-team-report-link.compact {
+  flex: 0 0 auto;
+  min-height: 28px;
+  padding: 0 8px;
+  font-size: 0.72rem;
+}
+
+.legend-detail-score-list .legend-team-report-link span {
+  color: inherit;
+  font-size: inherit;
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .legend-scoreboard strong,

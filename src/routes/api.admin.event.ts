@@ -57,6 +57,7 @@ export const Route = createFileRoute('/api/admin/event')({
           maxPlayerBonus:
             'maxPlayerBonus' in body ? String(body.maxPlayerBonus ?? '') : undefined,
           bidIncrement: 'bidIncrement' in body ? String(body.bidIncrement ?? '') : undefined,
+          honuZoneId: 'honuZoneId' in body ? String(body.honuZoneId ?? '') : undefined,
         })
 
         clearCurrentEventCache()

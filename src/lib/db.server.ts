@@ -7,6 +7,7 @@ import Database from 'better-sqlite3'
 import { and, desc, eq } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { env, envList } from './env'
+import { HONU_DEFAULT_ZONE_ID, normalizeHonuZoneId } from './honu'
 import { normalizeProfileBanner } from './profileBanners'
 import {
   activeDraftBids,
@@ -60,6 +61,7 @@ import type {
   Player,
   PlayerBadge,
   PlayerCharacter,
+  HonuPsbAccountSuggestion,
   PlayerProfile,
   PlayerProfileSummary,
   Rating,
@@ -314,6 +316,8 @@ export async function getDbEvent(eventId: string): Promise<HammaEvent | null> {
     budget: event.salaryPool / 2,
     bonusCap: event.bonusPool / 2,
     score: team.score,
+    honuReportUrl: team.honuReportUrl ?? undefined,
+    honuReportCreatedAt: team.honuReportCreatedAt ?? undefined,
   }))
 
   const eventRatings: Rating[] = ratingRows.map((rating) => ({
@@ -406,6 +410,9 @@ export async function getDbEvent(eventId: string): Promise<HammaEvent | null> {
     eventLinks: parseEventLinks(event.eventLinks),
     trophyId: normalizeEventTrophyId(event.trophyId),
     lore: event.lore ?? undefined,
+    honuZoneId: normalizeHonuZoneId(event.honuZoneId),
+    honuAlertId: event.honuAlertId ?? undefined,
+    honuAlertCreatedAt: event.honuAlertCreatedAt ?? undefined,
   }
 }
 
@@ -458,22 +465,26 @@ function selectCurrentDbEventRows<T extends { startsAt: string; endsAt: string |
 }
 
 function getActiveEventId() {
-  return db
-    .select()
-    .from(appSettings)
-    .where(eq(appSettings.key, ACTIVE_EVENT_SETTING_KEY))
-    .get()?.value
+  return getAppSetting(ACTIVE_EVENT_SETTING_KEY)
+}
+
+function getAppSetting(key: string) {
+  return db.select().from(appSettings).where(eq(appSettings.key, key)).get()?.value
+}
+
+function setAppSetting(key: string, value: string) {
+  const now = new Date().toISOString()
+  db.insert(appSettings)
+    .values({ key, value, updatedAt: now })
+    .onConflictDoUpdate({
+      target: appSettings.key,
+      set: { value, updatedAt: now },
+    })
+    .run()
 }
 
 function setActiveEventId(eventId: string) {
-  const now = new Date().toISOString()
-  db.insert(appSettings)
-    .values({ key: ACTIVE_EVENT_SETTING_KEY, value: eventId, updatedAt: now })
-    .onConflictDoUpdate({
-      target: appSettings.key,
-      set: { value: eventId, updatedAt: now },
-    })
-    .run()
+  setAppSetting(ACTIVE_EVENT_SETTING_KEY, eventId)
 }
 
 export async function setActiveEvent(eventId: string): Promise<HammaEvent> {
@@ -832,6 +843,34 @@ export async function updateEventLinks(eventId: string, values: { twitchStreamUr
   return { ok: true }
 }
 
+export async function saveHonuTeamReports(eventId: string) {
+  const event = await getDbEvent(eventId)
+  if (!event) throw new Error('Event not found.')
+
+  const reports = getHonuTeamReports(event)
+  removeGeneratedHonuReportEventLinks(eventId)
+  const reportsByTeamId = new Map(reports.map((report) => [report.teamId, report]))
+  const changedTeams = event.teams.flatMap((team) => {
+    const nextUrl = reportsByTeamId.get(team.id)?.url ?? null
+    const currentUrl = team.honuReportUrl ?? null
+    return currentUrl === nextUrl ? [] : [{ teamId: team.id, url: nextUrl }]
+  })
+  if (!changedTeams.length) return { ok: true, reportCount: 0 }
+
+  const createdAt = new Date().toISOString()
+  for (const report of changedTeams) {
+    db.update(teams)
+      .set({
+        honuReportUrl: report.url,
+        honuReportCreatedAt: report.url ? createdAt : null,
+      })
+      .where(and(eq(teams.eventId, eventId), eq(teams.id, report.teamId)))
+      .run()
+  }
+
+  return { ok: true, reportCount: reports.length }
+}
+
 export async function updateEventAdminSettings(
   eventId: string,
   values: {
@@ -849,6 +888,8 @@ export async function updateEventAdminSettings(
     bonusPool?: string
     maxPlayerBonus?: string
     bidIncrement?: string
+    honuZoneId?: string
+    honuAlertId?: string
   },
 ) {
   const event = db.select().from(events).where(eq(events.id, eventId)).get()
@@ -874,6 +915,20 @@ export async function updateEventAdminSettings(
     event.bidIncrement,
     'Bid increment',
   )
+  const nextHonuZoneId =
+    values.honuZoneId === undefined
+      ? normalizeHonuZoneId(event.honuZoneId)
+      : normalizeHonuZoneId(values.honuZoneId)
+  const nextHonuAlertId =
+    values.honuAlertId === undefined
+      ? event.honuAlertId
+      : normalizeOptionalHonuAlertId(values.honuAlertId)
+  const nextHonuAlertCreatedAt =
+    nextHonuAlertId === event.honuAlertId
+      ? event.honuAlertCreatedAt
+      : nextHonuAlertId
+        ? new Date().toISOString()
+        : null
 
   db.update(events)
     .set({
@@ -907,6 +962,9 @@ export async function updateEventAdminSettings(
       bonusPool: nextBonusPool,
       maxPlayerBonus: nextMaxPlayerBonus,
       bidIncrement: nextBidIncrement,
+      honuZoneId: nextHonuZoneId,
+      honuAlertId: nextHonuAlertId,
+      honuAlertCreatedAt: nextHonuAlertCreatedAt,
       updatedAt: new Date().toISOString(),
     })
     .where(eq(events.id, eventId))
@@ -1187,6 +1245,7 @@ export async function upsertHistoricalTeam(values: {
   score?: number
   captainDiscordId?: string
   captainName?: string
+  honuReportUrl?: string
 }) {
   const event = db.select().from(events).where(eq(events.id, values.eventId)).get()
   if (!event) throw new Error('Event not found.')
@@ -1196,6 +1255,14 @@ export async function upsertHistoricalTeam(values: {
   const now = new Date().toISOString()
   const teamId = values.teamId || `${values.eventId}-team-${crypto.randomUUID()}`
   const captainDiscordId = values.captainDiscordId?.trim() || null
+  const honuReportUrl = normalizeOptionalEventUrl(values.honuReportUrl)
+  const existingTeam = db.select().from(teams).where(eq(teams.id, teamId)).get()
+  const honuReportCreatedAt =
+    existingTeam?.honuReportUrl === honuReportUrl
+      ? existingTeam?.honuReportCreatedAt ?? null
+      : honuReportUrl
+        ? now
+        : null
   if (captainDiscordId) {
     ensureEventParticipant(
       values.eventId,
@@ -1214,6 +1281,8 @@ export async function upsertHistoricalTeam(values: {
       budget: TEAM_BUDGET,
       bonusCap: BONUS_CAP,
       score: Number.isFinite(values.score) ? Number(values.score) : 0,
+      honuReportUrl,
+      honuReportCreatedAt,
     })
     .onConflictDoUpdate({
       target: teams.id,
@@ -1221,6 +1290,8 @@ export async function upsertHistoricalTeam(values: {
         name,
         captainDiscordId,
         score: Number.isFinite(values.score) ? Number(values.score) : 0,
+        honuReportUrl,
+        honuReportCreatedAt,
       },
     })
     .run()
@@ -1324,6 +1395,8 @@ function buildHistoricalEvent(event: typeof events.$inferSelect): HistoricalEven
       members: memberProfiles.map((member) => member.name),
       memberProfiles,
       winner: team.id === event.winningTeamId,
+      honuReportUrl: team.honuReportUrl ?? undefined,
+      honuReportCreatedAt: team.honuReportCreatedAt ?? undefined,
     }
   })
   const winningTeam = historicalTeams.find((team) => team.winner)
@@ -1339,6 +1412,8 @@ function buildHistoricalEvent(event: typeof events.$inferSelect): HistoricalEven
     twitchStreamUrl: event.twitchStreamUrl ?? undefined,
     twitchVodUrl: event.twitchVodUrl ?? undefined,
     lore: event.lore ?? undefined,
+    honuAlertId: event.honuAlertId ?? undefined,
+    honuAlertCreatedAt: event.honuAlertCreatedAt ?? undefined,
     winningTeam: winningTeam
       ? {
           id: winningTeam.id,
@@ -2301,6 +2376,223 @@ export function saveEventPlayerCharacterAssignments(
   return getEventPlayerCharacterAssignments(eventId)
 }
 
+export function markEventHonuAlertCreated(eventId: string, alertId: number) {
+  const now = new Date().toISOString()
+  db.update(events)
+    .set({
+      honuAlertId: alertId,
+      honuAlertCreatedAt: now,
+      updatedAt: now,
+    })
+    .where(eq(events.id, eventId))
+    .run()
+}
+
+export async function saveDueHonuTeamReports(event: HammaEvent) {
+  if (!isHonuReportDue(event)) return { ok: true, reportCount: 0 }
+  return saveHonuTeamReports(event.id)
+}
+
+export async function getPendingHonuAlertEvents(): Promise<HammaEvent[]> {
+  const rows = sqlite.prepare(`
+    SELECT id
+    FROM events
+    WHERE
+      EXISTS (
+        SELECT 1
+        FROM event_rounds
+        WHERE event_rounds.event_id = events.id
+      )
+    ORDER BY starts_at DESC
+    LIMIT 20
+  `).all() as Array<{ id: string }>
+
+  const hydrated = await Promise.all(rows.map((row) => getDbEvent(row.id)))
+  return hydrated.filter((event): event is HammaEvent => Boolean(event))
+}
+
+export function getHonuPsbAccountCacheUpdatedAt() {
+  return getAppSetting('honu_psb_accounts_updated_at')
+}
+
+export function replaceHonuPsbAccountCache(accounts: HonuPsbAccountCacheRow[]) {
+  const now = new Date().toISOString()
+  const insert = sqlite.prepare(`
+    INSERT INTO honu_psb_accounts (
+      account_id,
+      account_type,
+      tag,
+      name,
+      player_name,
+      vs_id,
+      vs_name,
+      nc_id,
+      nc_name,
+      tr_id,
+      tr_name,
+      ns_id,
+      ns_name,
+      deleted_at,
+      raw_json,
+      updated_at
+    ) VALUES (
+      @accountId,
+      @accountType,
+      @tag,
+      @name,
+      @playerName,
+      @vsId,
+      @vsName,
+      @ncId,
+      @ncName,
+      @trId,
+      @trName,
+      @nsId,
+      @nsName,
+      @deletedAt,
+      @rawJson,
+      @updatedAt
+    )
+  `)
+
+  sqlite.transaction(() => {
+    sqlite.prepare('DELETE FROM honu_psb_accounts').run()
+    for (const account of accounts) {
+      insert.run({
+        ...account,
+        updatedAt: now,
+      })
+    }
+    setAppSetting('honu_psb_accounts_updated_at', now)
+  })()
+}
+
+export interface HonuPsbAccountCacheRow {
+  accountId: number
+  accountType: number
+  tag: string
+  name: string
+  playerName: string
+  vsId: string | null
+  vsName: string | null
+  ncId: string | null
+  ncName: string | null
+  trId: string | null
+  trName: string | null
+  nsId: string | null
+  nsName: string | null
+  deletedAt: string | null
+  rawJson: string
+}
+
+export function searchHonuPsbAccounts(query = '', limit = 10): HonuPsbAccountSuggestion[] {
+  const normalized = query.trim().toLowerCase()
+  const maxResults = Math.max(1, Math.min(10, Math.floor(limit)))
+  const searchLike = `%${normalized.replaceAll('%', '\\%').replaceAll('_', '\\_')}%`
+  const rows = normalized
+    ? sqlite.prepare(`
+        SELECT *
+        FROM honu_psb_accounts
+        WHERE
+          deleted_at IS NULL
+          AND (
+            lower(player_name) LIKE ? ESCAPE '\\'
+            OR lower(name) LIKE ? ESCAPE '\\'
+            OR lower(tag) LIKE ? ESCAPE '\\'
+            OR lower(tag || 'x' || name) LIKE ? ESCAPE '\\'
+            OR lower(coalesce(vs_name, '')) LIKE ? ESCAPE '\\'
+            OR lower(coalesce(nc_name, '')) LIKE ? ESCAPE '\\'
+            OR lower(coalesce(tr_name, '')) LIKE ? ESCAPE '\\'
+          )
+        ORDER BY
+          CASE
+            WHEN lower(player_name) = ? THEN 0
+            WHEN lower(name) = ? THEN 1
+            WHEN lower(tag || 'x' || name) = ? THEN 2
+            WHEN lower(player_name) LIKE ? ESCAPE '\\' THEN 3
+            ELSE 4
+          END,
+          player_name COLLATE NOCASE,
+          tag COLLATE NOCASE,
+          name COLLATE NOCASE
+        LIMIT ?
+      `).all(
+        searchLike,
+        searchLike,
+        searchLike,
+        searchLike,
+        searchLike,
+        searchLike,
+        searchLike,
+        normalized,
+        normalized,
+        normalized,
+        `${normalized.replaceAll('%', '\\%').replaceAll('_', '\\_')}%`,
+        maxResults,
+      )
+    : sqlite.prepare(`
+        SELECT *
+        FROM honu_psb_accounts
+        WHERE deleted_at IS NULL
+        ORDER BY player_name COLLATE NOCASE, tag COLLATE NOCASE, name COLLATE NOCASE
+        LIMIT ?
+      `).all(maxResults)
+
+  return (rows as HonuPsbAccountDbRow[]).map(honuPsbAccountSuggestionFromRow)
+}
+
+interface HonuPsbAccountDbRow {
+  account_id: number
+  tag: string
+  name: string
+  player_name: string
+  vs_id: string | null
+  vs_name: string | null
+  nc_id: string | null
+  nc_name: string | null
+  tr_id: string | null
+  tr_name: string | null
+  updated_at: string
+}
+
+function honuPsbAccountSuggestionFromRow(row: HonuPsbAccountDbRow): HonuPsbAccountSuggestion {
+  const characters: PlayerCharacter[] = []
+  if (row.tr_id && row.tr_name) {
+    characters.push({
+      faction: 'TR',
+      characterId: row.tr_id,
+      characterName: row.tr_name,
+      resolvedAt: row.updated_at,
+    })
+  }
+  if (row.vs_id && row.vs_name) {
+    characters.push({
+      faction: 'VS',
+      characterId: row.vs_id,
+      characterName: row.vs_name,
+      resolvedAt: row.updated_at,
+    })
+  }
+  if (row.nc_id && row.nc_name) {
+    characters.push({
+      faction: 'NC',
+      characterId: row.nc_id,
+      characterName: row.nc_name,
+      resolvedAt: row.updated_at,
+    })
+  }
+
+  return {
+    accountId: row.account_id,
+    tag: row.tag,
+    name: row.name,
+    playerName: row.player_name,
+    label: `${row.tag}x${row.name}`,
+    characters,
+    updatedAt: row.updated_at,
+  }
+}
+
 export function searchPlayerProfiles(query = ''): PlayerProfileSummary[] {
   const normalized = query.trim().toLowerCase()
   const rows = sqlite.prepare(`
@@ -3068,6 +3360,9 @@ function bootstrap() {
       event_links TEXT,
       trophy_id TEXT NOT NULL DEFAULT 'hammo-bowl-cup',
       lore TEXT,
+      honu_zone_id INTEGER NOT NULL DEFAULT ${HONU_DEFAULT_ZONE_ID},
+      honu_alert_id INTEGER,
+      honu_alert_created_at TEXT,
       updated_at TEXT NOT NULL
     );
     CREATE TABLE IF NOT EXISTS app_settings (
@@ -3159,7 +3454,9 @@ function bootstrap() {
       starting_side TEXT,
       budget INTEGER NOT NULL DEFAULT ${TEAM_BUDGET},
       bonus_cap INTEGER NOT NULL DEFAULT ${BONUS_CAP},
-      score INTEGER NOT NULL DEFAULT 0
+      score INTEGER NOT NULL DEFAULT 0,
+      honu_report_url TEXT,
+      honu_report_created_at TEXT
     );
     CREATE TABLE IF NOT EXISTS ratings (
       event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
@@ -3212,6 +3509,26 @@ function bootstrap() {
       updated_at TEXT NOT NULL,
       PRIMARY KEY (event_id, round_number)
     );
+    CREATE TABLE IF NOT EXISTS honu_psb_accounts (
+      account_id INTEGER PRIMARY KEY,
+      account_type INTEGER NOT NULL,
+      tag TEXT NOT NULL,
+      name TEXT NOT NULL,
+      player_name TEXT NOT NULL,
+      vs_id TEXT,
+      vs_name TEXT,
+      nc_id TEXT,
+      nc_name TEXT,
+      tr_id TEXT,
+      tr_name TEXT,
+      ns_id TEXT,
+      ns_name TEXT,
+      deleted_at TEXT,
+      raw_json TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_honu_psb_accounts_search
+      ON honu_psb_accounts(player_name, tag, name);
     CREATE TABLE IF NOT EXISTS coinflips (
       id TEXT PRIMARY KEY,
       event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
@@ -3248,6 +3565,11 @@ function bootstrap() {
   addColumnIfMissing('events', 'event_links', 'TEXT')
   addColumnIfMissing('events', 'trophy_id', "TEXT NOT NULL DEFAULT 'hammo-bowl-cup'")
   addColumnIfMissing('events', 'lore', 'TEXT')
+  addColumnIfMissing('events', 'honu_zone_id', `INTEGER NOT NULL DEFAULT ${HONU_DEFAULT_ZONE_ID}`)
+  addColumnIfMissing('events', 'honu_alert_id', 'INTEGER')
+  addColumnIfMissing('events', 'honu_alert_created_at', 'TEXT')
+  addColumnIfMissing('teams', 'honu_report_url', 'TEXT')
+  addColumnIfMissing('teams', 'honu_report_created_at', 'TEXT')
   addColumnIfMissing('participants', 'avatar_url', 'TEXT')
   addColumnIfMissing('participants', 'role_ids', 'TEXT')
   addColumnIfMissing('participants', 'name_overridden', 'INTEGER NOT NULL DEFAULT 0')
@@ -3437,22 +3759,23 @@ const EVENT_LINK_ICONS = new Set([
   'MessageCircle',
   'FileText',
   'Map',
+  'Siren',
   'Users',
   'ScrollText',
   'Video',
 ])
 
-function parseEventLinks(value: string | null): EventLink[] {
+function parseEventLinks(value: string | null, options: { includeGeneratedHonuReports?: boolean } = {}): EventLink[] {
   if (!value) return []
 
   try {
-    return normalizeEventLinks(JSON.parse(value))
+    return normalizeEventLinks(JSON.parse(value), options)
   } catch {
     return []
   }
 }
 
-function normalizeEventLinks(value: unknown): EventLink[] {
+function normalizeEventLinks(value: unknown, options: { includeGeneratedHonuReports?: boolean } = {}): EventLink[] {
   if (!Array.isArray(value)) return []
 
   return value
@@ -3468,7 +3791,145 @@ function normalizeEventLinks(value: unknown): EventLink[] {
       return { name: name.slice(0, 64), url, icon }
     })
     .filter((link): link is EventLink => Boolean(link))
+    .filter((link) => options.includeGeneratedHonuReports || !isGeneratedHonuReportLink(link))
     .slice(0, 12)
+}
+
+interface HonuTeamReport {
+  teamId: string
+  url: string
+}
+
+function getHonuTeamReports(event: HammaEvent): HonuTeamReport[] {
+  const firstRound = event.rounds[0]
+  const lastRound = getLastConfiguredRound(event)
+  if (!firstRound || !lastRound) return []
+
+  const start = Math.floor(new Date(firstRound.startedAt).getTime() / 1000)
+  const end = Math.floor(getRoundEndMs(lastRound) / 1000)
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return []
+
+  return event.teams.flatMap((team) => {
+    const characterIds = getHonuTeamReportCharacterIds(event.id, team.id)
+    if (!characterIds.length) return []
+
+    return [{ teamId: team.id, url: buildHonuReportUrl(start, end, characterIds) }]
+  })
+}
+
+function removeGeneratedHonuReportEventLinks(eventId: string) {
+  const current = db.select().from(events).where(eq(events.id, eventId)).get()
+  if (!current?.eventLinks) return
+
+  const currentLinks = parseEventLinks(current.eventLinks, { includeGeneratedHonuReports: true })
+  const manualLinks = currentLinks.filter((link) => !isGeneratedHonuReportLink(link))
+  if (manualLinks.length === currentLinks.length) return
+
+  db.update(events)
+    .set({
+      eventLinks: JSON.stringify(manualLinks),
+      updatedAt: new Date().toISOString(),
+    })
+    .where(eq(events.id, eventId))
+    .run()
+}
+
+function getHonuTeamReportCharacterIds(eventId: string, teamId: string) {
+  const rows = sqlite.prepare(`
+    WITH team_members AS (
+      SELECT
+        t.event_id AS eventId,
+        t.id AS teamId,
+        t.faction AS currentFaction,
+        t.captain_discord_id AS discordId
+      FROM teams t
+      WHERE
+        t.event_id = ?
+        AND t.id = ?
+        AND t.faction IS NOT NULL
+        AND t.captain_discord_id IS NOT NULL
+        AND t.captain_discord_id != ''
+      UNION
+      SELECT
+        t.event_id AS eventId,
+        t.id AS teamId,
+        t.faction AS currentFaction,
+        dp.player_discord_id AS discordId
+      FROM draft_picks dp
+      JOIN teams t ON t.id = dp.team_id
+      WHERE
+        t.event_id = ?
+        AND t.id = ?
+        AND t.faction IS NOT NULL
+    )
+    SELECT DISTINCT characterId
+    FROM (
+      SELECT
+        COALESCE(
+          CASE
+            WHEN (
+                COALESCE(pp.no_personal_jaeger_account, 0) = 1
+                OR COALESCE(pcc.characterCount, 0) = 0
+              )
+              AND ec.faction = tm.currentFaction
+            THEN ec.character_id
+          END,
+          CASE
+            WHEN COALESCE(pp.no_personal_jaeger_account, 0) = 0
+              AND COALESCE(pcc.characterCount, 0) > 0
+            THEN pc.character_id
+          END
+        ) AS characterId
+      FROM team_members tm
+      JOIN event_participants ep
+        ON ep.event_id = tm.eventId
+        AND ep.discord_id = tm.discordId
+        AND ep.disqualified = 0
+      LEFT JOIN player_profiles pp ON pp.discord_id = tm.discordId
+      LEFT JOIN (
+        SELECT discord_id, COUNT(*) AS characterCount
+        FROM player_characters
+        GROUP BY discord_id
+      ) pcc ON pcc.discord_id = tm.discordId
+      LEFT JOIN event_player_characters ec
+        ON ec.event_id = tm.eventId
+        AND ec.discord_id = tm.discordId
+        AND ec.faction = tm.currentFaction
+      LEFT JOIN player_characters pc
+        ON pc.discord_id = tm.discordId
+        AND pc.faction = tm.currentFaction
+    )
+    WHERE characterId IS NOT NULL AND characterId != ''
+    ORDER BY characterId
+  `).all(eventId, teamId, eventId, teamId) as Array<{ characterId: string }>
+
+  return rows.map((row) => row.characterId)
+}
+
+function buildHonuReportUrl(start: number, end: number, characterIds: string[]) {
+  const entities = characterIds.map((characterId) => `+${characterId};`).join('')
+  return `https://wt.honu.pw/report/${start},${end};${entities}:`
+}
+
+function isGeneratedHonuReportLink(link: EventLink) {
+  return link.name.startsWith('Honu report: ') && link.url.startsWith('https://wt.honu.pw/report/')
+}
+
+function isHonuReportDue(event: HammaEvent) {
+  const lastRound = getLastConfiguredRound(event)
+  if (!lastRound) return false
+
+  const lastRoundEnd = getRoundEndMs(lastRound)
+  return Number.isFinite(lastRoundEnd) && Date.now() >= lastRoundEnd
+}
+
+function getLastConfiguredRound(event: HammaEvent) {
+  if (event.rounds.length < event.roundCount) return null
+  return event.rounds.find((round) => round.roundNumber === event.roundCount) ?? null
+}
+
+function getRoundEndMs(round: HammaEvent['rounds'][number]) {
+  return new Date(round.startedAt).getTime() + round.durationSeconds * 1000
 }
 
 function normalizeOptionalEventUrl(value: string | undefined) {
@@ -3487,6 +3948,21 @@ function normalizeOptionalEventUrl(value: string | undefined) {
   }
 
   return url.toString()
+}
+
+function normalizeOptionalHonuAlertId(value: string | undefined) {
+  const trimmed = value?.trim()
+  if (!trimmed) return null
+
+  const id = trimmed.match(/(?:^|\/)alert\/(\d+)(?:$|[/?#])/)?.[1] ?? trimmed
+  if (!/^\d+$/.test(id)) throw new Error('Honu alert ID must be a number or alert URL.')
+
+  const alertId = Number(id)
+  if (!Number.isSafeInteger(alertId) || alertId <= 0) {
+    throw new Error('Honu alert ID must be a positive number.')
+  }
+
+  return alertId
 }
 
 function formatSide(value: StartingSide) {

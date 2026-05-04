@@ -8,11 +8,13 @@ import type {
   EventPlayerCharacterAssignment,
   Faction,
   HammaEvent,
+  HonuPsbAccountSuggestion,
   Player,
   RegisteredParticipant,
   StartingSide,
 } from '../lib/types'
 import { shortDate } from '../lib/format'
+import { HONU_ALERT_ZONE_OPTIONS } from '../lib/honu'
 import { undraftedDraftEligiblePlayers } from '../lib/rules'
 import { EVENT_LINK_ICON_OPTIONS, EventLinkIcon } from './EventLinkIcons'
 
@@ -443,6 +445,7 @@ function EventIdentityControls({
   const [trophyId, setTrophyId] = useState<EventTrophyId>(event.trophyId)
   const [streamUrl, setStreamUrl] = useState(event.twitchStreamUrl ?? '')
   const [vodUrl, setVodUrl] = useState(event.twitchVodUrl ?? '')
+  const [honuZoneId, setHonuZoneId] = useState(event.honuZoneId.toString())
   const [openIconPicker, setOpenIconPicker] = useState<number | null>(null)
 
   useEffect(() => {
@@ -452,6 +455,7 @@ function EventIdentityControls({
     setTrophyId(event.trophyId)
     setStreamUrl(event.twitchStreamUrl ?? '')
     setVodUrl(event.twitchVodUrl ?? '')
+    setHonuZoneId(event.honuZoneId.toString())
   }, [event])
 
   useEffect(() => {
@@ -500,6 +504,7 @@ function EventIdentityControls({
       trophyId,
       twitchStreamUrl: streamUrl,
       twitchVodUrl: vodUrl,
+      honuZoneId,
     })
     if (isEventResult(result) && result.event) onEvent(result.event)
     return result
@@ -631,6 +636,29 @@ function EventIdentityControls({
               onChange={(event) => setVodUrl(event.currentTarget.value)}
             />
           </label>
+        </div>
+
+        <div className="event-result-card">
+          <strong>Honu alert</strong>
+          <label>
+            Zone
+            <select value={honuZoneId} onChange={(event) => setHonuZoneId(event.currentTarget.value)}>
+              {HONU_ALERT_ZONE_OPTIONS.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <small>
+            {event.honuAlertId ? (
+              <a href={`https://wt.honu.pw/alert/${event.honuAlertId}`} target="_blank" rel="noreferrer">
+                Honu alert {event.honuAlertId}
+              </a>
+            ) : (
+              'A Honu alert is created after the final round ends.'
+            )}
+          </small>
         </div>
       </div>
       <div className="admin-section-footer">
@@ -1210,6 +1238,9 @@ function PlayerJaegerManager({
   const [players, setPlayers] = useState<AdminPlayerCharacterConfig[]>([])
   const [discordId, setDiscordId] = useState('')
   const [names, setNames] = useState<Record<Faction, string>>({ TR: '', VS: '', NC: '' })
+  const [accountQuery, setAccountQuery] = useState('')
+  const [accountSuggestions, setAccountSuggestions] = useState<HonuPsbAccountSuggestion[]>([])
+  const [accountSearchFocused, setAccountSearchFocused] = useState(false)
   const [loaded, setLoaded] = useState(false)
   const ready = useClientReady()
 
@@ -1242,6 +1273,39 @@ function PlayerJaegerManager({
     }
   }, [ready, refreshKey])
 
+  useEffect(() => {
+    if (!ready) return
+    const query = accountQuery.trim()
+    if (query.length < 2) {
+      setAccountSuggestions([])
+      return
+    }
+
+    let active = true
+    const timer = window.setTimeout(() => {
+      void fetch(`/api/admin/player-jaeger?accountSearch=${encodeURIComponent(query)}`)
+        .then((response) => {
+          if (!response.ok) throw new Error('Unable to search Honu accounts.')
+          return response.json() as Promise<{
+            accounts: HonuPsbAccountSuggestion[]
+            updatedAt?: string
+          }>
+        })
+        .then((payload) => {
+          if (!active) return
+          setAccountSuggestions(payload.accounts)
+        })
+        .catch(() => {
+          if (active) setAccountSuggestions([])
+        })
+    }, 200)
+
+    return () => {
+      active = false
+      window.clearTimeout(timer)
+    }
+  }, [ready, accountQuery])
+
   function choosePlayer(nextDiscordId: string) {
     setDiscordId(nextDiscordId)
     setNames(namesFromPlayer(players.find((player) => player.discordId === nextDiscordId)))
@@ -1249,6 +1313,16 @@ function PlayerJaegerManager({
 
   function updateFaction(faction: Faction, value: string) {
     setNames((current) => ({ ...current, [faction]: value }))
+  }
+
+  function chooseHonuAccount(account: HonuPsbAccountSuggestion) {
+    setAccountQuery(account.label)
+    setAccountSearchFocused(false)
+    setNames((current) => ({
+      TR: account.characters.find((character) => character.faction === 'TR')?.characterName ?? current.TR,
+      VS: account.characters.find((character) => character.faction === 'VS')?.characterName ?? current.VS,
+      NC: account.characters.find((character) => character.faction === 'NC')?.characterName ?? current.NC,
+    }))
   }
 
   async function saveCharacters() {
@@ -1267,6 +1341,8 @@ function PlayerJaegerManager({
   }
 
   const selectedPlayer = players.find((player) => player.discordId === discordId)
+  const selectedPlayerHasResolvedCharacters = Boolean(selectedPlayer?.characters.length)
+  const showAccountSuggestions = accountSearchFocused && accountQuery.trim().length >= 2
 
   return (
     <AdminSection id="admin-jaeger-chars" title="Player Jaeger characters">
@@ -1303,9 +1379,43 @@ function PlayerJaegerManager({
             />
           </label>
         ))}
+        <div
+          className="psb-account-combobox"
+          onFocus={() => setAccountSearchFocused(true)}
+          onBlur={(event) => {
+            const nextTarget = event.relatedTarget
+            if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) return
+            setAccountSearchFocused(false)
+          }}
+        >
+          <span>PSB Named Account</span>
+          <input
+            value={accountQuery}
+            disabled={!ready}
+            placeholder="Search tag, player, or character"
+            onChange={(event) => setAccountQuery(event.currentTarget.value)}
+          />
+          {showAccountSuggestions ? (
+            <div className="psb-account-results" role="listbox">
+              {accountSuggestions.length ? accountSuggestions.map((account) => (
+                <button
+                  key={account.accountId}
+                  type="button"
+                  role="option"
+                  onClick={() => chooseHonuAccount(account)}
+                >
+                  <strong>{account.label}</strong>
+                  <span>{account.playerName}</span>
+                </button>
+              )) : (
+                <div className="psb-account-empty">No matches</div>
+              )}
+            </div>
+          ) : null}
+        </div>
       </div>
       <div className="resolved-list admin-assignment-list">
-        {selectedPlayer ? (
+        {selectedPlayer && (selectedPlayer.noPersonalJaegerAccount || selectedPlayerHasResolvedCharacters) ? (
           <span>
             <strong>{selectedPlayer.name}</strong>
             {selectedPlayer.noPersonalJaegerAccount
@@ -2531,6 +2641,12 @@ function TeamForm({
           />
         </label>
       </div>
+      {team.honuReportUrl ? (
+        <a className="team-report-link" href={team.honuReportUrl} target="_blank" rel="noreferrer">
+          <EventLinkIcon name="Users" />
+          <span>Honu team report</span>
+        </a>
+      ) : null}
     </article>
   )
 }

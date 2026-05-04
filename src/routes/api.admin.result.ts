@@ -4,12 +4,14 @@ import { clearCurrentEventCache, requireEventByIdOrCurrent } from '../lib/servic
 import {
   adjustScore,
   getDbEvent,
+  saveDueHonuTeamReports,
   setWinningTeam,
   startNextRound,
   updateEventLinks,
   updateEventRoundSettings,
   updateRoundResult,
 } from '../lib/db.server'
+import { ensureHonuAlertForEvent } from '../lib/honu.server'
 import { publishEventUpdate } from '../lib/realtime.server'
 
 export const Route = createFileRoute('/api/admin/result')({
@@ -66,7 +68,31 @@ export const Route = createFileRoute('/api/admin/result')({
         }
 
         clearCurrentEventCache()
-        const updated = await getDbEvent(event.id)
+        let updated = await getDbEvent(event.id)
+        if (updated) {
+          const honuReports = await saveDueHonuTeamReports(updated)
+          if (honuReports.reportCount) {
+            messages.push(
+              `${honuReports.reportCount} Honu team report${honuReports.reportCount === 1 ? '' : 's'} saved.`,
+            )
+            clearCurrentEventCache()
+            updated = await getDbEvent(event.id)
+          }
+        }
+        if (updated) {
+          try {
+            const honuAlert = await ensureHonuAlertForEvent(updated)
+            if (honuAlert) {
+              messages.push(honuAlert.message)
+              clearCurrentEventCache()
+              updated = await getDbEvent(event.id)
+            }
+          } catch (error) {
+            messages.push(
+              `Honu alert was not created: ${error instanceof Error ? error.message : 'Unknown error.'}`,
+            )
+          }
+        }
         publishEventUpdate(
           event.id,
           body.winner || body.startRound || 'roundNumber' in body

@@ -218,7 +218,14 @@ function HistoricalEventEditor({
   const [streamUrl, setStreamUrl] = useState(event.twitchStreamUrl ?? '')
   const [vodUrl, setVodUrl] = useState(event.twitchVodUrl ?? '')
   const [lore, setLore] = useState(event.lore ?? '')
-  const [newTeam, setNewTeam] = useState({ name: '', score: '0', captainDiscordId: '', captainName: '' })
+  const [honuAlertId, setHonuAlertId] = useState(event.honuAlertId?.toString() ?? '')
+  const [newTeam, setNewTeam] = useState({
+    name: '',
+    score: '0',
+    captainDiscordId: '',
+    captainName: '',
+    honuReportUrl: '',
+  })
   const [teamDrafts, setTeamDrafts] = useState<Record<string, HistoricalTeamDraft>>(() =>
     createHistoricalTeamDrafts(event.teams, participants),
   )
@@ -229,6 +236,7 @@ function HistoricalEventEditor({
     trophyId !== event.trophyId ||
     streamUrl !== (event.twitchStreamUrl ?? '') ||
     vodUrl !== (event.twitchVodUrl ?? '') ||
+    honuAlertId !== (event.honuAlertId?.toString() ?? '') ||
     lore !== (event.lore ?? '')
   const changedTeams = getChangedHistoricalTeamDrafts(event.teams, teamDrafts, participants)
 
@@ -239,6 +247,7 @@ function HistoricalEventEditor({
     setTrophyId(event.trophyId)
     setStreamUrl(event.twitchStreamUrl ?? '')
     setVodUrl(event.twitchVodUrl ?? '')
+    setHonuAlertId(event.honuAlertId?.toString() ?? '')
     setLore(event.lore ?? '')
     setTeamDrafts(createHistoricalTeamDrafts(event.teams, participants))
   }, [event, participants])
@@ -267,6 +276,7 @@ function HistoricalEventEditor({
         trophyId,
         twitchStreamUrl: streamUrl,
         twitchVodUrl: vodUrl,
+        honuAlertId,
         lore,
       })
     }
@@ -280,6 +290,7 @@ function HistoricalEventEditor({
         score: Number(draft.score),
         captainDiscordId: draft.captainDiscordId,
         captainName: draft.captainName,
+        honuReportUrl: draft.honuReportUrl,
       })
     }
 
@@ -333,6 +344,19 @@ function HistoricalEventEditor({
           <label>
             VOD
             <input value={vodUrl} onChange={(event) => setVodUrl(event.currentTarget.value)} />
+          </label>
+          <label>
+            Honu alert
+            <input
+              value={honuAlertId}
+              placeholder="Alert ID or URL"
+              onChange={(event) => setHonuAlertId(event.currentTarget.value)}
+            />
+            {honuAlertUrl(honuAlertId) ? (
+              <a className="history-field-link" href={honuAlertUrl(honuAlertId)} target="_blank" rel="noreferrer">
+                Open alert
+              </a>
+            ) : null}
           </label>
         </div>
         <label className="full-field">
@@ -393,6 +417,22 @@ function HistoricalEventEditor({
               }}
             />
           </label>
+          <label>
+            Honu report
+            <input
+              value={newTeam.honuReportUrl}
+              placeholder="https://wt.honu.pw/report/..."
+              onChange={(event) => {
+                const honuReportUrl = event.currentTarget.value
+                setNewTeam((current) => ({ ...current, honuReportUrl }))
+              }}
+            />
+            {optionalExternalUrl(newTeam.honuReportUrl) ? (
+              <a className="history-field-link" href={optionalExternalUrl(newTeam.honuReportUrl)} target="_blank" rel="noreferrer">
+                Open report
+              </a>
+            ) : null}
+          </label>
           <button
             type="button"
             disabled={busy || !newTeam.name}
@@ -405,8 +445,17 @@ function HistoricalEventEditor({
                   score: Number(newTeam.score),
                   captainDiscordId: newTeam.captainDiscordId,
                   captainName: newTeam.captainName,
+                  honuReportUrl: newTeam.honuReportUrl,
                 })
-                if (saved) setNewTeam({ name: '', score: '0', captainDiscordId: '', captainName: '' })
+            if (saved) {
+              setNewTeam({
+                name: '',
+                score: '0',
+                captainDiscordId: '',
+                captainName: '',
+                honuReportUrl: '',
+              })
+            }
               })()
             }
           >
@@ -436,6 +485,7 @@ interface HistoricalTeamDraft {
   score: string
   captainDiscordId: string
   captainName: string
+  honuReportUrl: string
 }
 
 function createHistoricalTeamDraft(
@@ -447,6 +497,7 @@ function createHistoricalTeamDraft(
     score: team?.score.toString() ?? '0',
     captainDiscordId: team ? getHistoricalCaptainDiscordId(team, participants) : '',
     captainName: team?.captain ?? '',
+    honuReportUrl: team?.honuReportUrl ?? '',
   }
 }
 
@@ -472,7 +523,8 @@ function getChangedHistoricalTeamDrafts(
       draft.name !== team.name ||
       Number(draft.score) !== team.score ||
       draft.captainDiscordId !== getHistoricalCaptainDiscordId(team, participants) ||
-      draft.captainName !== (team.captain ?? '')
+      draft.captainName !== (team.captain ?? '') ||
+      draft.honuReportUrl !== (team.honuReportUrl ?? '')
 
     return changed ? [{ team, draft }] : []
   })
@@ -508,6 +560,7 @@ function HistoricalTeamEditor({
   const score = draft?.score ?? team.score.toString()
   const captainDiscordId = draft?.captainDiscordId ?? getHistoricalCaptainDiscordId(team, participants)
   const captainName = draft?.captainName ?? team.captain ?? ''
+  const honuReportUrl = draft?.honuReportUrl ?? team.honuReportUrl ?? ''
 
   return (
     <section className={`history-team${team.winner ? ' winner' : ''}`}>
@@ -541,6 +594,20 @@ function HistoricalTeamEditor({
           disabled={busy}
           onChange={(event) => onDraft({ captainName: event.currentTarget.value })}
         />
+      </label>
+      <label>
+        Honu report
+        <input
+          value={honuReportUrl}
+          disabled={busy}
+          placeholder="https://wt.honu.pw/report/..."
+          onChange={(event) => onDraft({ honuReportUrl: event.currentTarget.value })}
+        />
+        {optionalExternalUrl(honuReportUrl) ? (
+          <a className="history-field-link" href={optionalExternalUrl(honuReportUrl)} target="_blank" rel="noreferrer">
+            Open report
+          </a>
+        ) : null}
       </label>
       <div className="button-row left">
         <button
@@ -622,4 +689,24 @@ function toLocalDateTimeValue(value: string) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
   return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16)
+}
+
+function honuAlertUrl(value: string) {
+  const trimmed = value.trim()
+  if (!trimmed) return undefined
+
+  const id = trimmed.match(/(?:^|\/)alert\/(\d+)(?:$|[/?#])/)?.[1] ?? trimmed
+  return /^\d+$/.test(id) ? `https://wt.honu.pw/alert/${id}` : undefined
+}
+
+function optionalExternalUrl(value: string) {
+  const trimmed = value.trim()
+  if (!trimmed) return undefined
+
+  try {
+    const url = new URL(trimmed)
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.toString() : undefined
+  } catch {
+    return undefined
+  }
 }

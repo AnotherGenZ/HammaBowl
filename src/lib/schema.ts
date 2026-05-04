@@ -30,6 +30,9 @@ export const events = sqliteTable('events', {
   eventLinks: text('event_links'),
   trophyId: text('trophy_id').notNull().default('hammo-bowl-cup'),
   lore: text('lore'),
+  honuZoneId: integer('honu_zone_id').notNull().default(0),
+  honuAlertId: integer('honu_alert_id'),
+  honuAlertCreatedAt: text('honu_alert_created_at'),
   updatedAt: text('updated_at').notNull(),
 })
 
@@ -152,6 +155,8 @@ export const teams = sqliteTable('teams', {
   budget: integer('budget').notNull().default(125_000_000),
   bonusCap: integer('bonus_cap').notNull().default(25_000_000),
   score: integer('score').notNull().default(0),
+  honuReportUrl: text('honu_report_url'),
+  honuReportCreatedAt: text('honu_report_created_at'),
 })
 
 export const ratings = sqliteTable(

@@ -1,4 +1,5 @@
 import { env, requireEnv } from './env'
+import { HONU_DEFAULT_ZONE_ID } from './honu'
 import type { Faction, HammaEvent, Player } from './types'
 import { BID_INCREMENT, BONUS_POOL, MAX_PLAYER_BONUS, SALARY_POOL } from './rules'
 
@@ -184,6 +185,7 @@ async function hydrateRemoteEvent(
     rounds: [],
     eventLinks: [],
     trophyId: 'hammo-bowl-cup',
+    honuZoneId: HONU_DEFAULT_ZONE_ID,
   }
 }
 

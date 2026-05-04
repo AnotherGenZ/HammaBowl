@@ -32,6 +32,7 @@ export const Route = createFileRoute('/api/admin/history')({
             lore: String(body.lore ?? ''),
             twitchStreamUrl: String(body.twitchStreamUrl ?? ''),
             twitchVodUrl: String(body.twitchVodUrl ?? ''),
+            honuAlertId: 'honuAlertId' in body ? String(body.honuAlertId ?? '') : undefined,
           })
         } else if (action === 'upsert-team') {
           await upsertHistoricalTeam({
@@ -41,6 +42,7 @@ export const Route = createFileRoute('/api/admin/history')({
             score: Number(body.score),
             captainDiscordId: String(body.captainDiscordId ?? ''),
             captainName: String(body.captainName ?? ''),
+            honuReportUrl: String(body.honuReportUrl ?? ''),
           })
         } else if (action === 'add-member') {
           await addHistoricalTeamMember({

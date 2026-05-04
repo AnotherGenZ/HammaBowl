@@ -1,6 +1,7 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { HallOfLegendsUnderConstruction } from '../components/HallOfLegendsUnderConstruction'
+import { EventLinkIcon } from '../components/EventLinkIcons'
 import { canViewHallOfLegends } from '../lib/featureFlags'
 import { shortDateWithTimeZone } from '../lib/format'
 import { pageMeta } from '../lib/meta'
@@ -83,6 +84,17 @@ function HistoricalEventPage() {
                 VOD
               </a>
             ) : null}
+            {event.honuAlertId ? (
+              <a
+                className="honu-alert-badge"
+                href={`https://wt.honu.pw/alert/${event.honuAlertId}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <EventLinkIcon name="Siren" />
+                Alert
+              </a>
+            ) : null}
           </div>
         </div>
         <LegendDetailTrophy event={event} />
@@ -145,6 +157,7 @@ function HistoricalEventPage() {
             losingTeams.map((team) => (
               <div className="legend-losing-team" key={team.id}>
                 {losingTeams.length > 1 ? <h3>{team.name}</h3> : null}
+                <LegendTeamReportLink team={team} />
                 <LegendRosterList team={team} />
               </div>
             ))
@@ -185,8 +198,31 @@ function LegendRoster({
         <span>{title}</span>
         <h2>{team.name}</h2>
       </div>
+      <LegendTeamReportLink team={team} />
       <LegendRosterList team={team} />
     </article>
+  )
+}
+
+function LegendTeamReportLink({
+  team,
+  compact = false,
+}: {
+  team: HistoricalEvent['teams'][number]
+  compact?: boolean
+}) {
+  if (!team.honuReportUrl) return null
+
+  return (
+    <a
+      className={compact ? 'legend-team-report-link compact' : 'legend-team-report-link'}
+      href={team.honuReportUrl}
+      target="_blank"
+      rel="noreferrer"
+    >
+      <EventLinkIcon name="ChartColumnIncreasingIcon" />
+      <span>Report</span>
+    </a>
   )
 }
 

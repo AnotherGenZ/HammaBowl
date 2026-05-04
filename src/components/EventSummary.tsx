@@ -19,6 +19,25 @@ export function EventSummary({ event }: { event: HammaEvent }) {
   const visibleEventTimes = isComplete
     ? eventTimes.filter((item) => item.label === 'Event start')
     : eventTimes
+  const detailLinks = [
+    ...(isComplete ? [] : event.eventLinks),
+    ...(event.honuAlertId
+      ? [{
+          name: 'Honu alert',
+          url: `https://wt.honu.pw/alert/${event.honuAlertId}`,
+          icon: 'Siren',
+        }]
+      : []),
+    ...event.teams.flatMap((team) =>
+      team.honuReportUrl
+        ? [{
+            name: `${team.teamName} report`,
+            url: team.honuReportUrl,
+            icon: 'Users',
+          }]
+        : [],
+    ),
+  ]
 
   return (
     <section className="event-hero">
@@ -45,14 +64,12 @@ export function EventSummary({ event }: { event: HammaEvent }) {
               </span>
             )
           })}
-          {isComplete
-            ? null
-            : event.eventLinks.map((link) => (
-                <a key={`${link.url}-${link.name}`} href={link.url} target="_blank" rel="noreferrer">
-                  <EventLinkIcon name={link.icon} />
-                  <span>{link.name}</span>
-                </a>
-              ))}
+          {detailLinks.map((link) => (
+            <a key={`${link.url}-${link.name}`} href={link.url} target="_blank" rel="noreferrer">
+              <EventLinkIcon name={link.icon} />
+              <span>{link.name}</span>
+            </a>
+          ))}
         </div>
         {!isComplete && (event.twitchStreamUrl || event.twitchVodUrl) ? (
           <div className="meta-row">
