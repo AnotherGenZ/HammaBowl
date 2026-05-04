@@ -2437,7 +2437,7 @@ main > .panel:first-child {
 .signup-pool-panel .available-list {
   grid-row: 5;
   align-content: start;
-  grid-auto-rows: 82px;
+  grid-auto-rows: minmax(82px, max-content);
   min-height: 0;
   max-height: none;
   overflow-y: auto;
@@ -4183,7 +4183,7 @@ main > .panel:first-child {
 
 .player-name {
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .player-name strong {
@@ -4197,9 +4197,9 @@ main > .panel:first-child {
   display: flex;
   gap: 6px;
   min-width: 0;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   margin-top: 6px;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .player-specs span {
@@ -4213,10 +4213,10 @@ main > .panel:first-child {
   padding: 0 8px;
   font-size: 0.72rem;
   font-weight: 900;
-  max-width: 92px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.25;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .player-card > span {
@@ -5227,6 +5227,10 @@ main > .panel:first-child {
   padding: 0 8px;
   font-size: 0.72rem;
   font-weight: 900;
+  line-height: 1.25;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .legend-muted {
@@ -5650,7 +5654,7 @@ main > .panel:first-child {
   }
 
   .signup-pool-panel .available-list {
-    grid-auto-rows: 142px;
+    grid-auto-rows: minmax(142px, max-content);
   }
 
   .player-card > span {
