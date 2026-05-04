@@ -4498,6 +4498,8 @@ main > .panel:first-child {
 
 .legend-trophy,
 .legend-detail-trophy {
+  --legend-trophy-float-distance: -10px;
+
   display: grid;
   place-items: center;
   align-self: center;
@@ -4508,6 +4510,12 @@ main > .panel:first-child {
     drop-shadow(0 20px 30px rgba(0, 0, 0, 0.32))
     drop-shadow(0 0 24px rgba(228, 180, 94, 0.28));
   animation: legend-trophy-float 5.4s ease-in-out infinite;
+}
+
+.legend-trophy {
+  --legend-trophy-float-distance: -4px;
+
+  margin-top: 6px;
 }
 
 .legend-trophy-biolab,
@@ -4529,7 +4537,7 @@ main > .panel:first-child {
     transform: translateY(0);
   }
   50% {
-    transform: translateY(-10px);
+    transform: translateY(var(--legend-trophy-float-distance));
   }
 }
 
