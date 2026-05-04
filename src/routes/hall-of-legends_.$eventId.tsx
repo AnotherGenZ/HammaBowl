@@ -1,6 +1,6 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, BookOpen } from 'lucide-react'
 import { HallOfLegendsUnderConstruction } from '../components/HallOfLegendsUnderConstruction'
 import { EventLinkIcon } from '../components/EventLinkIcons'
 import { canViewHallOfLegends } from '../lib/featureFlags'
@@ -166,6 +166,21 @@ function HistoricalEventPage() {
             <p>No losing roster recorded.</p>
           )}
         </article>
+      </section>
+
+      <section className="legend-archive-link-panel">
+        <div>
+          <span>Event archive</span>
+          <h2>Draft replay and player ratings</h2>
+        </div>
+        <Link
+          to="/hall-of-legends/$eventId/archive"
+          params={{ eventId: event.id }}
+          className="button-link secondary"
+        >
+          <BookOpen size={16} aria-hidden="true" />
+          Open archive
+        </Link>
       </section>
     </main>
   )

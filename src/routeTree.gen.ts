@@ -23,6 +23,7 @@ import { Route as ApiRatingsRouteImport } from './routes/api.ratings'
 import { Route as ApiProfileRouteImport } from './routes/api.profile'
 import { Route as AdminHistoryRouteImport } from './routes/admin_.history'
 import { Route as AdminGeneralRouteImport } from './routes/admin_.general'
+import { Route as HallOfLegendsEventIdArchiveRouteImport } from './routes/hall-of-legends_.$eventId_.archive'
 import { Route as ApiEventCurrentRouteImport } from './routes/api.event.current'
 import { Route as ApiDraftPickRouteImport } from './routes/api.draft.pick'
 import { Route as ApiDraftBidRouteImport } from './routes/api.draft.bid'
@@ -118,6 +119,12 @@ const AdminGeneralRoute = AdminGeneralRouteImport.update({
   path: '/admin/general',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HallOfLegendsEventIdArchiveRoute =
+  HallOfLegendsEventIdArchiveRouteImport.update({
+    id: '/hall-of-legends_/$eventId_/archive',
+    path: '/hall-of-legends/$eventId/archive',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiEventCurrentRoute = ApiEventCurrentRouteImport.update({
   id: '/api/event/current',
   path: '/api/event/current',
@@ -273,6 +280,7 @@ export interface FileRoutesByFullPath {
   '/api/draft/bid': typeof ApiDraftBidRoute
   '/api/draft/pick': typeof ApiDraftPickRoute
   '/api/event/current': typeof ApiEventCurrentRouteWithChildren
+  '/hall-of-legends/$eventId/archive': typeof HallOfLegendsEventIdArchiveRoute
   '/api/admin/raid-helper/post-composition': typeof ApiAdminRaidHelperPostCompositionRoute
   '/api/admin/raid-helper/refresh': typeof ApiAdminRaidHelperRefreshRoute
   '/api/admin/ratings/disqualify': typeof ApiAdminRatingsDisqualifyRoute
@@ -313,6 +321,7 @@ export interface FileRoutesByTo {
   '/api/draft/bid': typeof ApiDraftBidRoute
   '/api/draft/pick': typeof ApiDraftPickRoute
   '/api/event/current': typeof ApiEventCurrentRouteWithChildren
+  '/hall-of-legends/$eventId/archive': typeof HallOfLegendsEventIdArchiveRoute
   '/api/admin/raid-helper/post-composition': typeof ApiAdminRaidHelperPostCompositionRoute
   '/api/admin/raid-helper/refresh': typeof ApiAdminRaidHelperRefreshRoute
   '/api/admin/ratings/disqualify': typeof ApiAdminRatingsDisqualifyRoute
@@ -354,6 +363,7 @@ export interface FileRoutesById {
   '/api/draft/bid': typeof ApiDraftBidRoute
   '/api/draft/pick': typeof ApiDraftPickRoute
   '/api/event/current': typeof ApiEventCurrentRouteWithChildren
+  '/hall-of-legends_/$eventId_/archive': typeof HallOfLegendsEventIdArchiveRoute
   '/api/admin/raid-helper/post-composition': typeof ApiAdminRaidHelperPostCompositionRoute
   '/api/admin/raid-helper/refresh': typeof ApiAdminRaidHelperRefreshRoute
   '/api/admin/ratings/disqualify': typeof ApiAdminRatingsDisqualifyRoute
@@ -396,6 +406,7 @@ export interface FileRouteTypes {
     | '/api/draft/bid'
     | '/api/draft/pick'
     | '/api/event/current'
+    | '/hall-of-legends/$eventId/archive'
     | '/api/admin/raid-helper/post-composition'
     | '/api/admin/raid-helper/refresh'
     | '/api/admin/ratings/disqualify'
@@ -436,6 +447,7 @@ export interface FileRouteTypes {
     | '/api/draft/bid'
     | '/api/draft/pick'
     | '/api/event/current'
+    | '/hall-of-legends/$eventId/archive'
     | '/api/admin/raid-helper/post-composition'
     | '/api/admin/raid-helper/refresh'
     | '/api/admin/ratings/disqualify'
@@ -476,6 +488,7 @@ export interface FileRouteTypes {
     | '/api/draft/bid'
     | '/api/draft/pick'
     | '/api/event/current'
+    | '/hall-of-legends_/$eventId_/archive'
     | '/api/admin/raid-helper/post-composition'
     | '/api/admin/raid-helper/refresh'
     | '/api/admin/ratings/disqualify'
@@ -517,6 +530,7 @@ export interface RootRouteChildren {
   ApiDraftBidRoute: typeof ApiDraftBidRoute
   ApiDraftPickRoute: typeof ApiDraftPickRoute
   ApiEventCurrentRoute: typeof ApiEventCurrentRouteWithChildren
+  HallOfLegendsEventIdArchiveRoute: typeof HallOfLegendsEventIdArchiveRoute
   ApiAdminRaidHelperPostCompositionRoute: typeof ApiAdminRaidHelperPostCompositionRoute
   ApiAdminRaidHelperRefreshRoute: typeof ApiAdminRaidHelperRefreshRoute
   ApiAdminRatingsDisqualifyRoute: typeof ApiAdminRatingsDisqualifyRoute
@@ -623,6 +637,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/general'
       fullPath: '/admin/general'
       preLoaderRoute: typeof AdminGeneralRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/hall-of-legends_/$eventId_/archive': {
+      id: '/hall-of-legends_/$eventId_/archive'
+      path: '/hall-of-legends/$eventId/archive'
+      fullPath: '/hall-of-legends/$eventId/archive'
+      preLoaderRoute: typeof HallOfLegendsEventIdArchiveRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/event/current': {
@@ -852,6 +873,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiDraftBidRoute: ApiDraftBidRoute,
   ApiDraftPickRoute: ApiDraftPickRoute,
   ApiEventCurrentRoute: ApiEventCurrentRouteWithChildren,
+  HallOfLegendsEventIdArchiveRoute: HallOfLegendsEventIdArchiveRoute,
   ApiAdminRaidHelperPostCompositionRoute:
     ApiAdminRaidHelperPostCompositionRoute,
   ApiAdminRaidHelperRefreshRoute: ApiAdminRaidHelperRefreshRoute,

@@ -1382,8 +1382,19 @@ function buildHistoricalEvent(event: typeof events.$inferSelect): HistoricalEven
     .from(eventParticipants)
     .where(eq(eventParticipants.eventId, event.id))
     .all()
+  const specRows = db
+    .select()
+    .from(eventParticipantSpecs)
+    .where(eq(eventParticipantSpecs.eventId, event.id))
+    .all()
   const teamRows = db.select().from(teams).where(eq(teams.eventId, event.id)).all()
-  const pickRows = db.select().from(draftPicks).where(eq(draftPicks.eventId, event.id)).all()
+  const pickRows = db
+    .select()
+    .from(draftPicks)
+    .where(eq(draftPicks.eventId, event.id))
+    .all()
+    .sort((a, b) => Date.parse(a.confirmedAt) - Date.parse(b.confirmedAt))
+  const ratingRows = db.select().from(ratings).where(eq(ratings.eventId, event.id)).all()
   const roundRows = db
     .select()
     .from(eventRounds)
@@ -1396,6 +1407,7 @@ function buildHistoricalEvent(event: typeof events.$inferSelect): HistoricalEven
     participantRows.map((participant) => [participant.discordId, participant.name]),
   )
   const displayName = (discordId: string) => participantName.get(discordId) ?? participantFallbackName.get(discordId) ?? discordId
+  const specsByParticipant = groupEventParticipantSpecs(specRows)
 
   const historicalTeams = teamRows.map((team) => {
     const memberIds = new Set<string>()
@@ -1425,6 +1437,106 @@ function buildHistoricalEvent(event: typeof events.$inferSelect): HistoricalEven
   })
   const winningTeam = historicalTeams.find((team) => team.winner)
   const teamsById = new Map(historicalTeams.map((team) => [team.id, team]))
+  const captainIds = new Set(teamRows.flatMap((team) => team.captainDiscordId ? [team.captainDiscordId] : []))
+  const activeParticipantIds = new Set(
+    participantRows
+      .filter((participant) => !participant.disqualified)
+      .map((participant) => participant.discordId),
+  )
+  const pickedTeamByPlayerId = new Map(
+    pickRows.map((pick) => [pick.playerDiscordId, pick.teamId]),
+  )
+  const pickSalaryByPlayerId = new Map(
+    pickRows.map((pick) => [pick.playerDiscordId, pick.salary]),
+  )
+  const ratingSummaries = participantRows.map((participant) => {
+    const playerRatings = ratingRows.filter(
+      (rating) =>
+        rating.toDiscordId === participant.discordId &&
+        rating.fromDiscordId !== participant.discordId &&
+        activeParticipantIds.has(rating.fromDiscordId) &&
+        !rating.disqualified,
+    )
+    const averageRating = playerRatings.length
+      ? playerRatings.reduce((sum, rating) => sum + rating.score, 0) / playerRatings.length
+      : null
+    const teamId = pickedTeamByPlayerId.get(participant.discordId)
+
+    return {
+      discordId: participant.discordId,
+      name: displayName(participant.discordId),
+      specs: specsByParticipant.get(participant.discordId) ?? [],
+      averageRating,
+      ratingCount: playerRatings.length,
+      salary: null as number | null,
+      teamId,
+      teamName: teamId ? teamsById.get(teamId)?.name : undefined,
+      isCaptain: captainIds.has(participant.discordId),
+      disqualified: participant.disqualified,
+    }
+  })
+  const salaryEligibleRatings = ratingSummaries.filter(
+    (summary) =>
+      !summary.disqualified &&
+      !summary.isCaptain &&
+      typeof summary.averageRating === 'number',
+  )
+  const totalRatingPoints = salaryEligibleRatings.reduce(
+    (sum, summary) => sum + (summary.averageRating ?? 0),
+    0,
+  )
+  const salaryByPlayerId = new Map(
+    totalRatingPoints > 0
+      ? salaryEligibleRatings.map((summary) => [
+          summary.discordId,
+          Math.round(event.salaryPool * ((summary.averageRating ?? 0) / totalRatingPoints)),
+        ])
+      : [],
+  )
+  const playerRatings = ratingSummaries
+    .map((summary) => ({
+      ...summary,
+      salary: pickSalaryByPlayerId.get(summary.discordId) ?? salaryByPlayerId.get(summary.discordId) ?? null,
+    }))
+    .sort((a, b) => {
+      if (a.isCaptain !== b.isCaptain) return a.isCaptain ? -1 : 1
+      if (a.disqualified !== b.disqualified) return a.disqualified ? 1 : -1
+      const ratingDelta = (b.averageRating ?? -1) - (a.averageRating ?? -1)
+      if (ratingDelta) return ratingDelta
+      return a.name.localeCompare(b.name)
+    })
+  const publicDraftPicks = pickRows.flatMap((pick, index) => {
+    const team = teamsById.get(pick.teamId)
+    if (!team) return []
+
+    return [{
+      id: pick.id,
+      order: index + 1,
+      player: {
+        discordId: pick.playerDiscordId,
+        name: displayName(pick.playerDiscordId),
+      },
+      team: {
+        id: team.id,
+        name: team.name,
+      },
+      openedByTeam: pick.openedByTeamId && teamsById.has(pick.openedByTeamId)
+        ? {
+            id: pick.openedByTeamId,
+            name: teamsById.get(pick.openedByTeamId)?.name ?? pick.openedByTeamId,
+          }
+        : undefined,
+      contestedByTeam: pick.contestedByTeamId && teamsById.has(pick.contestedByTeamId)
+        ? {
+            id: pick.contestedByTeamId,
+            name: teamsById.get(pick.contestedByTeamId)?.name ?? pick.contestedByTeamId,
+          }
+        : undefined,
+      salary: pick.salary,
+      bonusSpent: pick.bonusSpent,
+      confirmedAt: pick.confirmedAt,
+    }]
+  })
 
   return {
     id: event.id,
@@ -1432,6 +1544,8 @@ function buildHistoricalEvent(event: typeof events.$inferSelect): HistoricalEven
     nameOverride: event.nameOverride ?? undefined,
     date: event.startsAt,
     server: event.server,
+    salaryPool: event.salaryPool,
+    bonusPool: event.bonusPool,
     trophyId: normalizeEventTrophyId(event.trophyId),
     twitchStreamUrl: event.twitchStreamUrl ?? undefined,
     twitchVodUrl: event.twitchVodUrl ?? undefined,
@@ -1467,6 +1581,8 @@ function buildHistoricalEvent(event: typeof events.$inferSelect): HistoricalEven
       updatedAt: round.updatedAt,
     })),
     teams: historicalTeams,
+    playerRatings,
+    draftPicks: publicDraftPicks,
   }
 }
 

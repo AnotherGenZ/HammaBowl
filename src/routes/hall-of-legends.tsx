@@ -30,7 +30,7 @@ export const Route = createFileRoute('/hall-of-legends')({
   head: () =>
     pageMeta({
       title: 'Hall of Legends',
-      description: 'Past HammaBowl events, teams, Twitch streams, VODs, and winners.',
+      description: 'Past HammaBowl events, teams, ratings, draft replays, Twitch streams, VODs, and winners.',
       path: '/hall-of-legends',
     }),
   component: HallOfLegends,

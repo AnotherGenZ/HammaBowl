@@ -5,5 +5,6 @@ interface FeatureFlagUser {
 }
 
 export function canViewHallOfLegends(user: FeatureFlagUser | null | undefined) {
-  return Boolean(user?.roles.includes('admin'))
+  void user
+  return true
 }

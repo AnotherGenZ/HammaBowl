@@ -159,6 +159,8 @@ export interface HistoricalEvent {
   nameOverride?: string
   date: string
   server: string
+  salaryPool: number
+  bonusPool: number
   trophyId: EventTrophyId
   twitchStreamUrl?: string
   twitchVodUrl?: string
@@ -189,6 +191,41 @@ export interface HistoricalEvent {
     winner: boolean
     honuReportUrl?: string
     honuReportCreatedAt?: string
+  }>
+  playerRatings: Array<{
+    discordId: string
+    name: string
+    specs: string[]
+    averageRating: number | null
+    ratingCount: number
+    salary: number | null
+    teamId?: string
+    teamName?: string
+    isCaptain: boolean
+    disqualified: boolean
+  }>
+  draftPicks: Array<{
+    id: string
+    order: number
+    player: {
+      discordId: string
+      name: string
+    }
+    team: {
+      id: string
+      name: string
+    }
+    openedByTeam?: {
+      id: string
+      name: string
+    }
+    contestedByTeam?: {
+      id: string
+      name: string
+    }
+    salary: number
+    bonusSpent: number
+    confirmedAt: string
   }>
 }
 
