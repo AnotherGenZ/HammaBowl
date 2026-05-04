@@ -39,9 +39,9 @@ export const Route = createFileRoute('/api/admin/result')({
           const result = await startNextRound(event.id)
           messages.push(result.message)
         }
-        if ('roundNumber' in body && ('roundWinningTeamId' in body || 'roundResultNote' in body)) {
+        if ('roundNumber' in body && ('roundTeamScores' in body || 'roundResultNote' in body)) {
           const result = await updateRoundResult(event.id, Number(body.roundNumber), {
-            winningTeamId: String(body.roundWinningTeamId ?? ''),
+            teamScores: body.roundTeamScores,
             resultNote: String(body.roundResultNote ?? ''),
           })
           messages.push(result.message)

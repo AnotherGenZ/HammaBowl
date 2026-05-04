@@ -15,6 +15,11 @@ import {
   badgeDefinitions,
   coinflips,
   draftPicks,
+  eventAvailableFactions,
+  eventAvailableSides,
+  eventAvailableSpecs,
+  eventLinks,
+  eventRoundScores,
   eventRounds,
   eventPlayerCharacters,
   eventParticipantSpecs,
@@ -22,6 +27,8 @@ import {
   events,
   playerCharacters,
   playerBadgeAssignments,
+  participantRoleIds,
+  playerBadgeDisplayPreferences,
   playerEventStats,
   playerProfiles,
   participants,
@@ -88,6 +95,21 @@ const SYSTEM_BADGES = [
     color: '#61a5ef',
   },
 ]
+const EVENT_LINK_ICONS = new Set([
+  'Link',
+  'Globe',
+  'Calendar',
+  'Trophy',
+  'Play',
+  'MessageCircle',
+  'FileText',
+  'Map',
+  'Siren',
+  'Users',
+  'ScrollText',
+  'Video',
+  'ChartColumnIncreasingIcon',
+])
 fs.mkdirSync(path.dirname(dbPath), { recursive: true })
 
 const sqlite = new Database(dbPath)
@@ -100,6 +122,11 @@ bootstrap()
 
 export async function upsertEventFromRaidHelper(event: HammaEvent) {
   const now = new Date().toISOString()
+  const existingEvent = db
+    .select()
+    .from(events)
+    .where(eq(events.raidHelperEventId, event.raidHelperEventId))
+    .get()
 
   db.insert(events)
     .values({
@@ -119,9 +146,6 @@ export async function upsertEventFromRaidHelper(event: HammaEvent) {
       maxPlayerBonus: event.maxPlayerBonus,
       bidIncrement: event.bidIncrement,
       pendingSignupCount: event.pendingPlayerCount ?? 0,
-      availableFactions: JSON.stringify(event.availableFactions ?? ['VS', 'NC', 'TR']),
-      availableSides: JSON.stringify(event.availableSides ?? ['north', 'south']),
-      availableSpecs: event.availableSpecs?.length ? JSON.stringify(event.availableSpecs) : null,
       trophyId: event.trophyId ?? 'hammo-bowl-cup',
       updatedAt: now,
     })
@@ -133,7 +157,6 @@ export async function upsertEventFromRaidHelper(event: HammaEvent) {
         endsAt: event.endsAt,
         closingTime: event.closingTime,
         pendingSignupCount: event.pendingPlayerCount ?? 0,
-        availableSpecs: event.availableSpecs?.length ? JSON.stringify(event.availableSpecs) : null,
         updatedAt: now,
       },
     })
@@ -145,6 +168,11 @@ export async function upsertEventFromRaidHelper(event: HammaEvent) {
     .where(eq(events.raidHelperEventId, event.raidHelperEventId))
     .get()
   if (!persistedEvent) throw new Error('Failed to persist Raid Helper event.')
+  if (!existingEvent) {
+    replaceEventAvailableFactions(persistedEvent.id, event.availableFactions ?? ['VS', 'NC', 'TR'], now)
+    replaceEventAvailableSides(persistedEvent.id, event.availableSides ?? ['north', 'south'], now)
+  }
+  replaceEventAvailableSpecs(persistedEvent.id, event.availableSpecs ?? [], now)
 
   const acceptedDiscordIds = new Set(event.players.map((player) => player.id))
   const staleParticipants = db
@@ -289,6 +317,7 @@ export async function getDbEvent(eventId: string): Promise<HammaEvent | null> {
     .where(eq(eventRounds.eventId, event.id))
     .all()
     .sort((a, b) => a.roundNumber - b.roundNumber)
+  const roundScoresByRound = getRoundScoresByRound(event.id)
   const activeBidRow = db
     .select()
     .from(activeDraftBids)
@@ -359,9 +388,9 @@ export async function getDbEvent(eventId: string): Promise<HammaEvent | null> {
     maxPlayerBonus: event.maxPlayerBonus,
     bidIncrement: event.bidIncrement,
     pendingPlayerCount: event.pendingSignupCount,
-    availableFactions: parseAvailableFactions(event.availableFactions),
-    availableSides: parseAvailableSides(event.availableSides),
-    availableSpecs: parseStringList(event.availableSpecs),
+    availableFactions: getEventAvailableFactions(event.id),
+    availableSides: getEventAvailableSides(event.id),
+    availableSpecs: getEventAvailableSpecs(event.id),
     teams: eventTeams,
     players,
     ratings: eventRatings,
@@ -399,6 +428,7 @@ export async function getDbEvent(eventId: string): Promise<HammaEvent | null> {
       roundNumber: round.roundNumber,
       startedAt: round.startedAt,
       durationSeconds: round.durationSeconds,
+      teamScores: roundScoresByRound.get(round.roundNumber) ?? {},
       winningTeamId: round.winningTeamId ?? undefined,
       resultNote: round.resultNote ?? undefined,
       updatedAt: round.updatedAt,
@@ -407,7 +437,7 @@ export async function getDbEvent(eventId: string): Promise<HammaEvent | null> {
     twitchStreamUrl: event.twitchStreamUrl ?? undefined,
     twitchVodUrl: event.twitchVodUrl ?? undefined,
     eventDescription: event.eventDescription ?? undefined,
-    eventLinks: parseEventLinks(event.eventLinks),
+    eventLinks: getEventLinks(event.id),
     trophyId: normalizeEventTrophyId(event.trophyId),
     lore: event.lore ?? undefined,
     honuZoneId: normalizeHonuZoneId(event.honuZoneId),
@@ -578,14 +608,10 @@ export async function updateEventCoinflipOptions(
   const sides = normalizeSideList(availableSides)
   if (!sides.length) throw new Error('Select at least one available side.')
 
-  db.update(events)
-    .set({
-      availableFactions: JSON.stringify(factions),
-      availableSides: JSON.stringify(sides),
-      updatedAt: new Date().toISOString(),
-    })
-    .where(eq(events.id, eventId))
-    .run()
+  const now = new Date().toISOString()
+  replaceEventAvailableFactions(eventId, factions, now)
+  replaceEventAvailableSides(eventId, sides, now)
+  db.update(events).set({ updatedAt: now }).where(eq(events.id, eventId)).run()
 
   return { ok: true, availableFactions: factions, availableSides: sides }
 }
@@ -669,7 +695,7 @@ export async function recordCoinflipChoice(
   if (choiceType === 'faction') {
     const faction = normalizeFaction(values.faction ?? '')
     if (!faction) throw new Error('Choose an available faction.')
-    const availableFactions = parseAvailableFactions(event.availableFactions)
+    const availableFactions = getEventAvailableFactions(eventId)
     if (!availableFactions.includes(faction)) {
       throw new Error(`${faction} is not available for this event.`)
     }
@@ -696,7 +722,7 @@ export async function recordCoinflipChoice(
 
   const startingSide = normalizeStartingSide(values.startingSide ?? '')
   if (!startingSide) throw new Error('Choose a starting side.')
-  const availableSides = parseAvailableSides(event.availableSides)
+  const availableSides = getEventAvailableSides(eventId)
   if (!availableSides.includes(startingSide)) {
     throw new Error(`${formatSide(startingSide)} side is not available for this event.`)
   }
@@ -741,8 +767,8 @@ export async function updateTeamAssignments(
   if (!event) throw new Error('Event not found.')
 
   const teamRows = db.select().from(teams).where(eq(teams.eventId, eventId)).all()
-  const availableFactions = parseAvailableFactions(event.availableFactions)
-  const availableSides = parseAvailableSides(event.availableSides)
+  const availableFactions = getEventAvailableFactions(eventId)
+  const availableSides = getEventAvailableSides(eventId)
   const factionSelections: string[] = []
   const sideSelections: string[] = []
 
@@ -929,6 +955,7 @@ export async function updateEventAdminSettings(
       : nextHonuAlertId
         ? new Date().toISOString()
         : null
+  const now = new Date().toISOString()
 
   db.update(events)
     .set({
@@ -949,10 +976,6 @@ export async function updateEventAdminSettings(
         values.eventDescription === undefined
           ? event.eventDescription
           : values.eventDescription.trim() || null,
-      eventLinks:
-        values.eventLinks === undefined
-          ? event.eventLinks
-          : JSON.stringify(normalizeEventLinks(values.eventLinks)),
       trophyId:
         values.trophyId === undefined
           ? normalizeEventTrophyId(event.trophyId)
@@ -965,10 +988,13 @@ export async function updateEventAdminSettings(
       honuZoneId: nextHonuZoneId,
       honuAlertId: nextHonuAlertId,
       honuAlertCreatedAt: nextHonuAlertCreatedAt,
-      updatedAt: new Date().toISOString(),
+      updatedAt: now,
     })
     .where(eq(events.id, eventId))
     .run()
+  if (values.eventLinks !== undefined) {
+    replaceEventLinks(eventId, normalizeEventLinks(values.eventLinks), now)
+  }
 
   return { ok: true }
 }
@@ -1045,7 +1071,7 @@ export async function startNextRound(eventId: string) {
 export async function updateRoundResult(
   eventId: string,
   roundNumber: number,
-  values: { winningTeamId?: string; resultNote?: string },
+  values: { teamScores?: unknown; resultNote?: string },
 ) {
   const round = db
     .select()
@@ -1054,15 +1080,11 @@ export async function updateRoundResult(
     .get()
   if (!round) throw new Error('Round not found.')
 
-  const winningTeamId = values.winningTeamId?.trim() || null
-  if (winningTeamId) {
-    const team = db
-      .select()
-      .from(teams)
-      .where(and(eq(teams.eventId, eventId), eq(teams.id, winningTeamId)))
-      .get()
-    if (!team) throw new Error('Winning team not found.')
-  }
+  const teamScores =
+    values.teamScores === undefined
+      ? getRoundScoresByRound(eventId).get(roundNumber) ?? {}
+      : normalizeRoundTeamScores(eventId, values.teamScores)
+  const winningTeamId = getRoundLeadingTeamId(teamScores)
 
   const now = new Date().toISOString()
   db.update(eventRounds)
@@ -1073,6 +1095,7 @@ export async function updateRoundResult(
     })
     .where(and(eq(eventRounds.eventId, eventId), eq(eventRounds.roundNumber, roundNumber)))
     .run()
+  replaceRoundScoreRows(eventId, roundNumber, teamScores, now)
   recalculateScoresFromRounds(eventId)
   db.update(events).set({ updatedAt: now }).where(eq(events.id, eventId)).run()
 
@@ -1367,6 +1390,7 @@ function buildHistoricalEvent(event: typeof events.$inferSelect): HistoricalEven
     .where(eq(eventRounds.eventId, event.id))
     .all()
     .sort((a, b) => a.roundNumber - b.roundNumber)
+  const roundScoresByRound = getRoundScoresByRound(event.id)
   const participantName = getParticipantNameMap(participantRows.map((participant) => participant.discordId))
   const participantFallbackName = new Map(
     participantRows.map((participant) => [participant.discordId, participant.name]),
@@ -1436,6 +1460,7 @@ function buildHistoricalEvent(event: typeof events.$inferSelect): HistoricalEven
       roundNumber: round.roundNumber,
       startedAt: round.startedAt,
       durationSeconds: round.durationSeconds,
+      teamScores: roundScoresByRound.get(round.roundNumber) ?? {},
       winningTeamId: round.winningTeamId ?? undefined,
       winningTeamName: round.winningTeamId ? teamsById.get(round.winningTeamId)?.name : undefined,
       resultNote: round.resultNote ?? undefined,
@@ -1782,10 +1807,263 @@ function isDraftLocked(eventId: string) {
 
 function recalculateScoresFromRounds(eventId: string) {
   const teamRows = db.select().from(teams).where(eq(teams.eventId, eventId)).all()
-  const rounds = db.select().from(eventRounds).where(eq(eventRounds.eventId, eventId)).all()
+  const roundScoreRows = db.select().from(eventRoundScores).where(eq(eventRoundScores.eventId, eventId)).all()
+  const adjustments = db.select().from(scoreAdjustments).where(eq(scoreAdjustments.eventId, eventId)).all()
   for (const team of teamRows) {
-    const score = rounds.filter((round) => round.winningTeamId === team.id).length
+    const roundScore = roundScoreRows
+      .filter((roundScore) => roundScore.teamId === team.id)
+      .reduce((total, roundScore) => total + roundScore.score, 0)
+    const adjustmentScore = adjustments
+      .filter((adjustment) => adjustment.teamId === team.id)
+      .reduce((total, adjustment) => total + adjustment.delta, 0)
+    const score = roundScore + adjustmentScore
     db.update(teams).set({ score }).where(eq(teams.id, team.id)).run()
+  }
+}
+
+function getRoundScoresByRound(eventId: string) {
+  const grouped = new Map<number, Record<string, number>>()
+  const rows = db.select().from(eventRoundScores).where(eq(eventRoundScores.eventId, eventId)).all()
+  for (const row of rows) {
+    const scores = grouped.get(row.roundNumber) ?? {}
+    scores[row.teamId] = row.score
+    grouped.set(row.roundNumber, scores)
+  }
+  return grouped
+}
+
+function replaceRoundScoreRows(
+  eventId: string,
+  roundNumber: number,
+  teamScores: Record<string, number>,
+  updatedAt: string,
+) {
+  db.delete(eventRoundScores)
+    .where(and(eq(eventRoundScores.eventId, eventId), eq(eventRoundScores.roundNumber, roundNumber)))
+    .run()
+
+  for (const [teamId, score] of Object.entries(teamScores)) {
+    db.insert(eventRoundScores)
+      .values({
+        eventId,
+        roundNumber,
+        teamId,
+        score,
+        updatedAt,
+      })
+      .run()
+  }
+}
+
+function parseLegacyRoundTeamScores(
+  value: string | null | undefined,
+  fallbackWinningTeamId?: string | null,
+): Record<string, number> {
+  if (value) {
+    try {
+      const parsed = JSON.parse(value)
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        const scores: Record<string, number> = {}
+        for (const [teamId, rawScore] of Object.entries(parsed)) {
+          const score = Number(rawScore)
+          if (!teamId || !Number.isFinite(score)) continue
+          scores[teamId] = score
+        }
+        if (Object.keys(scores).length) return scores
+      }
+    } catch {
+      // Fall through to legacy winner-based scores.
+    }
+  }
+
+  return fallbackWinningTeamId ? { [fallbackWinningTeamId]: 1 } : {}
+}
+
+function normalizeRoundTeamScores(eventId: string, value: unknown): Record<string, number> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('Round scores are required.')
+  }
+
+  const rawScores = value as Record<string, unknown>
+  const teamRows = db.select().from(teams).where(eq(teams.eventId, eventId)).all()
+  const scores: Record<string, number> = {}
+  for (const team of teamRows) {
+    const score = Number(rawScores[team.id] ?? 0)
+    if (!Number.isSafeInteger(score) || score < 0) {
+      throw new Error('Round scores must be non-negative whole numbers.')
+    }
+    scores[team.id] = score
+  }
+
+  return scores
+}
+
+function getRoundLeadingTeamId(scores: Record<string, number>) {
+  const highestScore = Math.max(0, ...Object.values(scores))
+  if (highestScore <= 0) return null
+
+  const leaders = Object.entries(scores).filter(([, score]) => score === highestScore)
+  return leaders.length === 1 ? leaders[0][0] : null
+}
+
+function getEventAvailableFactions(eventId: string): Faction[] {
+  const values = db
+    .select()
+    .from(eventAvailableFactions)
+    .where(eq(eventAvailableFactions.eventId, eventId))
+    .all()
+    .sort((a, b) => a.position - b.position)
+    .map((row) => normalizeFaction(row.faction))
+    .filter((faction): faction is Faction => Boolean(faction))
+
+  return values.length ? values : ['VS', 'NC', 'TR']
+}
+
+function getEventAvailableSides(eventId: string): StartingSide[] {
+  const values = db
+    .select()
+    .from(eventAvailableSides)
+    .where(eq(eventAvailableSides.eventId, eventId))
+    .all()
+    .sort((a, b) => a.position - b.position)
+    .map((row) => normalizeStartingSide(row.side))
+    .filter((side): side is StartingSide => Boolean(side))
+
+  return values.length ? values : ['north', 'south']
+}
+
+function getEventAvailableSpecs(eventId: string): string[] {
+  return db
+    .select()
+    .from(eventAvailableSpecs)
+    .where(eq(eventAvailableSpecs.eventId, eventId))
+    .all()
+    .sort((a, b) => a.position - b.position || a.specName.localeCompare(b.specName))
+    .map((row) => row.specName)
+}
+
+function getEventLinks(eventId: string, options: { includeGeneratedHonuReports?: boolean } = {}): EventLink[] {
+  const links = db
+    .select()
+    .from(eventLinks)
+    .where(eq(eventLinks.eventId, eventId))
+    .all()
+    .sort((a, b) => a.position - b.position)
+    .map((row) => ({
+      name: row.name,
+      icon: EVENT_LINK_ICONS.has(row.icon) ? row.icon : 'Link',
+      url: row.url,
+    }))
+
+  return options.includeGeneratedHonuReports
+    ? links
+    : links.filter((link) => !isGeneratedHonuReportLink(link))
+}
+
+function replaceEventAvailableFactions(eventId: string, values: string[], updatedAt: string) {
+  db.delete(eventAvailableFactions).where(eq(eventAvailableFactions.eventId, eventId)).run()
+  normalizeFactionList(values).forEach((faction, index) => {
+    db.insert(eventAvailableFactions)
+      .values({ eventId, faction, position: index + 1, updatedAt })
+      .run()
+  })
+}
+
+function replaceEventAvailableSides(eventId: string, values: string[], updatedAt: string) {
+  db.delete(eventAvailableSides).where(eq(eventAvailableSides.eventId, eventId)).run()
+  normalizeSideList(values).forEach((side, index) => {
+    db.insert(eventAvailableSides)
+      .values({ eventId, side, position: index + 1, updatedAt })
+      .run()
+  })
+}
+
+function replaceEventAvailableSpecs(eventId: string, values: string[], updatedAt: string) {
+  db.delete(eventAvailableSpecs).where(eq(eventAvailableSpecs.eventId, eventId)).run()
+  normalizeStringList(values).forEach((specName, index) => {
+    db.insert(eventAvailableSpecs)
+      .values({ eventId, specName, position: index + 1, updatedAt })
+      .run()
+  })
+}
+
+function replaceEventLinks(eventId: string, links: EventLink[], updatedAt: string) {
+  db.delete(eventLinks).where(eq(eventLinks.eventId, eventId)).run()
+  links.forEach((link, index) => {
+    db.insert(eventLinks)
+      .values({
+        eventId,
+        position: index + 1,
+        name: link.name,
+        icon: link.icon,
+        url: link.url,
+        updatedAt,
+      })
+      .run()
+  })
+}
+
+function getParticipantRoleIds(discordId: string) {
+  return db
+    .select()
+    .from(participantRoleIds)
+    .where(eq(participantRoleIds.discordId, discordId))
+    .all()
+    .map((row) => row.roleId)
+}
+
+function replaceParticipantRoleIds(discordId: string, roleIds: string[], updatedAt: string) {
+  const normalized = Array.from(new Set(roleIds.map((roleId) => roleId.trim()).filter(Boolean)))
+  db.delete(participantRoleIds).where(eq(participantRoleIds.discordId, discordId)).run()
+  for (const roleId of normalized) {
+    db.insert(participantRoleIds)
+      .values({ discordId, roleId, updatedAt })
+      .run()
+  }
+}
+
+function replaceBadgeDisplayPreferences(
+  discordId: string,
+  preferences: { order: string[]; hidden: string[] },
+  updatedAt: string,
+) {
+  db.delete(playerBadgeDisplayPreferences)
+    .where(eq(playerBadgeDisplayPreferences.discordId, discordId))
+    .run()
+
+  preferences.order.forEach((badgeId, index) => {
+    db.insert(playerBadgeDisplayPreferences)
+      .values({
+        discordId,
+        badgeId,
+        position: index + 1,
+        hidden: false,
+        updatedAt,
+      })
+      .run()
+  })
+
+  for (const badgeId of preferences.hidden) {
+    db.insert(playerBadgeDisplayPreferences)
+      .values({
+        discordId,
+        badgeId,
+        position: null,
+        hidden: true,
+        updatedAt,
+      })
+      .onConflictDoUpdate({
+        target: [
+          playerBadgeDisplayPreferences.discordId,
+          playerBadgeDisplayPreferences.badgeId,
+        ],
+        set: {
+          position: null,
+          hidden: true,
+          updatedAt,
+        },
+      })
+      .run()
   }
 }
 
@@ -2016,7 +2294,6 @@ export function upsertParticipantProfileIdentity(
       discordId: normalizedId,
       name: displayName,
       avatarUrl: avatarUrl ?? undefined,
-      roleIds: JSON.stringify(roleIds ?? []),
       nameOverridden: existing?.nameOverridden ?? false,
       updatedAt: now,
     })
@@ -2025,11 +2302,11 @@ export function upsertParticipantProfileIdentity(
       set: {
         name: displayName,
         avatarUrl: avatarUrl ?? undefined,
-        roleIds: JSON.stringify(roleIds ?? []),
         updatedAt: now,
       },
     })
     .run()
+  replaceParticipantRoleIds(normalizedId, roleIds ?? [], now)
 
   db.insert(playerProfiles)
     .values({
@@ -2047,13 +2324,9 @@ export function updateParticipantDiscordRoleIds(discordId: string, roleIds: stri
   const normalizedId = discordId.trim()
   if (!normalizedId) return
 
-  db.update(participants)
-    .set({
-      roleIds: JSON.stringify(roleIds),
-      updatedAt: new Date().toISOString(),
-    })
-    .where(eq(participants.discordId, normalizedId))
-    .run()
+  const now = new Date().toISOString()
+  replaceParticipantRoleIds(normalizedId, roleIds, now)
+  db.update(participants).set({ updatedAt: now }).where(eq(participants.discordId, normalizedId)).run()
 }
 
 export function hasCompletePlayerCharacters(discordId: string) {
@@ -2086,7 +2359,7 @@ export function getPlayerSettings(discordId: string) {
     noPersonalJaegerAccount: Boolean(profile?.noPersonalJaegerAccount),
     characters: getPlayerCharacters(discordId),
     badges,
-    badgeDisplayOrder: getVisibleBadges(badges, profile?.badgeDisplayOrder).map((badge) => badge.id),
+    badgeDisplayOrder: getVisibleBadges(discordId, badges).map((badge) => badge.id),
     complete: hasCompletePlayerCharacters(discordId),
   }
 }
@@ -2115,21 +2388,23 @@ export function updatePlayerProfile(
     values.noPersonalJaegerAccount === undefined
       ? Boolean(current?.noPersonalJaegerAccount)
       : Boolean(values.noPersonalJaegerAccount)
-  const badgeDisplayOrder =
-    values.badgeDisplayOrder === undefined
-      ? current?.badgeDisplayOrder ?? null
-      : JSON.stringify(normalizeBadgeDisplayPreferences(discordId, values.badgeDisplayOrder))
 
   db.update(playerProfiles)
     .set({
       bannerUrl,
       catchphrase,
       noPersonalJaegerAccount,
-      badgeDisplayOrder,
       updatedAt: now,
     })
     .where(eq(playerProfiles.discordId, discordId))
     .run()
+  if (values.badgeDisplayOrder !== undefined) {
+    replaceBadgeDisplayPreferences(
+      discordId,
+      normalizeBadgeDisplayPreferences(discordId, values.badgeDisplayOrder),
+      now,
+    )
+  }
 
   return getPlayerSettings(discordId)
 }
@@ -2602,7 +2877,6 @@ export function searchPlayerProfiles(query = ''): PlayerProfileSummary[] {
       p.avatar_url AS avatarUrl,
       pp.catchphrase AS catchphrase,
       pp.banner_url AS bannerUrl,
-      pp.badge_display_order AS badgeDisplayOrder,
       COALESCE(events.eventCount, 0) AS eventCount,
       COALESCE(wins.winCount, 0) AS winCount,
       ratings.averageRating AS averageRating,
@@ -2642,7 +2916,6 @@ export function searchPlayerProfiles(query = ''): PlayerProfileSummary[] {
     avatarUrl: string | null
     catchphrase: string | null
     bannerUrl: string | null
-    badgeDisplayOrder: string | null
     eventCount: number
     winCount: number
     averageRating: number | null
@@ -2662,7 +2935,7 @@ export function searchPlayerProfiles(query = ''): PlayerProfileSummary[] {
       winCount: Number(row.winCount),
       averageRating: row.averageRating === null ? null : Number(row.averageRating),
       characterCount: Number(row.characterCount),
-      badges: getVisibleBadges(badges, row.badgeDisplayOrder).slice(0, 3),
+      badges: getVisibleBadges(row.discordId, badges).slice(0, 3),
       events: getPlayerProfileEvents(row.discordId),
     }
   })
@@ -2711,7 +2984,7 @@ export function getPlayerProfile(discordId: string): PlayerProfile | null {
       deathsToHamma: hammaStats.deathsToHamma,
       ratingHistory: history,
     },
-    badges: getVisibleBadges(badges, profile?.badgeDisplayOrder),
+    badges: getVisibleBadges(discordId, badges),
   }
 }
 
@@ -2877,7 +3150,7 @@ export function getAdminPlayerProfileEditorData(discordId: string): AdminPlayerP
     catchphrase: profile?.catchphrase ?? '',
     badges,
     assignedBadgeIds,
-    visibleBadges: getVisibleBadges(playerBadges, profile?.badgeDisplayOrder),
+    visibleBadges: getVisibleBadges(normalizedId, playerBadges),
   }
 }
 
@@ -2925,7 +3198,7 @@ function syncSystemBadgeAssignments() {
       ? db.select()
         .from(participants)
         .all()
-        .filter((participant) => parsePersistedRoleIds(participant.roleIds).includes(modRoleId))
+        .filter((participant) => getParticipantRoleIds(participant.discordId).includes(modRoleId))
         .map((participant) => participant.discordId)
       : [],
   )
@@ -2993,7 +3266,7 @@ function ensureSystemBadges() {
   }
 }
 
-function parsePersistedRoleIds(value?: string | null) {
+function parseLegacyRoleIds(value?: string | null) {
   if (!value) return []
   try {
     const parsed = JSON.parse(value)
@@ -3001,6 +3274,35 @@ function parsePersistedRoleIds(value?: string | null) {
   } catch {
     return []
   }
+}
+
+function parseLegacyBadgeDisplayPreferences(value?: string | null) {
+  if (!value) return { order: [], hidden: [] }
+
+  try {
+    const parsed = JSON.parse(value)
+    if (Array.isArray(parsed)) {
+      return {
+        order: parsed.filter((item): item is string => typeof item === 'string'),
+        hidden: [],
+      }
+    }
+    if (parsed && typeof parsed === 'object') {
+      const record = parsed as { order?: unknown; hidden?: unknown }
+      return {
+        order: Array.isArray(record.order)
+          ? record.order.filter((item): item is string => typeof item === 'string')
+          : [],
+        hidden: Array.isArray(record.hidden)
+          ? record.hidden.filter((item): item is string => typeof item === 'string')
+          : [],
+      }
+    }
+  } catch {
+    return { order: [], hidden: [] }
+  }
+
+  return { order: [], hidden: [] }
 }
 
 function upsertParticipant(discordId: string, name: string, updatedAt = new Date().toISOString()) {
@@ -3274,29 +3576,22 @@ function normalizeLegacyBadgeOrder(badgeIds: string[], badges: PlayerBadge[]) {
     })
 }
 
-function getVisibleBadges(badges: PlayerBadge[], persistedOrder?: string | null) {
-  if (!persistedOrder) return badges
+function getVisibleBadges(discordId: string, badges: PlayerBadge[]) {
+  const preferences = db
+    .select()
+    .from(playerBadgeDisplayPreferences)
+    .where(eq(playerBadgeDisplayPreferences.discordId, discordId))
+    .all()
+  if (!preferences.length) return badges
 
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(persistedOrder)
-  } catch {
-    return badges
-  }
-
-  if (Array.isArray(parsed)) {
-    const badgeIds = parsed.filter((value): value is string => typeof value === 'string')
-    return badgeIds.length ? normalizeLegacyBadgeOrder(badgeIds, badges) : badges
-  }
-
-  if (!parsed || typeof parsed !== 'object') return badges
-  const order = 'order' in parsed && Array.isArray(parsed.order)
-    ? parsed.order.filter((value): value is string => typeof value === 'string')
-    : []
+  const order = preferences
+    .filter((preference) => !preference.hidden && typeof preference.position === 'number')
+    .sort((a, b) => Number(a.position) - Number(b.position) || a.badgeId.localeCompare(b.badgeId))
+    .map((preference) => preference.badgeId)
   const hidden = new Set(
-    'hidden' in parsed && Array.isArray(parsed.hidden)
-      ? parsed.hidden.filter((value): value is string => typeof value === 'string')
-      : [],
+    preferences
+      .filter((preference) => preference.hidden)
+      .map((preference) => preference.badgeId),
   )
   const badgeById = new Map(badges.map((badge) => [badge.id, badge]))
   const ordered = normalizeLegacyBadgeOrder(order, badges).filter((badge) => !hidden.has(badge.id))
@@ -3349,15 +3644,11 @@ function bootstrap() {
       max_player_bonus INTEGER NOT NULL DEFAULT ${MAX_PLAYER_BONUS},
       bid_increment INTEGER NOT NULL DEFAULT ${BID_INCREMENT},
       pending_signup_count INTEGER NOT NULL DEFAULT 0,
-      available_factions TEXT NOT NULL DEFAULT '["VS","NC","TR"]',
-      available_sides TEXT NOT NULL DEFAULT '["north","south"]',
-      available_specs TEXT,
       next_pick_team_id TEXT REFERENCES teams(id) ON DELETE SET NULL,
       winning_team_id TEXT,
       twitch_stream_url TEXT,
       twitch_vod_url TEXT,
       event_description TEXT,
-      event_links TEXT,
       trophy_id TEXT NOT NULL DEFAULT 'hammo-bowl-cup',
       lore TEXT,
       honu_zone_id INTEGER NOT NULL DEFAULT ${HONU_DEFAULT_ZONE_ID},
@@ -3370,21 +3661,63 @@ function bootstrap() {
       value TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS event_available_factions (
+      event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+      faction TEXT NOT NULL,
+      position INTEGER NOT NULL,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (event_id, faction)
+    );
+    CREATE TABLE IF NOT EXISTS event_available_sides (
+      event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+      side TEXT NOT NULL,
+      position INTEGER NOT NULL,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (event_id, side)
+    );
+    CREATE TABLE IF NOT EXISTS event_available_specs (
+      event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+      spec_name TEXT NOT NULL,
+      position INTEGER NOT NULL,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (event_id, spec_name)
+    );
+    CREATE TABLE IF NOT EXISTS event_links (
+      event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+      position INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      icon TEXT NOT NULL,
+      url TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (event_id, position)
+    );
     CREATE TABLE IF NOT EXISTS participants (
       discord_id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       avatar_url TEXT,
-      role_ids TEXT,
       name_overridden INTEGER NOT NULL DEFAULT 0,
       updated_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS participant_role_ids (
+      discord_id TEXT NOT NULL REFERENCES participants(discord_id) ON DELETE CASCADE,
+      role_id TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (discord_id, role_id)
     );
     CREATE TABLE IF NOT EXISTS player_profiles (
       discord_id TEXT PRIMARY KEY,
       banner_url TEXT,
       catchphrase TEXT,
       no_personal_jaeger_account INTEGER NOT NULL DEFAULT 0,
-      badge_display_order TEXT,
       updated_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS player_badge_display_preferences (
+      discord_id TEXT NOT NULL REFERENCES player_profiles(discord_id) ON DELETE CASCADE,
+      badge_id TEXT NOT NULL,
+      position INTEGER,
+      hidden INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (discord_id, badge_id)
     );
     CREATE TABLE IF NOT EXISTS player_characters (
       discord_id TEXT NOT NULL,
@@ -3509,6 +3842,14 @@ function bootstrap() {
       updated_at TEXT NOT NULL,
       PRIMARY KEY (event_id, round_number)
     );
+    CREATE TABLE IF NOT EXISTS event_round_scores (
+      event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+      round_number INTEGER NOT NULL,
+      team_id TEXT NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+      score INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (event_id, round_number, team_id)
+    );
     CREATE TABLE IF NOT EXISTS honu_psb_accounts (
       account_id INTEGER PRIMARY KEY,
       account_type INTEGER NOT NULL,
@@ -3554,15 +3895,11 @@ function bootstrap() {
   addColumnIfMissing('events', 'bonus_pool', `INTEGER NOT NULL DEFAULT ${BONUS_POOL}`)
   addColumnIfMissing('events', 'max_player_bonus', `INTEGER NOT NULL DEFAULT ${MAX_PLAYER_BONUS}`)
   addColumnIfMissing('events', 'bid_increment', `INTEGER NOT NULL DEFAULT ${BID_INCREMENT}`)
-  addColumnIfMissing('events', 'available_factions', `TEXT NOT NULL DEFAULT '["VS","NC","TR"]'`)
-  addColumnIfMissing('events', 'available_sides', `TEXT NOT NULL DEFAULT '["north","south"]'`)
-  addColumnIfMissing('events', 'available_specs', 'TEXT')
   addColumnIfMissing('events', 'next_pick_team_id', 'TEXT REFERENCES teams(id) ON DELETE SET NULL')
   addColumnIfMissing('events', 'winning_team_id', 'TEXT')
   addColumnIfMissing('events', 'twitch_stream_url', 'TEXT')
   addColumnIfMissing('events', 'twitch_vod_url', 'TEXT')
   addColumnIfMissing('events', 'event_description', 'TEXT')
-  addColumnIfMissing('events', 'event_links', 'TEXT')
   addColumnIfMissing('events', 'trophy_id', "TEXT NOT NULL DEFAULT 'hammo-bowl-cup'")
   addColumnIfMissing('events', 'lore', 'TEXT')
   addColumnIfMissing('events', 'honu_zone_id', `INTEGER NOT NULL DEFAULT ${HONU_DEFAULT_ZONE_ID}`)
@@ -3571,10 +3908,8 @@ function bootstrap() {
   addColumnIfMissing('teams', 'honu_report_url', 'TEXT')
   addColumnIfMissing('teams', 'honu_report_created_at', 'TEXT')
   addColumnIfMissing('participants', 'avatar_url', 'TEXT')
-  addColumnIfMissing('participants', 'role_ids', 'TEXT')
   addColumnIfMissing('participants', 'name_overridden', 'INTEGER NOT NULL DEFAULT 0')
   addColumnIfMissing('player_profiles', 'no_personal_jaeger_account', 'INTEGER NOT NULL DEFAULT 0')
-  addColumnIfMissing('player_profiles', 'badge_display_order', 'TEXT')
   addColumnIfMissing('badge_definitions', 'color', "TEXT NOT NULL DEFAULT '#e4b45e'")
   addColumnIfMissing('badge_definitions', 'source', "TEXT NOT NULL DEFAULT 'manual'")
   addColumnIfMissing('event_participants', 'winner', 'INTEGER NOT NULL DEFAULT 0')
@@ -3587,6 +3922,10 @@ function bootstrap() {
   addColumnIfMissing('coinflips', 'updated_at', 'TEXT')
   addColumnIfMissing('draft_picks', 'opened_by_team_id', 'TEXT REFERENCES teams(id) ON DELETE SET NULL')
   migrateEventPlayerCharactersPrimaryKey()
+  migrateEventRoundScores()
+  migrateEventConfigurationTables()
+  migrateParticipantRoleIds()
+  migratePlayerBadgeDisplayPreferences()
   sqlite.exec(`
     INSERT INTO participants (discord_id, name, updated_at)
     SELECT discord_id, name, MAX(updated_at)
@@ -3643,10 +3982,147 @@ function migrateEventPlayerCharactersPrimaryKey() {
   `)
 }
 
+function migrateEventRoundScores() {
+  const roundColumns = tableColumnNames('event_rounds')
+  const hasLegacyTeamScores = roundColumns.has('team_scores')
+  const rounds = sqlite.prepare(`
+    SELECT
+      event_id AS eventId,
+      round_number AS roundNumber,
+      winning_team_id AS winningTeamId,
+      ${hasLegacyTeamScores ? 'team_scores' : 'NULL'} AS teamScores,
+      updated_at AS updatedAt
+    FROM event_rounds
+  `).all() as Array<{
+    eventId: string
+    roundNumber: number
+    winningTeamId: string | null
+    teamScores: string | null
+    updatedAt: string
+  }>
+
+  const existingRows = sqlite.prepare(`
+    SELECT event_id AS eventId, round_number AS roundNumber
+    FROM event_round_scores
+  `).all() as Array<{ eventId: string; roundNumber: number }>
+  const migratedRounds = new Set(
+    existingRows.map((row) => `${row.eventId}:${row.roundNumber}`),
+  )
+
+  const insertScore = sqlite.prepare(`
+    INSERT OR IGNORE INTO event_round_scores (
+      event_id,
+      round_number,
+      team_id,
+      score,
+      updated_at
+    )
+    VALUES (?, ?, ?, ?, ?)
+  `)
+  const eventIds = new Set<string>()
+
+  for (const round of rounds) {
+    if (migratedRounds.has(`${round.eventId}:${round.roundNumber}`)) continue
+
+    const scores = parseLegacyRoundTeamScores(round.teamScores, round.winningTeamId)
+    for (const [teamId, score] of Object.entries(scores)) {
+      insertScore.run(round.eventId, round.roundNumber, teamId, score, round.updatedAt)
+      eventIds.add(round.eventId)
+    }
+  }
+
+  for (const eventId of eventIds) {
+    recalculateScoresFromRounds(eventId)
+  }
+}
+
+function migrateEventConfigurationTables() {
+  const columns = tableColumnNames('events')
+  const hasAvailableFactions = columns.has('available_factions')
+  const hasAvailableSides = columns.has('available_sides')
+  const hasAvailableSpecs = columns.has('available_specs')
+  const hasEventLinks = columns.has('event_links')
+  const rows = sqlite.prepare(`
+    SELECT
+      id,
+      updated_at AS updatedAt,
+      ${hasAvailableFactions ? 'available_factions' : 'NULL'} AS availableFactions,
+      ${hasAvailableSides ? 'available_sides' : 'NULL'} AS availableSides,
+      ${hasAvailableSpecs ? 'available_specs' : 'NULL'} AS availableSpecs,
+      ${hasEventLinks ? 'event_links' : 'NULL'} AS eventLinks
+    FROM events
+  `).all() as Array<{
+    id: string
+    updatedAt: string
+    availableFactions: string | null
+    availableSides: string | null
+    availableSpecs: string | null
+    eventLinks: string | null
+  }>
+
+  for (const row of rows) {
+    if (!hasRows('event_available_factions', 'event_id', row.id)) {
+      replaceEventAvailableFactions(row.id, parseAvailableFactions(row.availableFactions), row.updatedAt)
+    }
+    if (!hasRows('event_available_sides', 'event_id', row.id)) {
+      replaceEventAvailableSides(row.id, parseAvailableSides(row.availableSides), row.updatedAt)
+    }
+    if (!hasRows('event_available_specs', 'event_id', row.id)) {
+      replaceEventAvailableSpecs(row.id, parseStringList(row.availableSpecs), row.updatedAt)
+    }
+    if (hasEventLinks && row.eventLinks && !hasRows('event_links', 'event_id', row.id)) {
+      replaceEventLinks(row.id, parseEventLinks(row.eventLinks, { includeGeneratedHonuReports: true }), row.updatedAt)
+    }
+  }
+}
+
+function migrateParticipantRoleIds() {
+  const columns = tableColumnNames('participants')
+  if (!columns.has('role_ids')) return
+
+  const rows = sqlite.prepare(`
+    SELECT discord_id AS discordId, role_ids AS roleIds, updated_at AS updatedAt
+    FROM participants
+    WHERE role_ids IS NOT NULL AND role_ids != ''
+  `).all() as Array<{ discordId: string; roleIds: string | null; updatedAt: string }>
+
+  for (const row of rows) {
+    if (hasRows('participant_role_ids', 'discord_id', row.discordId)) continue
+    replaceParticipantRoleIds(row.discordId, parseLegacyRoleIds(row.roleIds), row.updatedAt)
+  }
+}
+
+function migratePlayerBadgeDisplayPreferences() {
+  const columns = tableColumnNames('player_profiles')
+  if (!columns.has('badge_display_order')) return
+
+  const rows = sqlite.prepare(`
+    SELECT discord_id AS discordId, badge_display_order AS badgeDisplayOrder, updated_at AS updatedAt
+    FROM player_profiles
+    WHERE badge_display_order IS NOT NULL AND badge_display_order != ''
+  `).all() as Array<{ discordId: string; badgeDisplayOrder: string | null; updatedAt: string }>
+
+  for (const row of rows) {
+    if (hasRows('player_badge_display_preferences', 'discord_id', row.discordId)) continue
+    const preferences = parseLegacyBadgeDisplayPreferences(row.badgeDisplayOrder)
+    replaceBadgeDisplayPreferences(row.discordId, preferences, row.updatedAt)
+  }
+}
+
 function addColumnIfMissing(table: string, column: string, definition: string) {
   const columns = sqlite.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>
   if (columns.some((existing) => existing.name === column)) return
   sqlite.prepare(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`).run()
+}
+
+function tableColumnNames(table: string) {
+  const columns = sqlite.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>
+  return new Set(columns.map((column) => column.name))
+}
+
+function hasRows(table: string, column: string, value: string) {
+  const row = sqlite.prepare(`SELECT 1 FROM ${table} WHERE ${column} = ? LIMIT 1`).get(value)
+  return Boolean(row)
 }
 
 function normalizeFaction(value: string | null): Faction | undefined {
@@ -3750,21 +4226,6 @@ function normalizeOptionalTwitchUrl(value: string | undefined) {
   return url.toString()
 }
 
-const EVENT_LINK_ICONS = new Set([
-  'Link',
-  'Globe',
-  'Calendar',
-  'Trophy',
-  'Play',
-  'MessageCircle',
-  'FileText',
-  'Map',
-  'Siren',
-  'Users',
-  'ScrollText',
-  'Video',
-])
-
 function parseEventLinks(value: string | null, options: { includeGeneratedHonuReports?: boolean } = {}): EventLink[] {
   if (!value) return []
 
@@ -3818,20 +4279,13 @@ function getHonuTeamReports(event: HammaEvent): HonuTeamReport[] {
 }
 
 function removeGeneratedHonuReportEventLinks(eventId: string) {
-  const current = db.select().from(events).where(eq(events.id, eventId)).get()
-  if (!current?.eventLinks) return
-
-  const currentLinks = parseEventLinks(current.eventLinks, { includeGeneratedHonuReports: true })
+  const currentLinks = getEventLinks(eventId, { includeGeneratedHonuReports: true })
   const manualLinks = currentLinks.filter((link) => !isGeneratedHonuReportLink(link))
   if (manualLinks.length === currentLinks.length) return
 
-  db.update(events)
-    .set({
-      eventLinks: JSON.stringify(manualLinks),
-      updatedAt: new Date().toISOString(),
-    })
-    .where(eq(events.id, eventId))
-    .run()
+  const now = new Date().toISOString()
+  replaceEventLinks(eventId, manualLinks, now)
+  db.update(events).set({ updatedAt: now }).where(eq(events.id, eventId)).run()
 }
 
 function getHonuTeamReportCharacterIds(eventId: string, teamId: string) {

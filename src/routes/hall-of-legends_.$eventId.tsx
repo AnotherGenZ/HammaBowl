@@ -1,5 +1,6 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
+import { ArrowLeft } from 'lucide-react'
 import { HallOfLegendsUnderConstruction } from '../components/HallOfLegendsUnderConstruction'
 import { EventLinkIcon } from '../components/EventLinkIcons'
 import { canViewHallOfLegends } from '../lib/featureFlags'
@@ -69,7 +70,8 @@ function HistoricalEventPage() {
       <section className="event-hero compact-hero legend-detail-hero">
         <div>
           <Link to="/hall-of-legends" className="legend-back-link">
-            Back to Hall of Legends
+            <ArrowLeft size={15} aria-hidden="true" />
+            <span>Back to Hall of Legends</span>
           </Link>
           <h1>{event.name}</h1>
           <div className="meta-row">
@@ -130,7 +132,6 @@ function HistoricalEventPage() {
               <article className="legend-round-node" key={item.round.roundNumber}>
                 <span>Round {item.round.roundNumber}</span>
                 <strong>{item.score}</strong>
-                <p>{item.winnerName ?? 'No winner recorded'}</p>
                 {item.round.resultNote ? <small>{item.round.resultNote}</small> : null}
               </article>
             ))}
@@ -155,7 +156,7 @@ function HistoricalEventPage() {
           </div>
           {losingTeams.length ? (
             losingTeams.map((team) => (
-              <div className="legend-losing-team" key={team.id}>
+              <div className="legend-team-roster-block" key={team.id}>
                 {losingTeams.length > 1 ? <h3>{team.name}</h3> : null}
                 <LegendTeamReportLink team={team} />
                 <LegendRosterList team={team} />
@@ -198,8 +199,10 @@ function LegendRoster({
         <span>{title}</span>
         <h2>{team.name}</h2>
       </div>
-      <LegendTeamReportLink team={team} />
-      <LegendRosterList team={team} />
+      <div className="legend-team-roster-block">
+        <LegendTeamReportLink team={team} />
+        <LegendRosterList team={team} />
+      </div>
     </article>
   )
 }
@@ -255,16 +258,18 @@ function buildRoundProgression(event: HistoricalEvent) {
   const scores = new Map(event.teams.map((team) => [team.id, 0]))
 
   return event.rounds.map((round) => {
-    if (round.winningTeamId) {
-      scores.set(round.winningTeamId, (scores.get(round.winningTeamId) ?? 0) + 1)
+    for (const team of event.teams) {
+      scores.set(team.id, (scores.get(team.id) ?? 0) + (round.teamScores[team.id] ?? 0))
     }
 
     return {
       round,
-      winnerName: round.winningTeamId
-        ? event.teams.find((team) => team.id === round.winningTeamId)?.name ?? round.winningTeamName
-        : undefined,
-      score: event.teams.map((team) => scores.get(team.id) ?? 0).join(' - '),
+      score: event.teams
+        .map((team) => {
+          const gained = round.teamScores[team.id] ?? 0
+          return `${scores.get(team.id) ?? 0} (+${gained})`
+        })
+        .join(' - '),
     }
   })
 }

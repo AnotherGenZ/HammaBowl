@@ -2181,7 +2181,7 @@ function RoundControls({
     for (const round of changedRoundResults) {
       result = await postResult({
         roundNumber: round.roundNumber,
-        roundWinningTeamId: round.winningTeamId,
+        roundTeamScores: round.teamScores,
         roundResultNote: round.resultNote,
       })
     }
@@ -2257,32 +2257,38 @@ function RoundControls({
             <div className="round-result-list">
               {event.rounds.map((round) => {
                 const result = roundResults[round.roundNumber] ?? {
-                  winningTeamId: '',
+                  teamScores: createRoundTeamScoreState(round, event.teams),
                   resultNote: '',
                 }
                 return (
                   <div className="round-result-row" key={round.roundNumber}>
                     <span>Round {round.roundNumber}</span>
-                    <select
-                      value={result.winningTeamId}
-                      onChange={(changeEvent) => {
-                        const winningTeamId = changeEvent.currentTarget.value
-                        setRoundResults((current) => ({
-                          ...current,
-                          [round.roundNumber]: {
-                            ...result,
-                            winningTeamId,
-                          },
-                        }))
-                      }}
-                    >
-                      <option value="">No winner</option>
+                    <div className="round-score-inputs">
                       {event.teams.map((team) => (
-                        <option key={team.id} value={team.id}>
+                        <label key={team.id}>
                           {team.teamName}
-                        </option>
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={result.teamScores[team.id] ?? '0'}
+                            onChange={(changeEvent) => {
+                              const score = changeEvent.currentTarget.value
+                              setRoundResults((current) => ({
+                                ...current,
+                                [round.roundNumber]: {
+                                  ...result,
+                                  teamScores: {
+                                    ...result.teamScores,
+                                    [team.id]: score,
+                                  },
+                                },
+                              }))
+                            }}
+                          />
+                        </label>
                       ))}
-                    </select>
+                    </div>
                     <input
                       value={result.resultNote}
                       placeholder="Result note"
@@ -2396,7 +2402,7 @@ function buildRoundResultState(event: HammaEvent) {
     event.rounds.map((round) => [
       round.roundNumber,
       {
-        winningTeamId: round.winningTeamId ?? '',
+        teamScores: createRoundTeamScoreState(round, event.teams),
         resultNote: round.resultNote ?? '',
       },
     ]),
@@ -2405,26 +2411,41 @@ function buildRoundResultState(event: HammaEvent) {
 
 function getChangedRoundResults(
   event: HammaEvent,
-  roundResults: Record<number, { winningTeamId: string; resultNote: string }>,
+  roundResults: Record<number, { teamScores: Record<string, string>; resultNote: string }>,
 ) {
   return event.rounds.flatMap((round) => {
     const result = roundResults[round.roundNumber]
     if (!result) return []
 
+    const teamScores = Object.fromEntries(
+      event.teams.map((team) => [team.id, Number(result.teamScores[team.id] ?? 0)]),
+    )
+    const hadScores = hasRecordedRoundScores(round, event.teams)
     const changed =
-      result.winningTeamId !== (round.winningTeamId ?? '') ||
+      !hadScores ||
+      event.teams.some((team) => teamScores[team.id] !== (round.teamScores[team.id] ?? 0)) ||
       result.resultNote !== (round.resultNote ?? '')
 
     return changed
       ? [
           {
             roundNumber: round.roundNumber,
-            winningTeamId: result.winningTeamId,
+            teamScores,
             resultNote: result.resultNote,
           },
         ]
       : []
   })
+}
+
+function createRoundTeamScoreState(round: HammaEvent['rounds'][number], teams: HammaEvent['teams']) {
+  return Object.fromEntries(
+    teams.map((team) => [team.id, String(round.teamScores[team.id] ?? 0)]),
+  )
+}
+
+function hasRecordedRoundScores(round: HammaEvent['rounds'][number], teams: HammaEvent['teams']) {
+  return teams.some((team) => team.id in round.teamScores)
 }
 
 function getDefaultEventWinnerId(event: HammaEvent) {
@@ -2434,12 +2455,12 @@ function getDefaultEventWinnerId(event: HammaEvent) {
 function getSuggestedEventWinnerId(event: HammaEvent) {
   const roundCount = Math.max(1, event.roundCount)
   const roundsByNumber = new Map(event.rounds.map((round) => [round.roundNumber, round]))
-  const hasAllRoundWinners = Array.from({ length: roundCount }, (_, index) => {
+  const hasAllRoundScores = Array.from({ length: roundCount }, (_, index) => {
     const round = roundsByNumber.get(index + 1)
-    return Boolean(round?.winningTeamId)
+    return Boolean(round && hasRecordedRoundScores(round, event.teams))
   }).every(Boolean)
 
-  if (!hasAllRoundWinners) return ''
+  if (!hasAllRoundScores) return ''
 
   const highestScore = Math.max(...event.teams.map((team) => team.score))
   const leaders = event.teams.filter((team) => team.score === highestScore)

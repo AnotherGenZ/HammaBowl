@@ -19,15 +19,11 @@ export const events = sqliteTable('events', {
   maxPlayerBonus: integer('max_player_bonus').notNull().default(10_000_000),
   bidIncrement: integer('bid_increment').notNull().default(1_000_000),
   pendingSignupCount: integer('pending_signup_count').notNull().default(0),
-  availableFactions: text('available_factions').notNull().default('["VS","NC","TR"]'),
-  availableSides: text('available_sides').notNull().default('["north","south"]'),
-  availableSpecs: text('available_specs'),
   nextPickTeamId: text('next_pick_team_id'),
   winningTeamId: text('winning_team_id'),
   twitchStreamUrl: text('twitch_stream_url'),
   twitchVodUrl: text('twitch_vod_url'),
   eventDescription: text('event_description'),
-  eventLinks: text('event_links'),
   trophyId: text('trophy_id').notNull().default('hammo-bowl-cup'),
   lore: text('lore'),
   honuZoneId: integer('honu_zone_id').notNull().default(0),
@@ -42,11 +38,56 @@ export const appSettings = sqliteTable('app_settings', {
   updatedAt: text('updated_at').notNull(),
 })
 
+export const eventAvailableFactions = sqliteTable(
+  'event_available_factions',
+  {
+    eventId: text('event_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
+    faction: text('faction').notNull(),
+    position: integer('position').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.eventId, table.faction] })],
+)
+
+export const eventAvailableSides = sqliteTable(
+  'event_available_sides',
+  {
+    eventId: text('event_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
+    side: text('side').notNull(),
+    position: integer('position').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.eventId, table.side] })],
+)
+
+export const eventAvailableSpecs = sqliteTable(
+  'event_available_specs',
+  {
+    eventId: text('event_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
+    specName: text('spec_name').notNull(),
+    position: integer('position').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.eventId, table.specName] })],
+)
+
+export const eventLinks = sqliteTable(
+  'event_links',
+  {
+    eventId: text('event_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
+    position: integer('position').notNull(),
+    name: text('name').notNull(),
+    icon: text('icon').notNull(),
+    url: text('url').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.eventId, table.position] })],
+)
+
 export const participants = sqliteTable('participants', {
   discordId: text('discord_id').primaryKey(),
   name: text('name').notNull(),
   avatarUrl: text('avatar_url'),
-  roleIds: text('role_ids'),
   nameOverridden: integer('name_overridden', { mode: 'boolean' }).notNull().default(false),
   updatedAt: text('updated_at').notNull(),
 })
@@ -56,9 +97,30 @@ export const playerProfiles = sqliteTable('player_profiles', {
   bannerUrl: text('banner_url'),
   catchphrase: text('catchphrase'),
   noPersonalJaegerAccount: integer('no_personal_jaeger_account', { mode: 'boolean' }).notNull().default(false),
-  badgeDisplayOrder: text('badge_display_order'),
   updatedAt: text('updated_at').notNull(),
 })
+
+export const participantRoleIds = sqliteTable(
+  'participant_role_ids',
+  {
+    discordId: text('discord_id').notNull().references(() => participants.discordId, { onDelete: 'cascade' }),
+    roleId: text('role_id').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.discordId, table.roleId] })],
+)
+
+export const playerBadgeDisplayPreferences = sqliteTable(
+  'player_badge_display_preferences',
+  {
+    discordId: text('discord_id').notNull().references(() => playerProfiles.discordId, { onDelete: 'cascade' }),
+    badgeId: text('badge_id').notNull(),
+    position: integer('position'),
+    hidden: integer('hidden', { mode: 'boolean' }).notNull().default(false),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.discordId, table.badgeId] })],
+)
 
 export const playerCharacters = sqliteTable(
   'player_characters',
@@ -221,6 +283,18 @@ export const eventRounds = sqliteTable(
   (table) => [primaryKey({ columns: [table.eventId, table.roundNumber] })],
 )
 
+export const eventRoundScores = sqliteTable(
+  'event_round_scores',
+  {
+    eventId: text('event_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
+    roundNumber: integer('round_number').notNull(),
+    teamId: text('team_id').notNull().references(() => teams.id, { onDelete: 'cascade' }),
+    score: integer('score').notNull().default(0),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.eventId, table.roundNumber, table.teamId] })],
+)
+
 export const coinflips = sqliteTable('coinflips', {
   id: text('id').primaryKey(),
   eventId: text('event_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
@@ -238,6 +312,10 @@ export const coinflips = sqliteTable('coinflips', {
 })
 
 export const eventRelations = relations(events, ({ many }) => ({
+  availableFactions: many(eventAvailableFactions),
+  availableSides: many(eventAvailableSides),
+  availableSpecs: many(eventAvailableSpecs),
+  links: many(eventLinks),
   participants: many(eventParticipants),
   participantSpecs: many(eventParticipantSpecs),
   teams: many(teams),
@@ -245,4 +323,5 @@ export const eventRelations = relations(events, ({ many }) => ({
   draftPicks: many(draftPicks),
   activeDraftBids: many(activeDraftBids),
   rounds: many(eventRounds),
+  roundScores: many(eventRoundScores),
 }))

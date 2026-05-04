@@ -349,18 +349,28 @@ function RoundProgress({ event }: { event: HammaEvent }) {
       {Array.from({ length: roundCount }, (_, index) => {
         const roundNumber = index + 1
         const round = roundsByNumber.get(roundNumber)
-        const winner = round?.winningTeamId ? teamsById.get(round.winningTeamId) : undefined
-        const state = winner ? 'complete' : round ? 'active' : 'future'
-        const factionClass = winner?.faction ? ` round-segment-${winner.faction.toLowerCase()}` : ''
+        const leader = round?.winningTeamId ? teamsById.get(round.winningTeamId) : undefined
+        const hasScores = Boolean(round && event.teams.some((team) => team.id in round.teamScores))
+        const state = hasScores ? 'complete' : round ? 'active' : 'future'
+        const factionClass = leader?.faction ? ` round-segment-${leader.faction.toLowerCase()}` : ''
+        const label = round
+          ? hasScores
+            ? formatRoundScore(round, event.teams)
+            : 'In progress'
+          : 'Upcoming'
 
         return (
           <div className={`round-segment round-segment-${state}${factionClass}`} key={roundNumber}>
             <span>Round {roundNumber}</span>
-            <strong>{winner?.teamName ?? (state === 'active' ? 'In progress' : 'Upcoming')}</strong>
+            <strong>{label}</strong>
             {state === 'active' ? <span className="round-active-dot" /> : null}
           </div>
         )
       })}
     </div>
   )
+}
+
+function formatRoundScore(round: HammaEvent['rounds'][number], teams: HammaEvent['teams']) {
+  return teams.map((team) => round.teamScores[team.id] ?? 0).join('-')
 }

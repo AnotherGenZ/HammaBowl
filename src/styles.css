@@ -3399,7 +3399,7 @@ main > .panel:first-child {
 
 .round-result-row {
   display: grid;
-  grid-template-columns: minmax(74px, max-content) minmax(150px, 1fr) minmax(160px, 1fr);
+  grid-template-columns: minmax(74px, max-content) minmax(220px, 1fr) minmax(160px, 1fr);
   align-items: center;
   gap: 8px;
 }
@@ -3407,6 +3407,17 @@ main > .panel:first-child {
 .round-result-row > span {
   color: #f4f0e8;
   font-weight: 900;
+}
+
+.round-score-inputs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+}
+
+.round-score-inputs label {
+  display: grid;
+  gap: 4px;
 }
 
 .coinflip-card,
@@ -4650,6 +4661,7 @@ main > .panel:first-child {
   display: inline-flex;
   width: fit-content;
   align-items: center;
+  gap: 6px;
   min-height: 30px;
   margin-bottom: 10px;
   border: 1px solid rgba(228, 180, 94, 0.36);
@@ -4713,7 +4725,7 @@ main > .panel:first-child {
 .legend-round-node {
   position: relative;
   display: grid;
-  flex: 0 0 min(230px, 72vw);
+  flex: 0 0 clamp(280px, 42vw, 340px);
   gap: 7px;
   min-height: 128px;
   border: 1px solid rgba(228, 180, 94, 0.28);
@@ -4741,8 +4753,9 @@ main > .panel:first-child {
 
 .legend-round-node strong {
   color: #f8e4a9;
-  font-size: 2rem;
+  font-size: clamp(1.35rem, 4vw, 2rem);
   line-height: 1;
+  white-space: nowrap;
 }
 
 .legend-round-node p,
@@ -4798,12 +4811,12 @@ main > .panel:first-child {
   list-style: none;
 }
 
-.legend-losing-team {
+.legend-team-roster-block {
   display: grid;
   gap: 8px;
 }
 
-.legend-losing-team h3 {
+.legend-team-roster-block h3 {
   margin: 0;
   color: #f4f0e8;
   font-size: 1rem;

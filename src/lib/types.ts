@@ -75,6 +75,7 @@ export interface EventRound {
   roundNumber: number
   startedAt: string
   durationSeconds: number
+  teamScores: Record<string, number>
   winningTeamId?: string
   resultNote?: string
   updatedAt: string
