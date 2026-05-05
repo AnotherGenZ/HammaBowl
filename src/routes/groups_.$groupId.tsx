@@ -3,6 +3,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { useMemo, useState, type CSSProperties, type ChangeEvent, type FormEvent, type ReactNode } from 'react'
 import { PlayerName } from '../components/PlayerName'
 import { pageMeta } from '../lib/meta'
+import { useSession } from '../lib/SessionContext'
 import type { GroupDetail, GroupParticipant } from '../lib/types'
 
 const loadGroupDetail = createServerFn({ method: 'GET' })
@@ -41,6 +42,7 @@ export const Route = createFileRoute('/groups_/$groupId')({
 
 function GroupPage() {
   const loaderData = Route.useLoaderData()
+  const { user } = useSession()
   const [group, setGroup] = useState<GroupDetail | null>(loaderData.group)
   const [message, setMessage] = useState('')
   const [saving, setSaving] = useState(false)
@@ -104,7 +106,6 @@ function GroupPage() {
       const payload = await response.json()
       if (!response.ok) throw new Error(payload.message ?? 'Unable to update group.')
       setGroup((current) => current ? { ...current, ...payload.group } : payload.group)
-      setMessage('Group membership updated.')
       if (action === 'set-admin') setSelectedAdminId('')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Unable to update group.')
@@ -136,14 +137,29 @@ function GroupPage() {
           {group.currentUserStatus ? (
             <div className="group-stat-row">
               {group.currentUserStatus === 'pending' ? <span>Request pending</span> : null}
-              {group.currentUserStatus === 'member' ? <span>Member</span> : null}
               {group.currentUserStatus === 'member' ? (
-                <button className="danger-action" type="button" onClick={() => membershipAction('leave')}>
+                <button
+                  className="danger-action"
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm(`Leave ${group.name}?`)) membershipAction('leave')
+                  }}
+                >
                   Leave group
                 </button>
               ) : null}
             </div>
-          ) : null}
+          ) : (
+            <div className="group-stat-row">
+              {user ? (
+                <button className="secondary-action" type="button" onClick={() => membershipAction('request')}>
+                  Apply
+                </button>
+              ) : (
+                <span>Login to apply</span>
+              )}
+            </div>
+          )}
         </div>
       </section>
 

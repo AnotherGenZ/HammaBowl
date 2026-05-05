@@ -343,6 +343,7 @@ button .spinner {
 .nav-menu-trigger {
   border: 0;
   background: transparent;
+  font-weight: 400;
 }
 
 .nav-dropdown {
@@ -383,7 +384,7 @@ button .spinner {
   justify-content: flex-start;
   border-radius: 6px;
   padding: 0 10px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .nav .nav-dropdown-item.active {
@@ -1621,6 +1622,16 @@ main > .panel:first-child {
   color: #fff7e6;
 }
 
+.profile-group-tag-link {
+  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+}
+
+.profile-group-tag-link:hover {
+  border-color: color-mix(in srgb, var(--group-tag-color, #47bf8f) 78%, white 12%);
+  background: color-mix(in srgb, var(--group-tag-color, #47bf8f) 28%, transparent);
+  color: color-mix(in srgb, var(--group-tag-color, #47bf8f) 64%, white);
+}
+
 /* ── Player profile hero ────────────────────────────── */
 
 .breadcrumb-nav {
@@ -2276,19 +2287,16 @@ main > .panel:first-child {
 
 .group-card-footer {
   min-height: 60px;
-  justify-content: space-between;
+  justify-content: flex-start;
+  flex-wrap: nowrap;
   padding: 12px 18px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.035);
 }
 
 .group-card-footer > * {
-  flex: 0 0 auto;
-}
-
-.group-card-footer .secondary-action,
-.group-card-footer .status-pill {
-  margin-left: auto;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .group-card-footer span,
@@ -2311,6 +2319,7 @@ main > .panel:first-child {
   padding: 0 10px;
   font-size: 0.78rem;
   font-weight: 900;
+  white-space: nowrap;
 }
 
 .group-title-line {

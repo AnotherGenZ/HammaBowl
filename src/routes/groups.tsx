@@ -2,7 +2,6 @@ import { Link, createFileRoute } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { useMemo, useState, type CSSProperties, type ChangeEvent, type FormEvent } from 'react'
 import { pageMeta } from '../lib/meta'
-import { useSession } from '../lib/SessionContext'
 import type { GroupSummary } from '../lib/types'
 
 const loadGroupDirectory = createServerFn({ method: 'GET' }).handler(async () => {
@@ -29,7 +28,6 @@ export const Route = createFileRoute('/groups')({
 
 function GroupDirectory() {
   const loaderData = Route.useLoaderData()
-  const { user } = useSession()
   const [groups, setGroups] = useState<GroupSummary[]>(loaderData.groups)
   const [query, setQuery] = useState('')
   const [message, setMessage] = useState('')
@@ -48,10 +46,6 @@ function GroupDirectory() {
       [group.tag, group.name, group.description].some((value) => value.toLowerCase().includes(normalized)),
     )
   }, [groups, query])
-  const currentMemberGroup = useMemo(
-    () => groups.find((group) => group.currentUserStatus === 'member'),
-    [groups],
-  )
 
   async function submitGroup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -72,25 +66,6 @@ function GroupDirectory() {
       setMessage(error instanceof Error ? error.message : 'Unable to create group.')
     } finally {
       setSaving(false)
-    }
-  }
-
-  async function requestMembership(groupId: string) {
-    setMessage('')
-    try {
-      const response = await fetch('/api/group-memberships', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ action: 'request', groupId }),
-      })
-      const payload = await response.json()
-      if (!response.ok) throw new Error(payload.message ?? 'Unable to request membership.')
-      setGroups((current) =>
-        current.map((group) => (group.id === payload.group.id ? { ...group, ...payload.group } : group)),
-      )
-      setMessage('Join request sent.')
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Unable to request membership.')
     }
   }
 
@@ -209,13 +184,7 @@ function GroupDirectory() {
                 </div>
               </Link>
               <div className="group-card-footer">
-                <span className="group-count-badge">{group.memberCount} members</span>
-                <MembershipAction
-                  group={group}
-                  loggedIn={Boolean(user)}
-                  currentMemberGroup={currentMemberGroup}
-                  onRequest={requestMembership}
-                />
+                <span className="group-count-badge">{formatMemberCount(group.memberCount)}</span>
               </div>
             </article>
           ))
@@ -225,34 +194,13 @@ function GroupDirectory() {
   )
 }
 
-function MembershipAction({
-  group,
-  loggedIn,
-  currentMemberGroup,
-  onRequest,
-}: {
-  group: GroupSummary
-  loggedIn: boolean
-  currentMemberGroup?: GroupSummary
-  onRequest: (groupId: string) => void
-}) {
-  if (group.currentUserStatus === 'member') return <span className="status-pill">Member</span>
-  if (group.currentUserStatus === 'pending') return <span className="status-pill pending">Pending</span>
-  if (!loggedIn) return <span className="status-pill muted">Login to join</span>
-  if (currentMemberGroup && currentMemberGroup.id !== group.id) {
-    return <span className="status-pill muted">Leave {currentMemberGroup.name} to join</span>
-  }
-
-  return (
-    <button className="secondary-action" type="button" onClick={() => onRequest(group.id)}>
-      Request to join
-    </button>
-  )
-}
-
 function GroupLogo({ group }: { group: Pick<GroupSummary, 'name' | 'tag' | 'logoUrl'> }) {
   if (group.logoUrl) return <img className="group-logo" src={group.logoUrl} alt="" />
   return <span className="group-logo group-logo-fallback">{group.tag.slice(0, 2)}</span>
+}
+
+function formatMemberCount(count: number) {
+  return `${count} member${count === 1 ? '' : 's'}`
 }
 
 function groupTagStyle(tagColor?: string): CSSProperties | undefined {

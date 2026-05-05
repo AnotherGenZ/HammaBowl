@@ -107,9 +107,26 @@ function PlayerProfilePage() {
         <div className="profile-identity">
           {profile.avatarUrl ? <img src={profile.avatarUrl} alt="" /> : <span>{displayName.slice(0, 1)}</span>}
           <div>
-            <p className="eyebrow">Player profile</p>
+            {/*<p className="eyebrow">Player profile</p>*/}
             <h1>
-              <PlayerName name={displayName} groupTag={profile.groupTag} groupTagColor={profile.groupTagColor} />
+              <span className="player-name-with-group">
+                {profile.groupId && profile.groupTag ? (
+                  <Link
+                    to="/groups/$groupId"
+                    params={{ groupId: profile.groupId }}
+                    className="player-group-tag profile-group-tag-link"
+                    style={groupTagStyle(profile.groupTagColor)}
+                    title={profile.groupName ? `View ${profile.groupName}` : 'View group'}
+                  >
+                    {profile.groupTag}
+                  </Link>
+                ) : profile.groupTag ? (
+                  <span className="player-group-tag" style={groupTagStyle(profile.groupTagColor)}>
+                    {profile.groupTag}
+                  </span>
+                ) : null}
+                <span>{displayName}</span>
+              </span>
             </h1>
             {catchphrase ? <p className="profile-catchphrase">{catchphrase}</p> : null}
             {badges.length ? (
@@ -507,6 +524,10 @@ function PlayerBadgeEditor({
 
 function badgeStyle(color: string) {
   return { '--badge-color': color } as CSSProperties
+}
+
+function groupTagStyle(color?: string) {
+  return color ? ({ '--group-tag-color': color } as CSSProperties) : undefined
 }
 
 function Metric({ label, value }: { label: string; value: string }) {

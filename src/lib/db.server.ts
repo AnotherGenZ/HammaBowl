@@ -3601,6 +3601,8 @@ export function getPlayerProfile(discordId: string): PlayerProfile | null {
   return {
     discordId,
     name: participant.name,
+    groupId: groupBadge?.id,
+    groupName: groupBadge?.name,
     groupTag: groupBadge?.tag,
     groupTagColor: groupBadge?.color,
     avatarUrl: participant.avatarUrl ?? undefined,
@@ -4008,14 +4010,25 @@ function getParticipantNameMap(discordIds: string[]) {
 
 function getParticipantGroupBadgeMap(discordIds: string[]) {
   const wanted = Array.from(new Set(discordIds.map((id) => id.trim()).filter(Boolean)))
-  if (!wanted.length) return new Map<string, { tag: string; color: string }>()
+  if (!wanted.length) return new Map<string, { id: string; name: string; tag: string; color: string }>()
 
   const rows = sqlite.prepare(`
-    SELECT gm.discord_id AS discordId, g.tag AS groupTag, g.tag_color AS groupTagColor
+    SELECT
+      gm.discord_id AS discordId,
+      g.id AS groupId,
+      g.name AS groupName,
+      g.tag AS groupTag,
+      g.tag_color AS groupTagColor
     FROM group_members gm
     JOIN groups g ON g.id = gm.group_id
     WHERE gm.status = 'member'
-  `).all() as Array<{ discordId: string; groupTag: string; groupTagColor: string | null }>
+  `).all() as Array<{
+    discordId: string
+    groupId: string
+    groupName: string
+    groupTag: string
+    groupTagColor: string | null
+  }>
 
   const wantedIds = new Set(wanted)
   return new Map(
@@ -4024,6 +4037,8 @@ function getParticipantGroupBadgeMap(discordIds: string[]) {
       .map((row) => [
         row.discordId,
         {
+          id: row.groupId,
+          name: row.groupName,
           tag: row.groupTag,
           color: normalizeGroupTagColor(row.groupTagColor),
         },

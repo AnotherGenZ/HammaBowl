@@ -294,6 +294,8 @@ export interface PlayerBadge {
 export interface PlayerProfile {
   discordId: string
   name: string
+  groupId?: string
+  groupName?: string
   groupTag?: string
   groupTagColor?: string
   avatarUrl?: string
