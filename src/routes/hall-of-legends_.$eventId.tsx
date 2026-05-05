@@ -2,6 +2,7 @@ import { Link, createFileRoute } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { ArrowLeft, BookOpen } from 'lucide-react'
 import { EventLinkIcon } from '../components/EventLinkIcons'
+import { PlayerName } from '../components/PlayerName'
 import { shortDateWithTimeZone } from '../lib/format'
 import { pageMeta } from '../lib/meta'
 import type { HistoricalEvent } from '../lib/types'
@@ -243,7 +244,7 @@ function LegendRosterList({ team }: { team: HistoricalEvent['teams'][number] }) 
       {members.map((member) => (
         <li key={`${team.id}-${member.discordId}`}>
           <Link to="/players/$discordId" params={{ discordId: member.discordId }}>
-            {member.name}
+            <PlayerName name={member.name} groupTag={member.groupTag} groupTagColor={member.groupTagColor} />
           </Link>
           {member.discordId === team.captainDiscordId ? <small>Captain</small> : null}
         </li>

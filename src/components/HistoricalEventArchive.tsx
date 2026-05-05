@@ -3,6 +3,7 @@ import { Pause, Play, SkipBack, SkipForward } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { compactMoney, money } from '../lib/format'
 import type { HistoricalEvent } from '../lib/types'
+import { PlayerName } from './PlayerName'
 
 type RatingSortKey = 'name' | 'rating' | 'salary' | 'team'
 type SortDirection = 'asc' | 'desc'
@@ -124,7 +125,11 @@ function LegendDraftReplay({ event }: { event: HistoricalEvent }) {
             <span>Current selection</span>
             <h3>
               <Link to="/players/$discordId" params={{ discordId: selectedPick.player.discordId }}>
-                {selectedPick.player.name}
+                <PlayerName
+                  name={selectedPick.player.name}
+                  groupTag={selectedPick.player.groupTag}
+                  groupTagColor={selectedPick.player.groupTagColor}
+                />
               </Link>
             </h3>
             <dl>
@@ -174,7 +179,7 @@ function LegendDraftReplay({ event }: { event: HistoricalEvent }) {
                 {team.members.map((member) => (
                   <li key={`${team.id}-${member.discordId}`}>
                     <Link to="/players/$discordId" params={{ discordId: member.discordId }}>
-                      {member.name}
+                      <PlayerName name={member.name} groupTag={member.groupTag} groupTagColor={member.groupTagColor} />
                     </Link>
                     {member.note ? <small>{member.note}</small> : null}
                   </li>
@@ -320,7 +325,7 @@ function LegendRatingSummary({ event }: { event: HistoricalEvent }) {
               <tr key={rating.discordId}>
                 <td>
                   <Link to="/players/$discordId" params={{ discordId: rating.discordId }}>
-                    {rating.name}
+                    <PlayerName name={rating.name} groupTag={rating.groupTag} groupTagColor={rating.groupTagColor} />
                   </Link>
                   {rating.isCaptain ? <small>Captain</small> : null}
                   {rating.disqualified ? <small>Disqualified</small> : null}
@@ -499,12 +504,16 @@ function buildDraftReplayTeams(event: HistoricalEvent, throughOrder: number) {
         ? [{
             discordId: team.captainDiscordId,
             name: team.captain ?? team.captainDiscordId,
+            groupTag: team.memberProfiles.find((member) => member.discordId === team.captainDiscordId)?.groupTag,
+            groupTagColor: team.memberProfiles.find((member) => member.discordId === team.captainDiscordId)?.groupTagColor,
             note: 'Captain',
           }]
         : []),
       ...picks.map((pick) => ({
         discordId: pick.player.discordId,
         name: pick.player.name,
+        groupTag: pick.player.groupTag,
+        groupTagColor: pick.player.groupTagColor,
         note: pick.bonusSpent ? `${money(pick.salary)} + ${money(pick.bonusSpent)}` : money(pick.salary),
       })),
     ]

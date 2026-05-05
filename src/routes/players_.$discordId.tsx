@@ -3,6 +3,7 @@ import { createServerFn } from '@tanstack/react-start'
 import type { CSSProperties } from 'react'
 import { useEffect, useState } from 'react'
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { PlayerName } from '../components/PlayerName'
 import { shortDate } from '../lib/format'
 import { pageMeta } from '../lib/meta'
 import type { AdminPlayerProfileEditorData, PlayerBadge } from '../lib/types'
@@ -75,7 +76,9 @@ function PlayerProfilePage() {
           Players
         </Link>
         <span aria-hidden="true">/</span>
-        <span aria-current="page">{displayName}</span>
+        <span aria-current="page">
+          <PlayerName name={displayName} groupTag={profile.groupTag} groupTagColor={profile.groupTagColor} />
+        </span>
       </nav>
       <section
         className="profile-hero"
@@ -105,7 +108,9 @@ function PlayerProfilePage() {
           {profile.avatarUrl ? <img src={profile.avatarUrl} alt="" /> : <span>{displayName.slice(0, 1)}</span>}
           <div>
             <p className="eyebrow">Player profile</p>
-            <h1>{displayName}</h1>
+            <h1>
+              <PlayerName name={displayName} groupTag={profile.groupTag} groupTagColor={profile.groupTagColor} />
+            </h1>
             {catchphrase ? <p className="profile-catchphrase">{catchphrase}</p> : null}
             {badges.length ? (
               <div className="profile-hero-badges">
@@ -124,6 +129,8 @@ function PlayerProfilePage() {
         <AdminProfileEditorModal
           discordId={profile.discordId}
           playerName={displayName}
+          groupTag={profile.groupTag}
+          groupTagColor={profile.groupTagColor}
           onClose={() => setProfileEditorOpen(false)}
           onBadgesChanged={setBadges}
           onCatchphraseChanged={setCatchphrase}
@@ -249,6 +256,8 @@ function PlayerProfilePage() {
 function AdminProfileEditorModal({
   discordId,
   playerName,
+  groupTag,
+  groupTagColor,
   onClose,
   onBadgesChanged,
   onCatchphraseChanged,
@@ -256,6 +265,8 @@ function AdminProfileEditorModal({
 }: {
   discordId: string
   playerName: string
+  groupTag?: string
+  groupTagColor?: string
   onClose: () => void
   onBadgesChanged: (badges: PlayerBadge[]) => void
   onCatchphraseChanged: (catchphrase: string) => void
@@ -273,7 +284,9 @@ function AdminProfileEditorModal({
         <div className="section-heading">
           <div>
             <p className="eyebrow">Admin profile editor</p>
-            <h2 id="admin-profile-editor-title">{playerName}</h2>
+            <h2 id="admin-profile-editor-title">
+              <PlayerName name={playerName} groupTag={groupTag} groupTagColor={groupTagColor} />
+            </h2>
           </div>
           <button type="button" className="modal-close" aria-label="Close profile editor" onClick={onClose}>
             ×

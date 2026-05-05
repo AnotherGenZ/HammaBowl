@@ -5,6 +5,7 @@ import { pageMeta } from '../lib/meta'
 import { isCaptainPlayer } from '../lib/rules'
 import { useSession } from '../lib/SessionContext'
 import type { HammaEvent } from '../lib/types'
+import { PlayerName } from '../components/PlayerName'
 
 type RatingsSortMode = 'name' | 'rating-desc' | 'rating-asc'
 
@@ -359,14 +360,16 @@ function Ratings() {
                   raterOptions.length ? (
                     raterOptions.map((player) => (
                       <option key={player.id} value={player.id}>
-                        {player.name}
+                        {player.groupTag ? `[${player.groupTag}] ${player.name}` : player.name}
                       </option>
                     ))
                   ) : (
                     <option value="">No raters available</option>
                   )
                 ) : (
-                  <option value={user?.id ?? ''}>{user ? user.name : 'Discord login required'}</option>
+                  <option value={user?.id ?? ''}>
+                    {user ? (user.groupTag ? `[${user.groupTag}] ${user.name}` : user.name) : 'Discord login required'}
+                  </option>
                 )}
               </select>
             </label>
@@ -447,7 +450,9 @@ function Ratings() {
                     key={player.id}
                   >
                     <Link to="/players/$discordId" params={{ discordId: player.id }}>
-                      <strong>{player.name}</strong>
+                      <strong>
+                        <PlayerName name={player.name} groupTag={player.groupTag} groupTagColor={player.groupTagColor} />
+                      </strong>
                     </Link>
                     <div className="rating-controls">
                       {saving === player.id ? <span className="spinner" aria-label="Saving" /> : null}

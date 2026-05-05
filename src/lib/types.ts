@@ -7,6 +7,8 @@ export type PlayerStatus = 'signed_up' | 'drafted' | 'disqualified'
 export interface Player {
   id: string
   name: string
+  groupTag?: string
+  groupTagColor?: string
   outfit: string
   faction: 'VS' | 'NC' | 'TR' | 'NS'
   status: PlayerStatus
@@ -174,6 +176,8 @@ export interface HistoricalEvent {
     memberProfiles: Array<{
       discordId: string
       name: string
+      groupTag?: string
+      groupTagColor?: string
     }>
   }
   rounds: Array<EventRound & { winningTeamName?: string }>
@@ -187,6 +191,8 @@ export interface HistoricalEvent {
     memberProfiles: Array<{
       discordId: string
       name: string
+      groupTag?: string
+      groupTagColor?: string
     }>
     winner: boolean
     honuReportUrl?: string
@@ -195,6 +201,8 @@ export interface HistoricalEvent {
   playerRatings: Array<{
     discordId: string
     name: string
+    groupTag?: string
+    groupTagColor?: string
     specs: string[]
     averageRating: number | null
     ratingCount: number
@@ -210,6 +218,8 @@ export interface HistoricalEvent {
     player: {
       discordId: string
       name: string
+      groupTag?: string
+      groupTagColor?: string
     }
     team: {
       id: string
@@ -232,6 +242,38 @@ export interface HistoricalEvent {
 export interface RegisteredParticipant {
   discordId: string
   name: string
+  groupTag?: string
+  groupTagColor?: string
+}
+
+export type GroupMembershipStatus = 'pending' | 'member'
+
+export interface GroupParticipant {
+  discordId: string
+  name: string
+  groupTag?: string
+  groupTagColor?: string
+  avatarUrl?: string
+}
+
+export interface GroupSummary {
+  id: string
+  tag: string
+  name: string
+  logoUrl?: string
+  tagColor: string
+  description: string
+  memberCount: number
+  pendingCount: number
+  administratorCount: number
+  currentUserStatus?: GroupMembershipStatus
+  currentUserIsAdministrator: boolean
+}
+
+export interface GroupDetail extends GroupSummary {
+  administrators: GroupParticipant[]
+  members: GroupParticipant[]
+  pendingMembers: GroupParticipant[]
 }
 
 export interface PlayerCharacter {
@@ -252,6 +294,8 @@ export interface PlayerBadge {
 export interface PlayerProfile {
   discordId: string
   name: string
+  groupTag?: string
+  groupTagColor?: string
   avatarUrl?: string
   bannerUrl?: string
   catchphrase?: string
@@ -276,6 +320,8 @@ export interface EventPlayerCharacterAssignment {
   eventId: string
   discordId: string
   playerName: string
+  groupTag?: string
+  groupTagColor?: string
   noPersonalJaegerAccount: boolean
   assignments: PlayerCharacter[]
   assignment?: PlayerCharacter
@@ -284,6 +330,8 @@ export interface EventPlayerCharacterAssignment {
 export interface PlayerProfileSummary {
   discordId: string
   name: string
+  groupTag?: string
+  groupTagColor?: string
   avatarUrl?: string
   bannerUrl?: string
   catchphrase?: string
@@ -312,6 +360,8 @@ export interface AdminBadgeAssignment {
   badgeId: string
   discordId: string
   playerName: string
+  groupTag?: string
+  groupTagColor?: string
   badgeName: string
   assignedAt: string
 }
@@ -333,6 +383,8 @@ export interface AdminPlayerProfileEditorData {
 export interface AdminPlayerCharacterConfig {
   discordId: string
   name: string
+  groupTag?: string
+  groupTagColor?: string
   noPersonalJaegerAccount: boolean
   characters: PlayerCharacter[]
 }

@@ -4,6 +4,8 @@ import type { HammaEvent, Role } from './types'
 export interface SessionUser {
   id: string
   name: string
+  groupTag?: string
+  groupTagColor?: string
   avatarUrl?: string
   profileComplete: boolean
   roles: Role[]

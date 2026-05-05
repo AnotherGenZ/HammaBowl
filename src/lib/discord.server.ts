@@ -28,6 +28,8 @@ export async function getDiscordSessionUser() {
   const { hasCompletePlayerCharacters } = await import('./db.server')
   const { syncSystemBadgeAssignmentsForUser } = await import('./db.server')
   const { updateParticipantDiscordRoleIds } = await import('./db.server')
+  const { getParticipantGroupTag } = await import('./db.server')
+  const { getParticipantGroupTagColor } = await import('./db.server')
   const roleIds = data.roleIds ?? []
   const roles = new Set(mapDiscordRoles(data.discordId, roleIds))
 
@@ -41,6 +43,8 @@ export async function getDiscordSessionUser() {
   return {
     id: data.discordId,
     name: data.displayName ?? data.username,
+    groupTag: getParticipantGroupTag(data.discordId),
+    groupTagColor: getParticipantGroupTagColor(data.discordId),
     avatarUrl: data.avatarUrl ?? undefined,
     profileComplete: hasCompletePlayerCharacters(data.discordId),
     roles: Array.from(roles),

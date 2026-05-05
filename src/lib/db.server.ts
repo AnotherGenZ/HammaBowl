@@ -25,6 +25,9 @@ import {
   eventParticipantSpecs,
   eventParticipants,
   events,
+  groupAdministrators,
+  groupMembers,
+  groups,
   playerCharacters,
   playerBadgeAssignments,
   participantRoleIds,
@@ -63,6 +66,9 @@ import type {
   EventLink,
   EventTrophyId,
   Faction,
+  GroupDetail,
+  GroupMembershipStatus,
+  GroupSummary,
   HammaEvent,
   HistoricalEvent,
   Player,
@@ -81,6 +87,7 @@ const dbPath = env('DATABASE_URL', path.join(process.cwd(), 'data', 'hammabowl.s
 const ACTIVE_EVENT_SETTING_KEY = 'active_event_id'
 const ADMIN_BADGE_ID = 'system-admin'
 const MOD_BADGE_ID = 'system-mod'
+const DEFAULT_GROUP_TAG_COLOR = '#47bf8f'
 const SYSTEM_BADGES = [
   {
     id: ADMIN_BADGE_ID,
@@ -308,6 +315,7 @@ export async function getDbEvent(eventId: string): Promise<HammaEvent | null> {
     .all()
   const specsByParticipant = groupEventParticipantSpecs(specRows)
   const participantNames = getParticipantNameMap(participantRows.map((participant) => participant.discordId))
+  const participantGroupBadges = getParticipantGroupBadgeMap(participantRows.map((participant) => participant.discordId))
   const teamRows = db.select().from(teams).where(eq(teams.eventId, event.id)).all()
   const ratingRows = db.select().from(ratings).where(eq(ratings.eventId, event.id)).all()
   const pickRows = db.select().from(draftPicks).where(eq(draftPicks.eventId, event.id)).all()
@@ -330,6 +338,8 @@ export async function getDbEvent(eventId: string): Promise<HammaEvent | null> {
   const players: Player[] = activeParticipantRows.map((participant) => ({
     id: participant.discordId,
     name: participantNames.get(participant.discordId) ?? participant.name,
+    groupTag: participantGroupBadges.get(participant.discordId)?.tag,
+    groupTagColor: participantGroupBadges.get(participant.discordId)?.color,
     outfit: '',
     faction: 'NS',
     status: 'signed_up',
@@ -1406,6 +1416,7 @@ function buildHistoricalEvent(event: typeof events.$inferSelect): HistoricalEven
   const participantFallbackName = new Map(
     participantRows.map((participant) => [participant.discordId, participant.name]),
   )
+  const participantGroupBadges = getParticipantGroupBadgeMap(participantRows.map((participant) => participant.discordId))
   const displayName = (discordId: string) => participantName.get(discordId) ?? participantFallbackName.get(discordId) ?? discordId
   const specsByParticipant = groupEventParticipantSpecs(specRows)
 
@@ -1419,6 +1430,8 @@ function buildHistoricalEvent(event: typeof events.$inferSelect): HistoricalEven
       .map((discordId) => ({
         discordId,
         name: displayName(discordId),
+        groupTag: participantGroupBadges.get(discordId)?.tag,
+        groupTagColor: participantGroupBadges.get(discordId)?.color,
       }))
       .sort((a, b) => a.name.localeCompare(b.name))
 
@@ -1465,6 +1478,8 @@ function buildHistoricalEvent(event: typeof events.$inferSelect): HistoricalEven
     return {
       discordId: participant.discordId,
       name: displayName(participant.discordId),
+      groupTag: participantGroupBadges.get(participant.discordId)?.tag,
+      groupTagColor: participantGroupBadges.get(participant.discordId)?.color,
       specs: specsByParticipant.get(participant.discordId) ?? [],
       averageRating,
       ratingCount: playerRatings.length,
@@ -1515,6 +1530,8 @@ function buildHistoricalEvent(event: typeof events.$inferSelect): HistoricalEven
       player: {
         discordId: pick.playerDiscordId,
         name: displayName(pick.playerDiscordId),
+        groupTag: participantGroupBadges.get(pick.playerDiscordId)?.tag,
+        groupTagColor: participantGroupBadges.get(pick.playerDiscordId)?.color,
       },
       team: {
         id: team.id,
@@ -1565,6 +1582,8 @@ function buildHistoricalEvent(event: typeof events.$inferSelect): HistoricalEven
             .map((participant) => ({
               discordId: participant.discordId,
               name: displayName(participant.discordId),
+              groupTag: participantGroupBadges.get(participant.discordId)?.tag,
+              groupTagColor: participantGroupBadges.get(participant.discordId)?.color,
             }))
             .sort((a, b) => a.name.localeCompare(b.name)),
         }
@@ -1587,13 +1606,15 @@ function buildHistoricalEvent(event: typeof events.$inferSelect): HistoricalEven
 }
 
 function getRegisteredParticipants(): RegisteredParticipant[] {
-  return db
-    .select()
-    .from(participants)
-    .all()
+  const participantRows = db.select().from(participants).all()
+  const groupBadges = getParticipantGroupBadgeMap(participantRows.map((participant) => participant.discordId))
+
+  return participantRows
     .map((participant) => ({
       discordId: participant.discordId,
       name: participant.name,
+      groupTag: groupBadges.get(participant.discordId)?.tag,
+      groupTagColor: groupBadges.get(participant.discordId)?.color,
     }))
     .sort((a, b) => a.name.localeCompare(b.name))
 }
@@ -2326,6 +2347,483 @@ export function getRegisteredPlayerList(): RegisteredParticipant[] {
   return getRegisteredParticipants()
 }
 
+export function getParticipantGroupTag(discordId: string) {
+  return getParticipantGroupBadgeMap([discordId]).get(discordId)?.tag
+}
+
+export function getParticipantGroupTagColor(discordId: string) {
+  return getParticipantGroupBadgeMap([discordId]).get(discordId)?.color
+}
+
+export function getGroupAdministratorCandidateList(groupId: string): RegisteredParticipant[] {
+  const normalizedGroupId = groupId.trim()
+  return sqlite.prepare(`
+    SELECT
+      p.discord_id AS discordId,
+      p.name AS name,
+      currentGroup.tag AS groupTag,
+      currentGroup.tag_color AS groupTagColor
+    FROM participants p
+    LEFT JOIN group_members currentMember
+      ON currentMember.discord_id = p.discord_id
+      AND currentMember.group_id = ?
+      AND currentMember.status = 'member'
+    LEFT JOIN groups currentGroup ON currentGroup.id = currentMember.group_id
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM group_members gm
+      WHERE gm.discord_id = p.discord_id
+        AND gm.group_id != ?
+        AND gm.status = 'member'
+    )
+    AND NOT EXISTS (
+      SELECT 1
+      FROM group_administrators ga
+      WHERE ga.discord_id = p.discord_id
+        AND ga.group_id != ?
+    )
+    ORDER BY p.name COLLATE NOCASE
+  `).all(normalizedGroupId, normalizedGroupId, normalizedGroupId) as RegisteredParticipant[]
+}
+
+export function listGroupsForUser(discordId?: string | null): GroupSummary[] {
+  const normalizedUserId = discordId?.trim() || null
+  const rows = sqlite.prepare(`
+    SELECT
+      g.id AS id,
+      g.tag AS tag,
+      g.name AS name,
+      g.logo_url AS logoUrl,
+      g.tag_color AS tagColor,
+      g.description AS description,
+      COALESCE(memberCounts.memberCount, 0) AS memberCount,
+      COALESCE(pendingCounts.pendingCount, 0) AS pendingCount,
+      COALESCE(adminCounts.administratorCount, 0) AS administratorCount,
+      currentMember.status AS currentUserStatus,
+      CASE WHEN currentAdmin.discord_id IS NULL THEN 0 ELSE 1 END AS currentUserIsAdministrator
+    FROM groups g
+    LEFT JOIN (
+      SELECT group_id, COUNT(*) AS memberCount
+      FROM group_members
+      WHERE status = 'member'
+      GROUP BY group_id
+    ) memberCounts ON memberCounts.group_id = g.id
+    LEFT JOIN (
+      SELECT group_id, COUNT(*) AS pendingCount
+      FROM group_members
+      WHERE status = 'pending'
+      GROUP BY group_id
+    ) pendingCounts ON pendingCounts.group_id = g.id
+    LEFT JOIN (
+      SELECT group_id, COUNT(*) AS administratorCount
+      FROM group_administrators
+      GROUP BY group_id
+    ) adminCounts ON adminCounts.group_id = g.id
+    LEFT JOIN group_members currentMember
+      ON currentMember.group_id = g.id AND currentMember.discord_id = ?
+    LEFT JOIN group_administrators currentAdmin
+      ON currentAdmin.group_id = g.id AND currentAdmin.discord_id = ?
+    ORDER BY g.name COLLATE NOCASE
+  `).all(normalizedUserId, normalizedUserId) as Array<{
+    id: string
+    tag: string
+    name: string
+    logoUrl: string | null
+    tagColor: string
+    description: string
+    memberCount: number
+    pendingCount: number
+    administratorCount: number
+    currentUserStatus: string | null
+    currentUserIsAdministrator: number
+  }>
+
+  return rows.map(mapGroupSummaryRow)
+}
+
+export function getGroupDetailForUser(
+  groupId: string,
+  discordId?: string | null,
+  includePending = false,
+): GroupDetail | null {
+  const normalizedGroupId = groupId.trim()
+  if (!normalizedGroupId) return null
+  const summary = listGroupsForUser(discordId).find((group) => group.id === normalizedGroupId)
+  if (!summary) return null
+
+  return {
+    ...summary,
+    administrators: getGroupParticipants(normalizedGroupId, 'administrators'),
+    members: getGroupParticipants(normalizedGroupId, 'members'),
+    pendingMembers: includePending ? getGroupParticipants(normalizedGroupId, 'pending') : [],
+  }
+}
+
+export function createGroup(values: {
+  tag: string
+  name: string
+  description: string
+  tagColor?: string | null
+  logoUrl?: string | null
+}) {
+  const now = new Date().toISOString()
+  const tag = normalizeGroupTag(values.tag)
+  const name = normalizeGroupName(values.name)
+  const description = normalizeGroupDescription(values.description)
+  const logoUrl = normalizeGroupLogoUrl(values.logoUrl)
+  const tagColor = normalizeGroupTagColor(values.tagColor)
+
+  db.insert(groups)
+    .values({
+      id: randomUUID(),
+      tag,
+      name,
+      description,
+      logoUrl,
+      tagColor,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .run()
+
+  return listGroupsForUser()
+}
+
+export function updateGroupProperties(
+  groupId: string,
+  values: {
+    tag?: string
+    name?: string
+    description?: string
+    tagColor?: string | null
+    logoUrl?: string | null
+  },
+) {
+  const group = getGroupRowOrThrow(groupId)
+  const tag = values.tag === undefined ? group.tag : normalizeGroupTag(values.tag)
+  const name = values.name === undefined ? group.name : normalizeGroupName(values.name)
+  const description =
+    values.description === undefined ? group.description : normalizeGroupDescription(values.description)
+  const logoUrl = values.logoUrl === undefined ? group.logoUrl : normalizeGroupLogoUrl(values.logoUrl)
+  const tagColor = values.tagColor === undefined ? group.tagColor : normalizeGroupTagColor(values.tagColor)
+
+  db.update(groups)
+    .set({
+      tag,
+      name,
+      description,
+      logoUrl,
+      tagColor,
+      updatedAt: new Date().toISOString(),
+    })
+    .where(eq(groups.id, group.id))
+    .run()
+
+  return getGroupDetailForUser(group.id, null, true)
+}
+
+export function requestGroupMembership(groupId: string, player: { id: string; name: string; avatarUrl?: string }) {
+  const group = getGroupRowOrThrow(groupId)
+  ensureParticipantIdentity(player)
+  const now = new Date().toISOString()
+  assertPlayerIsNotInAnotherGroup(player.id, group.id)
+  const existing = db
+    .select()
+    .from(groupMembers)
+    .where(and(eq(groupMembers.groupId, group.id), eq(groupMembers.discordId, player.id)))
+    .get()
+
+  if (existing?.status === 'member') throw new Error('You are already a member of this group.')
+  if (existing?.status === 'pending') throw new Error('Your request is already pending.')
+
+  db.insert(groupMembers)
+    .values({
+      groupId: group.id,
+      discordId: player.id,
+      status: 'pending',
+      requestedAt: now,
+      updatedAt: now,
+    })
+    .run()
+
+  return getGroupDetailForUser(group.id, player.id, false)
+}
+
+export function acceptGroupMember(groupId: string, discordId: string) {
+  const group = getGroupRowOrThrow(groupId)
+  const normalizedDiscordId = requireKnownParticipant(discordId)
+  assertPlayerIsNotInAnotherGroup(normalizedDiscordId, group.id)
+  const existing = db
+    .select()
+    .from(groupMembers)
+    .where(and(eq(groupMembers.groupId, group.id), eq(groupMembers.discordId, normalizedDiscordId)))
+    .get()
+  if (!existing) throw new Error('Join request not found.')
+
+  db.update(groupMembers)
+    .set({
+      status: 'member',
+      updatedAt: new Date().toISOString(),
+    })
+    .where(and(eq(groupMembers.groupId, group.id), eq(groupMembers.discordId, normalizedDiscordId)))
+    .run()
+
+  return getGroupDetailForUser(group.id, null, true)
+}
+
+export function kickGroupMember(groupId: string, discordId: string) {
+  const group = getGroupRowOrThrow(groupId)
+  const normalizedDiscordId = discordId.trim()
+  if (!normalizedDiscordId) throw new Error('Player is required.')
+
+  db.delete(groupAdministrators)
+    .where(and(eq(groupAdministrators.groupId, group.id), eq(groupAdministrators.discordId, normalizedDiscordId)))
+    .run()
+  db.delete(groupMembers)
+    .where(and(eq(groupMembers.groupId, group.id), eq(groupMembers.discordId, normalizedDiscordId)))
+    .run()
+
+  return getGroupDetailForUser(group.id, null, true)
+}
+
+export function setGroupAdministrator(groupId: string, discordId: string, enabled: boolean) {
+  const group = getGroupRowOrThrow(groupId)
+  const normalizedDiscordId = requireKnownParticipant(discordId)
+  const now = new Date().toISOString()
+
+  if (enabled) {
+    assertPlayerIsNotInAnotherGroup(normalizedDiscordId, group.id)
+    db.insert(groupMembers)
+      .values({
+        groupId: group.id,
+        discordId: normalizedDiscordId,
+        status: 'member',
+        requestedAt: now,
+        updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: [groupMembers.groupId, groupMembers.discordId],
+        set: {
+          status: 'member',
+          updatedAt: now,
+        },
+      })
+      .run()
+    db.insert(groupAdministrators)
+      .values({
+        groupId: group.id,
+        discordId: normalizedDiscordId,
+        assignedAt: now,
+      })
+      .onConflictDoNothing()
+      .run()
+  } else {
+    db.delete(groupAdministrators)
+      .where(and(eq(groupAdministrators.groupId, group.id), eq(groupAdministrators.discordId, normalizedDiscordId)))
+      .run()
+  }
+
+  return getGroupDetailForUser(group.id, null, true)
+}
+
+export function isGroupAdministrator(groupId: string, discordId: string) {
+  const normalizedGroupId = groupId.trim()
+  const normalizedDiscordId = discordId.trim()
+  if (!normalizedGroupId || !normalizedDiscordId) return false
+
+  return Boolean(
+    db
+      .select()
+      .from(groupAdministrators)
+      .where(
+        and(
+          eq(groupAdministrators.groupId, normalizedGroupId),
+          eq(groupAdministrators.discordId, normalizedDiscordId),
+        ),
+      )
+      .get(),
+  )
+}
+
+function mapGroupSummaryRow(row: {
+  id: string
+  tag: string
+  name: string
+  logoUrl: string | null
+  tagColor: string
+  description: string
+  memberCount: number
+  pendingCount: number
+  administratorCount: number
+  currentUserStatus: string | null
+  currentUserIsAdministrator: number
+}): GroupSummary {
+  return {
+    id: row.id,
+    tag: row.tag,
+    name: row.name,
+    logoUrl: row.logoUrl ?? undefined,
+    tagColor: normalizeGroupTagColor(row.tagColor),
+    description: row.description,
+    memberCount: Number(row.memberCount),
+    pendingCount: Number(row.pendingCount),
+    administratorCount: Number(row.administratorCount),
+    currentUserStatus: normalizeGroupMembershipStatus(row.currentUserStatus),
+    currentUserIsAdministrator: Boolean(row.currentUserIsAdministrator),
+  }
+}
+
+function getGroupParticipants(groupId: string, type: 'administrators' | 'members' | 'pending') {
+  const query =
+    type === 'administrators'
+      ? `
+        SELECT
+          p.discord_id AS discordId,
+          p.name AS name,
+          p.avatar_url AS avatarUrl,
+          g.tag AS groupTag,
+          g.tag_color AS groupTagColor
+        FROM group_administrators ga
+        JOIN groups g ON g.id = ga.group_id
+        JOIN participants p ON p.discord_id = ga.discord_id
+        WHERE ga.group_id = ?
+        ORDER BY p.name COLLATE NOCASE
+      `
+      : `
+        SELECT
+          p.discord_id AS discordId,
+          p.name AS name,
+          p.avatar_url AS avatarUrl,
+          g.tag AS groupTag,
+          g.tag_color AS groupTagColor
+        FROM group_members gm
+        JOIN groups g ON g.id = gm.group_id
+        JOIN participants p ON p.discord_id = gm.discord_id
+        WHERE gm.group_id = ? AND gm.status = ?
+          AND NOT EXISTS (
+            SELECT 1
+            FROM group_administrators ga
+            WHERE ga.group_id = gm.group_id
+              AND ga.discord_id = gm.discord_id
+          )
+        ORDER BY p.name COLLATE NOCASE
+      `
+  const args = type === 'administrators' ? [groupId] : [groupId, type === 'members' ? 'member' : 'pending']
+  const rows = sqlite.prepare(query).all(...args) as Array<{
+    discordId: string
+    name: string
+    groupTag: string
+    groupTagColor: string
+    avatarUrl: string | null
+  }>
+
+  return rows.map((row) => ({
+    discordId: row.discordId,
+    name: row.name,
+    groupTag: row.groupTag,
+    groupTagColor: normalizeGroupTagColor(row.groupTagColor),
+    avatarUrl: row.avatarUrl ?? undefined,
+  }))
+}
+
+function getGroupRowOrThrow(groupId: string) {
+  const normalizedGroupId = groupId.trim()
+  if (!normalizedGroupId) throw new Error('Group is required.')
+  const group = db.select().from(groups).where(eq(groups.id, normalizedGroupId)).get()
+  if (!group) throw new Error('Group not found.')
+  return group
+}
+
+function normalizeGroupMembershipStatus(status: string | null): GroupMembershipStatus | undefined {
+  return status === 'pending' || status === 'member' ? status : undefined
+}
+
+function normalizeGroupTag(value: string) {
+  const tag = value.trim().toUpperCase()
+  if (!/^[A-Z0-9]{2,4}$/.test(tag)) {
+    throw new Error('Group tag must be 2-4 letters or numbers.')
+  }
+  return tag
+}
+
+function normalizeGroupName(value: string) {
+  const name = value.trim().replace(/\s+/g, ' ').slice(0, 80)
+  if (!name) throw new Error('Group name is required.')
+  return name
+}
+
+function normalizeGroupDescription(value: string) {
+  const description = value.trim().slice(0, 2000)
+  if (!description) throw new Error('Group description is required.')
+  return description
+}
+
+function normalizeGroupTagColor(value?: string | null) {
+  const color = String(value ?? '').trim()
+  return /^#[0-9a-fA-F]{6}$/.test(color) ? color.toLowerCase() : DEFAULT_GROUP_TAG_COLOR
+}
+
+function normalizeGroupLogoUrl(value?: string | null) {
+  const logoUrl = value?.trim()
+  if (!logoUrl) return undefined
+  if (logoUrl.length > 500_000) throw new Error('Group logo is too large.')
+  if (
+    /^data:image\/(?:png|jpe?g|webp|gif);base64,[a-z0-9+/=]+$/i.test(logoUrl) ||
+    /^\/[a-z0-9/_\-%.]+$/i.test(logoUrl) ||
+    /^https:\/\/[^\s]+$/i.test(logoUrl)
+  ) {
+    return logoUrl
+  }
+  throw new Error('Group logo must be an uploaded image.')
+}
+
+function ensureParticipantIdentity(player: { id: string; name: string; avatarUrl?: string }) {
+  const normalizedId = player.id.trim()
+  if (!normalizedId) throw new Error('Discord login required.')
+  const existing = db.select().from(participants).where(eq(participants.discordId, normalizedId)).get()
+  if (existing) return
+  upsertParticipantProfileIdentity(normalizedId, player.name, player.avatarUrl)
+}
+
+function requireKnownParticipant(discordId: string) {
+  const normalizedDiscordId = discordId.trim()
+  if (!normalizedDiscordId) throw new Error('Player is required.')
+  const participant = db.select().from(participants).where(eq(participants.discordId, normalizedDiscordId)).get()
+  if (!participant) throw new Error('Player not found.')
+  return normalizedDiscordId
+}
+
+function assertPlayerIsNotInAnotherGroup(discordId: string, groupId: string) {
+  const normalizedDiscordId = discordId.trim()
+  const normalizedGroupId = groupId.trim()
+  if (!normalizedDiscordId || !normalizedGroupId) return
+
+  const membership = sqlite.prepare(`
+    SELECT g.name AS groupName
+    FROM group_members gm
+    JOIN groups g ON g.id = gm.group_id
+    WHERE gm.discord_id = ?
+      AND gm.group_id != ?
+      AND gm.status = 'member'
+    LIMIT 1
+  `).get(normalizedDiscordId, normalizedGroupId) as { groupName: string } | undefined
+  if (membership) {
+    throw new Error(`Player must leave ${membership.groupName} before joining another group.`)
+  }
+
+  const administration = sqlite.prepare(`
+    SELECT g.name AS groupName
+    FROM group_administrators ga
+    JOIN groups g ON g.id = ga.group_id
+    WHERE ga.discord_id = ?
+      AND ga.group_id != ?
+    LIMIT 1
+  `).get(normalizedDiscordId, normalizedGroupId) as { groupName: string } | undefined
+  if (administration) {
+    throw new Error(`Player must leave ${administration.groupName} before joining another group.`)
+  }
+}
+
 export function getEventParticipantNameOverrides(eventId: string): RegisteredParticipant[] {
   const participantRows = db
     .select()
@@ -2356,6 +2854,8 @@ export function getAdminPlayerCharacterConfigs(): AdminPlayerCharacterConfig[] {
     return {
       discordId: player.discordId,
       name: player.name,
+      groupTag: player.groupTag,
+      groupTagColor: player.groupTagColor,
       noPersonalJaegerAccount: Boolean(profile?.noPersonalJaegerAccount),
       characters: getPlayerCharacters(player.discordId),
     }
@@ -2465,10 +2965,13 @@ export function getPlayerSettings(discordId: string) {
   const participant = db.select().from(participants).where(eq(participants.discordId, discordId)).get()
   const profile = db.select().from(playerProfiles).where(eq(playerProfiles.discordId, discordId)).get()
   const badges = getPlayerBadges(discordId)
+  const groupBadge = getParticipantGroupBadgeMap([discordId]).get(discordId)
 
   return {
     discordId,
     name: participant?.name ?? discordId,
+    groupTag: groupBadge?.tag,
+    groupTagColor: groupBadge?.color,
     avatarUrl: participant?.avatarUrl ?? undefined,
     bannerUrl: normalizeProfileBanner(profile?.bannerUrl),
     catchphrase: profile?.catchphrase ?? '',
@@ -2604,12 +3107,16 @@ export function getEventPlayerCharacterAssignments(eventId: string): EventPlayer
     assignedAt: string | null
   }>
 
+  const groupBadges = getParticipantGroupBadgeMap(rows.map((row) => row.discordId))
   const assignments = new Map<string, EventPlayerCharacterAssignment>()
   for (const row of rows) {
+    const groupBadge = groupBadges.get(row.discordId)
     const item = assignments.get(row.discordId) ?? {
       eventId: row.eventId,
       discordId: row.discordId,
       playerName: row.playerName,
+      groupTag: groupBadge?.tag,
+      groupTagColor: groupBadge?.color,
       noPersonalJaegerAccount: Boolean(row.noPersonalJaegerAccount),
       assignments: [],
     }
@@ -3038,12 +3545,17 @@ export function searchPlayerProfiles(query = ''): PlayerProfileSummary[] {
     characterCount: number
   }>
 
+  const groupBadges = getParticipantGroupBadgeMap(rows.map((row) => row.discordId))
+
   return rows.map((row) => {
     const badges = getPlayerBadges(row.discordId)
+    const groupBadge = groupBadges.get(row.discordId)
 
     return {
       discordId: row.discordId,
       name: row.name,
+      groupTag: groupBadge?.tag,
+      groupTagColor: groupBadge?.color,
       avatarUrl: row.avatarUrl ?? undefined,
       bannerUrl: row.bannerUrl ?? undefined,
       catchphrase: row.catchphrase ?? undefined,
@@ -3078,6 +3590,7 @@ export function getPlayerProfile(discordId: string): PlayerProfile | null {
   const participant = db.select().from(participants).where(eq(participants.discordId, discordId)).get()
   if (!participant) return null
   const profile = db.select().from(playerProfiles).where(eq(playerProfiles.discordId, discordId)).get()
+  const groupBadge = getParticipantGroupBadgeMap([discordId]).get(discordId)
   const history = getRatingHistory(discordId)
   const hammaStats = getHammaCombatStats(discordId)
   const badges = getPlayerBadges(discordId)
@@ -3088,6 +3601,8 @@ export function getPlayerProfile(discordId: string): PlayerProfile | null {
   return {
     discordId,
     name: participant.name,
+    groupTag: groupBadge?.tag,
+    groupTagColor: groupBadge?.color,
     avatarUrl: participant.avatarUrl ?? undefined,
     bannerUrl: normalizeProfileBanner(profile?.bannerUrl) || undefined,
     catchphrase: profile?.catchphrase ?? undefined,
@@ -3120,14 +3635,18 @@ export function getAdminBadgeManagerData(): AdminBadgeManagerData {
     }))
     .sort((a, b) => a.name.localeCompare(b.name))
 
-  const players = db
-    .select()
-    .from(participants)
-    .all()
-    .map((participant) => ({
-      discordId: participant.discordId,
-      name: participant.name,
-    }))
+  const participantRows = db.select().from(participants).all()
+  const playerGroupBadges = getParticipantGroupBadgeMap(participantRows.map((participant) => participant.discordId))
+  const players = participantRows
+    .map((participant) => {
+      const groupBadge = playerGroupBadges.get(participant.discordId)
+      return {
+        discordId: participant.discordId,
+        name: participant.name,
+        groupTag: groupBadge?.tag,
+        groupTagColor: groupBadge?.color,
+      }
+    })
     .sort((a, b) => a.name.localeCompare(b.name))
 
   const assignments = sqlite.prepare(`
@@ -3142,6 +3661,12 @@ export function getAdminBadgeManagerData(): AdminBadgeManagerData {
     LEFT JOIN participants p ON p.discord_id = pba.discord_id
     ORDER BY bd.name COLLATE NOCASE, playerName COLLATE NOCASE
   `).all() as AdminBadgeManagerData['assignments']
+  const assignmentGroupBadges = getParticipantGroupBadgeMap(assignments.map((assignment) => assignment.discordId))
+  for (const assignment of assignments) {
+    const groupBadge = assignmentGroupBadges.get(assignment.discordId)
+    assignment.groupTag = groupBadge?.tag
+    assignment.groupTagColor = groupBadge?.color
+  }
 
   return { badges, players, assignments }
 }
@@ -3258,10 +3783,14 @@ export function getAdminPlayerProfileEditorData(discordId: string): AdminPlayerP
   const profile = db.select().from(playerProfiles).where(eq(playerProfiles.discordId, normalizedId)).get()
   const playerBadges = getPlayerBadges(normalizedId)
 
+  const groupBadge = getParticipantGroupBadgeMap([normalizedId]).get(normalizedId)
+
   return {
     player: {
       discordId: participant.discordId,
       name: participant.name,
+      groupTag: groupBadge?.tag,
+      groupTagColor: groupBadge?.color,
     },
     catchphrase: profile?.catchphrase ?? '',
     badges,
@@ -3474,6 +4003,31 @@ function getParticipantNameMap(discordIds: string[]) {
       .all()
       .filter((participant) => wanted.has(participant.discordId))
       .map((participant) => [participant.discordId, participant.name]),
+  )
+}
+
+function getParticipantGroupBadgeMap(discordIds: string[]) {
+  const wanted = Array.from(new Set(discordIds.map((id) => id.trim()).filter(Boolean)))
+  if (!wanted.length) return new Map<string, { tag: string; color: string }>()
+
+  const rows = sqlite.prepare(`
+    SELECT gm.discord_id AS discordId, g.tag AS groupTag, g.tag_color AS groupTagColor
+    FROM group_members gm
+    JOIN groups g ON g.id = gm.group_id
+    WHERE gm.status = 'member'
+  `).all() as Array<{ discordId: string; groupTag: string; groupTagColor: string | null }>
+
+  const wantedIds = new Set(wanted)
+  return new Map(
+    rows
+      .filter((row) => wantedIds.has(row.discordId))
+      .map((row) => [
+        row.discordId,
+        {
+          tag: row.groupTag,
+          color: normalizeGroupTagColor(row.groupTagColor),
+        },
+      ]),
   )
 }
 
@@ -3814,6 +4368,32 @@ function bootstrap() {
       name_overridden INTEGER NOT NULL DEFAULT 0,
       updated_at TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS groups (
+      id TEXT PRIMARY KEY,
+      tag TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL,
+      logo_url TEXT,
+      tag_color TEXT NOT NULL DEFAULT '${DEFAULT_GROUP_TAG_COLOR}',
+      description TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS group_members (
+      group_id TEXT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+      discord_id TEXT NOT NULL REFERENCES participants(discord_id) ON DELETE CASCADE,
+      status TEXT NOT NULL DEFAULT 'pending',
+      requested_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (group_id, discord_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_group_members_status
+      ON group_members(group_id, status);
+    CREATE TABLE IF NOT EXISTS group_administrators (
+      group_id TEXT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+      discord_id TEXT NOT NULL REFERENCES participants(discord_id) ON DELETE CASCADE,
+      assigned_at TEXT NOT NULL,
+      PRIMARY KEY (group_id, discord_id)
+    );
     CREATE TABLE IF NOT EXISTS participant_role_ids (
       discord_id TEXT NOT NULL REFERENCES participants(discord_id) ON DELETE CASCADE,
       role_id TEXT NOT NULL,
@@ -4025,6 +4605,7 @@ function bootstrap() {
   addColumnIfMissing('teams', 'honu_report_created_at', 'TEXT')
   addColumnIfMissing('participants', 'avatar_url', 'TEXT')
   addColumnIfMissing('participants', 'name_overridden', 'INTEGER NOT NULL DEFAULT 0')
+  addColumnIfMissing('groups', 'tag_color', `TEXT NOT NULL DEFAULT '${DEFAULT_GROUP_TAG_COLOR}'`)
   addColumnIfMissing('player_profiles', 'no_personal_jaeger_account', 'INTEGER NOT NULL DEFAULT 0')
   addColumnIfMissing('badge_definitions', 'color', "TEXT NOT NULL DEFAULT '#e4b45e'")
   addColumnIfMissing('badge_definitions', 'source', "TEXT NOT NULL DEFAULT 'manual'")

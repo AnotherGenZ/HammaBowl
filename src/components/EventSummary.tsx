@@ -5,6 +5,7 @@ import { buildTeamLedgers } from '../lib/rules'
 import type { HammaEvent } from '../lib/types'
 import { Countdown } from './Countdown'
 import { EventLinkIcon } from './EventLinkIcons'
+import { PlayerName } from './PlayerName'
 
 export function EventSummary({ event }: { event: HammaEvent }) {
   const ledgers = buildTeamLedgers(event)
@@ -161,7 +162,7 @@ function TeamPanel({
   bonusCap,
 }: {
   team: HammaEvent['teams'][number]
-  members: Array<{ player: { id: string; name: string }; label?: string }>
+  members: Array<{ player: { id: string; name: string; groupTag?: string; groupTagColor?: string }; label?: string }>
   matchStarted: boolean
   budget: number
   bonusCap: number
@@ -180,7 +181,11 @@ function TeamPanel({
           {members.map((member) => (
             <div key={member.player.id} className="team-roster-member">
               <Link to="/players/$discordId" params={{ discordId: member.player.id }}>
-                {member.player.name}
+                <PlayerName
+                  name={member.player.name}
+                  groupTag={member.player.groupTag}
+                  groupTagColor={member.player.groupTagColor}
+                />
               </Link>
               {member.label ? <small>{member.label}</small> : null}
             </div>
@@ -247,7 +252,11 @@ function CompletedEventShowcase({ event, ledger }: { event: HammaEvent; ledger: 
         {members.map((member) => (
           <li key={member.player.id}>
             <Link to="/players/$discordId" params={{ discordId: member.player.id }}>
-              {member.player.name}
+              <PlayerName
+                name={member.player.name}
+                groupTag={member.player.groupTag}
+                groupTagColor={member.player.groupTagColor}
+              />
             </Link>
             {member.label ? <small>{member.label}</small> : null}
           </li>

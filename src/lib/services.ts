@@ -21,6 +21,8 @@ let autoRefreshTimerStarted = false
 export interface SessionUser {
   id: string
   name: string
+  groupTag?: string
+  groupTagColor?: string
   roles: Role[]
 }
 

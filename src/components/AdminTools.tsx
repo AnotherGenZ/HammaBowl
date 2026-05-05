@@ -17,6 +17,7 @@ import { shortDate } from '../lib/format'
 import { HONU_ALERT_ZONE_OPTIONS } from '../lib/honu'
 import { undraftedDraftEligiblePlayers } from '../lib/rules'
 import { EVENT_LINK_ICON_OPTIONS, EventLinkIcon } from './EventLinkIcons'
+import { PlayerName } from './PlayerName'
 
 const EVENT_TROPHY_OPTIONS: Array<{ id: EventTrophyId; label: string }> = [
   { id: 'hammo-bowl-cup', label: 'HammaBowl Cup' },
@@ -1084,7 +1085,7 @@ function EventJaegerAssignments({
             {assignments.length ? (
               assignments.map((assignment) => (
                 <option key={assignment.discordId} value={assignment.discordId}>
-                  {assignment.playerName}
+                  {assignment.groupTag ? `[${assignment.groupTag}] ${assignment.playerName}` : assignment.playerName}
                 </option>
               ))
             ) : (
@@ -1208,7 +1209,7 @@ function PlayerRenameManager({
                 <option value="">Choose player</option>
                 {players.map((player) => (
                   <option key={player.discordId} value={player.discordId}>
-                    {player.name}
+                    {player.groupTag ? `[${player.groupTag}] ${player.name}` : player.name}
                   </option>
                 ))}
               </>
@@ -1360,7 +1361,7 @@ function PlayerJaegerManager({
                 <option value="">Choose player</option>
                 {players.map((player) => (
                   <option key={player.discordId} value={player.discordId}>
-                    {player.name}
+                    {player.groupTag ? `[${player.groupTag}] ${player.name}` : player.name}
                   </option>
                 ))}
               </>
@@ -1417,7 +1418,13 @@ function PlayerJaegerManager({
       <div className="resolved-list admin-assignment-list">
         {selectedPlayer && (selectedPlayer.noPersonalJaegerAccount || selectedPlayerHasResolvedCharacters) ? (
           <span>
-            <strong>{selectedPlayer.name}</strong>
+            <strong>
+              <PlayerName
+                name={selectedPlayer.name}
+                groupTag={selectedPlayer.groupTag}
+                groupTagColor={selectedPlayer.groupTagColor}
+              />
+            </strong>
             {selectedPlayer.noPersonalJaegerAccount
               ? 'Currently marked as needing event-assigned Jaeger characters'
               : 'Uses configured Jaeger characters'}
@@ -2579,7 +2586,7 @@ function RatingAdjustments({
             {raters.length ? (
               raters.map((player) => (
                 <option key={player.id} value={player.id}>
-                  {player.name}
+                  {player.groupTag ? `[${player.groupTag}] ${player.name}` : player.name}
                 </option>
               ))
             ) : (
@@ -2637,7 +2644,7 @@ function TeamForm({
         />
       </label>
       <label>
-        Team
+        Team Captain
         <select
           value={captainDiscordId}
           disabled={disabled}
@@ -2646,7 +2653,7 @@ function TeamForm({
           <option value="">Unassigned</option>
           {sortedPlayers.map((player) => (
             <option key={player.id} value={player.id}>
-              {player.name}
+              {player.groupTag ? `[${player.groupTag}] ${player.name}` : player.name}
             </option>
           ))}
         </select>

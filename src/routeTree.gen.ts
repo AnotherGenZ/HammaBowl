@@ -14,13 +14,17 @@ import { Route as RatingsRouteImport } from './routes/ratings'
 import { Route as PlayersRouteImport } from './routes/players'
 import { Route as OverlayRouteImport } from './routes/overlay'
 import { Route as HallOfLegendsRouteImport } from './routes/hall-of-legends'
+import { Route as GroupsRouteImport } from './routes/groups'
 import { Route as DraftRouteImport } from './routes/draft'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PlayersDiscordIdRouteImport } from './routes/players_.$discordId'
 import { Route as HallOfLegendsEventIdRouteImport } from './routes/hall-of-legends_.$eventId'
+import { Route as GroupsGroupIdRouteImport } from './routes/groups_.$groupId'
 import { Route as ApiRatingsRouteImport } from './routes/api.ratings'
 import { Route as ApiProfileRouteImport } from './routes/api.profile'
+import { Route as ApiGroupsRouteImport } from './routes/api.groups'
+import { Route as ApiGroupMembershipsRouteImport } from './routes/api.group-memberships'
 import { Route as AdminHistoryRouteImport } from './routes/admin_.history'
 import { Route as AdminGeneralRouteImport } from './routes/admin_.general'
 import { Route as HallOfLegendsEventIdArchiveRouteImport } from './routes/hall-of-legends_.$eventId_.archive'
@@ -74,6 +78,11 @@ const HallOfLegendsRoute = HallOfLegendsRouteImport.update({
   path: '/hall-of-legends',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GroupsRoute = GroupsRouteImport.update({
+  id: '/groups',
+  path: '/groups',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DraftRoute = DraftRouteImport.update({
   id: '/draft',
   path: '/draft',
@@ -99,6 +108,11 @@ const HallOfLegendsEventIdRoute = HallOfLegendsEventIdRouteImport.update({
   path: '/hall-of-legends/$eventId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GroupsGroupIdRoute = GroupsGroupIdRouteImport.update({
+  id: '/groups_/$groupId',
+  path: '/groups/$groupId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiRatingsRoute = ApiRatingsRouteImport.update({
   id: '/api/ratings',
   path: '/api/ratings',
@@ -107,6 +121,16 @@ const ApiRatingsRoute = ApiRatingsRouteImport.update({
 const ApiProfileRoute = ApiProfileRouteImport.update({
   id: '/api/profile',
   path: '/api/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiGroupsRoute = ApiGroupsRouteImport.update({
+  id: '/api/groups',
+  path: '/api/groups',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiGroupMembershipsRoute = ApiGroupMembershipsRouteImport.update({
+  id: '/api/group-memberships',
+  path: '/api/group-memberships',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminHistoryRoute = AdminHistoryRouteImport.update({
@@ -254,6 +278,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/draft': typeof DraftRoute
+  '/groups': typeof GroupsRoute
   '/hall-of-legends': typeof HallOfLegendsRoute
   '/overlay': typeof OverlayRoute
   '/players': typeof PlayersRoute
@@ -261,8 +286,11 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/admin/general': typeof AdminGeneralRoute
   '/admin/history': typeof AdminHistoryRoute
+  '/api/group-memberships': typeof ApiGroupMembershipsRoute
+  '/api/groups': typeof ApiGroupsRoute
   '/api/profile': typeof ApiProfileRoute
   '/api/ratings': typeof ApiRatingsRoute
+  '/groups/$groupId': typeof GroupsGroupIdRoute
   '/hall-of-legends/$eventId': typeof HallOfLegendsEventIdRoute
   '/players/$discordId': typeof PlayersDiscordIdRoute
   '/api/admin/badges': typeof ApiAdminBadgesRoute
@@ -295,6 +323,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/draft': typeof DraftRoute
+  '/groups': typeof GroupsRoute
   '/hall-of-legends': typeof HallOfLegendsRoute
   '/overlay': typeof OverlayRoute
   '/players': typeof PlayersRoute
@@ -302,8 +331,11 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/admin/general': typeof AdminGeneralRoute
   '/admin/history': typeof AdminHistoryRoute
+  '/api/group-memberships': typeof ApiGroupMembershipsRoute
+  '/api/groups': typeof ApiGroupsRoute
   '/api/profile': typeof ApiProfileRoute
   '/api/ratings': typeof ApiRatingsRoute
+  '/groups/$groupId': typeof GroupsGroupIdRoute
   '/hall-of-legends/$eventId': typeof HallOfLegendsEventIdRoute
   '/players/$discordId': typeof PlayersDiscordIdRoute
   '/api/admin/badges': typeof ApiAdminBadgesRoute
@@ -337,6 +369,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/draft': typeof DraftRoute
+  '/groups': typeof GroupsRoute
   '/hall-of-legends': typeof HallOfLegendsRoute
   '/overlay': typeof OverlayRoute
   '/players': typeof PlayersRoute
@@ -344,8 +377,11 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/admin_/general': typeof AdminGeneralRoute
   '/admin_/history': typeof AdminHistoryRoute
+  '/api/group-memberships': typeof ApiGroupMembershipsRoute
+  '/api/groups': typeof ApiGroupsRoute
   '/api/profile': typeof ApiProfileRoute
   '/api/ratings': typeof ApiRatingsRoute
+  '/groups_/$groupId': typeof GroupsGroupIdRoute
   '/hall-of-legends_/$eventId': typeof HallOfLegendsEventIdRoute
   '/players_/$discordId': typeof PlayersDiscordIdRoute
   '/api/admin/badges': typeof ApiAdminBadgesRoute
@@ -380,6 +416,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/draft'
+    | '/groups'
     | '/hall-of-legends'
     | '/overlay'
     | '/players'
@@ -387,8 +424,11 @@ export interface FileRouteTypes {
     | '/settings'
     | '/admin/general'
     | '/admin/history'
+    | '/api/group-memberships'
+    | '/api/groups'
     | '/api/profile'
     | '/api/ratings'
+    | '/groups/$groupId'
     | '/hall-of-legends/$eventId'
     | '/players/$discordId'
     | '/api/admin/badges'
@@ -421,6 +461,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/draft'
+    | '/groups'
     | '/hall-of-legends'
     | '/overlay'
     | '/players'
@@ -428,8 +469,11 @@ export interface FileRouteTypes {
     | '/settings'
     | '/admin/general'
     | '/admin/history'
+    | '/api/group-memberships'
+    | '/api/groups'
     | '/api/profile'
     | '/api/ratings'
+    | '/groups/$groupId'
     | '/hall-of-legends/$eventId'
     | '/players/$discordId'
     | '/api/admin/badges'
@@ -462,6 +506,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/draft'
+    | '/groups'
     | '/hall-of-legends'
     | '/overlay'
     | '/players'
@@ -469,8 +514,11 @@ export interface FileRouteTypes {
     | '/settings'
     | '/admin_/general'
     | '/admin_/history'
+    | '/api/group-memberships'
+    | '/api/groups'
     | '/api/profile'
     | '/api/ratings'
+    | '/groups_/$groupId'
     | '/hall-of-legends_/$eventId'
     | '/players_/$discordId'
     | '/api/admin/badges'
@@ -504,6 +552,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
   DraftRoute: typeof DraftRoute
+  GroupsRoute: typeof GroupsRoute
   HallOfLegendsRoute: typeof HallOfLegendsRoute
   OverlayRoute: typeof OverlayRoute
   PlayersRoute: typeof PlayersRoute
@@ -511,8 +560,11 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   AdminGeneralRoute: typeof AdminGeneralRoute
   AdminHistoryRoute: typeof AdminHistoryRoute
+  ApiGroupMembershipsRoute: typeof ApiGroupMembershipsRoute
+  ApiGroupsRoute: typeof ApiGroupsRoute
   ApiProfileRoute: typeof ApiProfileRoute
   ApiRatingsRoute: typeof ApiRatingsRoute
+  GroupsGroupIdRoute: typeof GroupsGroupIdRoute
   HallOfLegendsEventIdRoute: typeof HallOfLegendsEventIdRoute
   PlayersDiscordIdRoute: typeof PlayersDiscordIdRoute
   ApiAdminBadgesRoute: typeof ApiAdminBadgesRoute
@@ -576,6 +628,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HallOfLegendsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/groups': {
+      id: '/groups'
+      path: '/groups'
+      fullPath: '/groups'
+      preLoaderRoute: typeof GroupsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/draft': {
       id: '/draft'
       path: '/draft'
@@ -611,6 +670,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HallOfLegendsEventIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/groups_/$groupId': {
+      id: '/groups_/$groupId'
+      path: '/groups/$groupId'
+      fullPath: '/groups/$groupId'
+      preLoaderRoute: typeof GroupsGroupIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/ratings': {
       id: '/api/ratings'
       path: '/api/ratings'
@@ -623,6 +689,20 @@ declare module '@tanstack/react-router' {
       path: '/api/profile'
       fullPath: '/api/profile'
       preLoaderRoute: typeof ApiProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/groups': {
+      id: '/api/groups'
+      path: '/api/groups'
+      fullPath: '/api/groups'
+      preLoaderRoute: typeof ApiGroupsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/group-memberships': {
+      id: '/api/group-memberships'
+      path: '/api/group-memberships'
+      fullPath: '/api/group-memberships'
+      preLoaderRoute: typeof ApiGroupMembershipsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin_/history': {
@@ -847,6 +927,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
   DraftRoute: DraftRoute,
+  GroupsRoute: GroupsRoute,
   HallOfLegendsRoute: HallOfLegendsRoute,
   OverlayRoute: OverlayRoute,
   PlayersRoute: PlayersRoute,
@@ -854,8 +935,11 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   AdminGeneralRoute: AdminGeneralRoute,
   AdminHistoryRoute: AdminHistoryRoute,
+  ApiGroupMembershipsRoute: ApiGroupMembershipsRoute,
+  ApiGroupsRoute: ApiGroupsRoute,
   ApiProfileRoute: ApiProfileRoute,
   ApiRatingsRoute: ApiRatingsRoute,
+  GroupsGroupIdRoute: GroupsGroupIdRoute,
   HallOfLegendsEventIdRoute: HallOfLegendsEventIdRoute,
   PlayersDiscordIdRoute: PlayersDiscordIdRoute,
   ApiAdminBadgesRoute: ApiAdminBadgesRoute,

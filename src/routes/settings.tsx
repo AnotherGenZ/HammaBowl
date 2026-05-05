@@ -1,6 +1,7 @@
 import { Link, createFileRoute, redirect } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { useState } from 'react'
+import { PlayerName } from '../components/PlayerName'
 import { pageMeta } from '../lib/meta'
 import { PROFILE_BANNERS } from '../lib/profileBanners'
 import { useSession } from '../lib/SessionContext'
@@ -134,7 +135,13 @@ function Settings() {
       <section className="event-hero compact-hero">
         <div>
           <p className="eyebrow">Player settings</p>
-          <h1>{initialProfile.name}</h1>
+          <h1>
+            <PlayerName
+              name={initialProfile.name}
+              groupTag={initialProfile.groupTag}
+              groupTagColor={initialProfile.groupTagColor}
+            />
+          </h1>
           <div className="meta-row">
             <Link to="/players/$discordId" params={{ discordId: initialProfile.discordId }}>
               View profile

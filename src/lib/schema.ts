@@ -92,6 +92,42 @@ export const participants = sqliteTable('participants', {
   updatedAt: text('updated_at').notNull(),
 })
 
+export const groups = sqliteTable('groups', {
+  id: text('id').primaryKey(),
+  tag: text('tag').notNull().unique(),
+  name: text('name').notNull(),
+  logoUrl: text('logo_url'),
+  tagColor: text('tag_color').notNull().default('#47bf8f'),
+  description: text('description').notNull(),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+})
+
+export const groupMembers = sqliteTable(
+  'group_members',
+  {
+    groupId: text('group_id').notNull().references(() => groups.id, { onDelete: 'cascade' }),
+    discordId: text('discord_id').notNull().references(() => participants.discordId, { onDelete: 'cascade' }),
+    status: text('status').notNull().default('pending'),
+    requestedAt: text('requested_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.groupId, table.discordId] }),
+    index('idx_group_members_status').on(table.groupId, table.status),
+  ],
+)
+
+export const groupAdministrators = sqliteTable(
+  'group_administrators',
+  {
+    groupId: text('group_id').notNull().references(() => groups.id, { onDelete: 'cascade' }),
+    discordId: text('discord_id').notNull().references(() => participants.discordId, { onDelete: 'cascade' }),
+    assignedAt: text('assigned_at').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.groupId, table.discordId] })],
+)
+
 export const playerProfiles = sqliteTable('player_profiles', {
   discordId: text('discord_id').primaryKey(),
   bannerUrl: text('banner_url'),
@@ -324,4 +360,9 @@ export const eventRelations = relations(events, ({ many }) => ({
   activeDraftBids: many(activeDraftBids),
   rounds: many(eventRounds),
   roundScores: many(eventRoundScores),
+}))
+
+export const groupRelations = relations(groups, ({ many }) => ({
+  members: many(groupMembers),
+  administrators: many(groupAdministrators),
 }))

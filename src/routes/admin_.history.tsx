@@ -677,7 +677,7 @@ function ParticipantPicker({
       <datalist id={`${label.replace(/\s+/g, '-').toLowerCase()}-participants`}>
         {participants.map((participant) => (
           <option key={participant.discordId} value={participant.discordId}>
-            {participant.name}
+            {participant.groupTag ? `[${participant.groupTag}] ${participant.name}` : participant.name}
           </option>
         ))}
       </datalist>

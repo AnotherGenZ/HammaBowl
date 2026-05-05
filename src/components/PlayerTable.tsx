@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
 import type { PlayerRatingSummary } from '../lib/types'
+import { PlayerName } from './PlayerName'
 
 type PlayerTableSort = 'name-asc' | 'name-desc' | 'rating-asc' | 'rating-desc'
 
@@ -57,7 +58,13 @@ export function PlayerTable({ rows }: { rows: PlayerRatingSummary[] }) {
             <tr key={row.player.id}>
               <td>
                 <Link to="/players/$discordId" params={{ discordId: row.player.id }}>
-                  <strong>{row.player.name}</strong>
+                  <strong>
+                    <PlayerName
+                      name={row.player.name}
+                      groupTag={row.player.groupTag}
+                      groupTagColor={row.player.groupTagColor}
+                    />
+                  </strong>
                 </Link>
               </td>
               <td>

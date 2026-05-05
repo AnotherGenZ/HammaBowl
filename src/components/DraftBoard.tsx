@@ -15,6 +15,7 @@ import {
 } from '../lib/rules'
 import type { HammaEvent } from '../lib/types'
 import { useRealtimeCurrentEvent } from '../lib/useRealtimeCurrentEvent'
+import { PlayerName } from './PlayerName'
 
 export function DraftBoard({
   event,
@@ -371,7 +372,11 @@ export function DraftBoard({
                             params={{ discordId: ledger.captainPlayer.id }}
                             className="captain-pick-name"
                           >
-                            <span>{ledger.captainPlayer.name}</span>
+                            <PlayerName
+                              name={ledger.captainPlayer.name}
+                              groupTag={ledger.captainPlayer.groupTag}
+                              groupTagColor={ledger.captainPlayer.groupTagColor}
+                            />
                             <span className="captain-crown" aria-hidden="true">
                               ♛
                             </span>
@@ -384,7 +389,11 @@ export function DraftBoard({
                       <li key={pick.id}>
                         <div className="pick-main">
                           <Link to="/players/$discordId" params={{ discordId: pick.player.id }}>
-                            <span>{pick.player.name}</span>
+                            <PlayerName
+                              name={pick.player.name}
+                              groupTag={pick.player.groupTag}
+                              groupTagColor={pick.player.groupTagColor}
+                            />
                           </Link>
                           <small>
                             <span title={money(pick.salary)}>{compactMoney(pick.salary)}</span>
@@ -452,7 +461,13 @@ export function DraftBoard({
                 <small>Player</small>
                 {bidPlayer ? (
                   <Link to="/players/$discordId" params={{ discordId: bidPlayer.id }}>
-                    <strong>{bidPlayer.name}</strong>
+                    <strong>
+                      <PlayerName
+                        name={bidPlayer.name}
+                        groupTag={bidPlayer.groupTag}
+                        groupTagColor={bidPlayer.groupTagColor}
+                      />
+                    </strong>
                   </Link>
                 ) : (
                   <strong>{activeBid.playerId}</strong>
@@ -552,7 +567,9 @@ export function DraftBoard({
             <article className="player-card" key={player.id}>
               <div className="player-name">
                 <Link to="/players/$discordId" params={{ discordId: player.id }}>
-                  <strong>{player.name}</strong>
+                  <strong>
+                    <PlayerName name={player.name} groupTag={player.groupTag} groupTagColor={player.groupTagColor} />
+                  </strong>
                 </Link>
                 {player.specs?.length ? (
                   <div className="player-specs" aria-label={`${player.name} signed specs`}>

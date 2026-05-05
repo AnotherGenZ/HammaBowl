@@ -2,6 +2,7 @@ import { Link, createFileRoute } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import type { CSSProperties } from 'react'
 import { useMemo, useState } from 'react'
+import { PlayerName } from '../components/PlayerName'
 import { pageMeta } from '../lib/meta'
 import type { PlayerBadge, PlayerProfileSummary } from '../lib/types'
 
@@ -182,7 +183,9 @@ function PlayersTableView({
         >
           <PlayerAvatar name={p.name} avatarUrl={p.avatarUrl} size={34} />
           <div className="players-table-name-cell">
-            <strong>{p.name}</strong>
+            <strong>
+              <PlayerName name={p.name} groupTag={p.groupTag} groupTagColor={p.groupTagColor} />
+            </strong>
             {p.badges.length > 0 ? (
               <div className="players-badge-row">
                 {p.badges.slice(0, 2).map((b) => (
@@ -265,7 +268,9 @@ function PlayersCardGrid({ players }: { players: PlayerProfileSummary[] }) {
             <div className="players-card-identity">
               <PlayerAvatar name={p.name} avatarUrl={p.avatarUrl} size={46} />
             </div>
-            <div className="players-card-name">{p.name}</div>
+            <div className="players-card-name">
+              <PlayerName name={p.name} groupTag={p.groupTag} groupTagColor={p.groupTagColor} />
+            </div>
             {p.catchphrase ? (
               <div className="players-card-catchphrase">{p.catchphrase}</div>
             ) : null}

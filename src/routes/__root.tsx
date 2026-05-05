@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-import type { ReactNode } from 'react'
+import { useRef, useState, type FocusEvent, type MutableRefObject, type ReactNode } from 'react'
 import {
   HeadContent,
   Link,
@@ -10,6 +10,7 @@ import {
 } from '@tanstack/react-router'
 import { pageMeta } from '../lib/meta'
 import { SessionProvider, useSession } from '../lib/SessionContext'
+import { PlayerName } from '../components/PlayerName'
 import appCss from '../styles.css?url'
 
 export const Route = createRootRoute({
@@ -75,6 +76,67 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
 function TopBar() {
   const { user, hasCurrentEvent, canRateCurrentEvent } = useSession()
   const isAdmin = user?.roles.includes('admin')
+  const [communityOpen, setCommunityOpen] = useState(false)
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const communityCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const userMenuCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pathname = useRouterState({ select: (state) => state.location.pathname })
+  const isCommunityRoute = pathname === '/players' ||
+    pathname.startsWith('/players/') ||
+    pathname === '/groups' ||
+    pathname.startsWith('/groups/')
+
+  function closeCommunityMenu() {
+    clearMenuCloseTimer(communityCloseTimer)
+    setCommunityOpen(false)
+  }
+
+  function closeUserMenu() {
+    clearMenuCloseTimer(userMenuCloseTimer)
+    setUserMenuOpen(false)
+  }
+
+  function openCommunityMenu() {
+    clearMenuCloseTimer(communityCloseTimer)
+    setCommunityOpen(true)
+  }
+
+  function openUserMenu() {
+    clearMenuCloseTimer(userMenuCloseTimer)
+    setUserMenuOpen(true)
+  }
+
+  function scheduleCommunityMenuClose() {
+    scheduleMenuClose(communityCloseTimer, closeCommunityMenu)
+  }
+
+  function scheduleUserMenuClose() {
+    scheduleMenuClose(userMenuCloseTimer, closeUserMenu)
+  }
+
+  function closeMenuOnBlur(
+    event: FocusEvent<HTMLElement>,
+    closeMenu: () => void,
+  ) {
+    const nextTarget = event.relatedTarget
+    if (!nextTarget || !event.currentTarget.contains(nextTarget)) {
+      closeMenu()
+    }
+  }
+
+  function clearMenuCloseTimer(timerRef: MutableRefObject<ReturnType<typeof setTimeout> | null>) {
+    if (!timerRef.current) return
+    clearTimeout(timerRef.current)
+    timerRef.current = null
+  }
+
+  function scheduleMenuClose(
+    timerRef: MutableRefObject<ReturnType<typeof setTimeout> | null>,
+    closeMenu: () => void,
+  ) {
+    clearMenuCloseTimer(timerRef)
+    timerRef.current = setTimeout(closeMenu, 180)
+  }
 
   return (
     <header className="topbar">
@@ -101,9 +163,41 @@ function TopBar() {
         <Link to="/hall-of-legends" activeProps={{ className: 'active' }}>
           Hall of Legends
         </Link>
-        <Link to="/players" activeProps={{ className: 'active' }}>
-          Players
-        </Link>
+        <div
+          className={communityOpen ? 'nav-menu open' : 'nav-menu'}
+          onMouseEnter={openCommunityMenu}
+          onMouseLeave={scheduleCommunityMenuClose}
+          onFocus={openCommunityMenu}
+          onBlur={(event) => closeMenuOnBlur(event, closeCommunityMenu)}
+        >
+          <button
+            type="button"
+            className={isCommunityRoute ? 'nav-menu-trigger active' : 'nav-menu-trigger'}
+            aria-haspopup="true"
+            aria-expanded={communityOpen}
+            onClick={() => setCommunityOpen((open) => !open)}
+          >
+            Community
+          </button>
+          <div className="nav-dropdown">
+            <Link
+              to="/players"
+              className="nav-dropdown-item"
+              activeProps={{ className: 'nav-dropdown-item active' }}
+              onClick={closeCommunityMenu}
+            >
+              Players
+            </Link>
+            <Link
+              to="/groups"
+              className="nav-dropdown-item"
+              activeProps={{ className: 'nav-dropdown-item active' }}
+              onClick={closeCommunityMenu}
+            >
+              Groups
+            </Link>
+          </div>
+        </div>
       </nav>
       <div className="account-actions">
         <a
@@ -124,26 +218,35 @@ function TopBar() {
           </Link>
         ) : null}
         {user ? (
-          <div className="user-menu">
+          <div
+            className={userMenuOpen ? 'user-menu open' : 'user-menu'}
+            onMouseEnter={openUserMenu}
+            onMouseLeave={scheduleUserMenuClose}
+            onFocus={openUserMenu}
+            onBlur={(event) => closeMenuOnBlur(event, closeUserMenu)}
+          >
             <Link
               to="/players/$discordId"
               params={{ discordId: user.id }}
               className="user-chip"
               activeProps={{ className: 'user-chip active' }}
               aria-label={`${user.name}'s profile`}
+              onClick={closeUserMenu}
             >
               {user.avatarUrl ? (
                 <img src={user.avatarUrl} alt="" />
               ) : (
                 <span aria-hidden="true">{user.name.slice(0, 1)}</span>
               )}
-              <strong>{user.name}</strong>
+              <strong>
+                <PlayerName name={user.name} groupTag={user.groupTag} groupTagColor={user.groupTagColor} />
+              </strong>
             </Link>
             <div className="user-dropdown">
-              <Link to="/settings" className="user-dropdown-item">
+              <Link to="/settings" className="user-dropdown-item" onClick={closeUserMenu}>
                 Settings
               </Link>
-              <form action="/api/auth/logout" method="post">
+              <form action="/api/auth/logout" method="post" onSubmit={closeUserMenu}>
                 <button className="user-dropdown-item user-dropdown-button" type="submit">
                   Logout
                 </button>
