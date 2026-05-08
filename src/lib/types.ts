@@ -12,6 +12,7 @@ export interface Player {
   outfit: string
   faction: 'VS' | 'NC' | 'TR' | 'NS'
   status: PlayerStatus
+  checkedInAt?: string
   specs?: string[]
 }
 

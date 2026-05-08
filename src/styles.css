@@ -2813,7 +2813,7 @@ main > .panel:first-child {
 
 .draft-teams-panel {
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto auto minmax(0, 1fr);
   align-content: stretch;
 }
 
@@ -2824,7 +2824,6 @@ main > .panel:first-child {
 .draft-teams-panel .team-grid {
   min-height: 0;
   align-items: stretch;
-  grid-row: 3;
 }
 
 .draft-teams-panel .team-panel {
@@ -2987,6 +2986,84 @@ main > .panel:first-child {
   margin: 0;
 }
 
+.check-in-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.check-in-panel > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.check-in-panel strong {
+  font-size: 0.88rem;
+}
+
+.check-in-panel small {
+  color: #b4bcbb;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.check-in-panel button {
+  flex: 0 0 auto;
+}
+
+.check-in-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 22px;
+  max-width: max-content;
+  margin-top: 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.07);
+  color: #d8dedc;
+  padding: 0 8px;
+  font-size: 0.68rem;
+  font-weight: 900;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.check-in-badge.compact {
+  min-height: 18px;
+  margin: 0 0 0 6px;
+  padding: 0 6px;
+  font-size: 0.62rem;
+  flex: 0 0 auto;
+}
+
+.check-in-badge.checked {
+  border-color: rgba(71, 191, 143, 0.5);
+  background: rgba(71, 191, 143, 0.13);
+  color: #bff0db;
+}
+
+.check-in-badge.pending {
+  border-color: rgba(228, 180, 94, 0.5);
+  background: rgba(228, 180, 94, 0.13);
+  color: #f4d59a;
+}
+
+.check-in-badge.missing {
+  border-color: rgba(217, 79, 61, 0.55);
+  background: rgba(217, 79, 61, 0.12);
+  color: #f2b4ab;
+}
+
 .spec-filter-row {
   display: flex;
   gap: 8px;
@@ -3138,6 +3215,16 @@ main > .panel:first-child {
 .text-button.danger:hover:not(:disabled) {
   background: rgba(217, 79, 61, 0.2);
   border-color: rgba(217, 79, 61, 0.7);
+}
+
+.text-button.steal {
+  border-color: rgba(228, 180, 94, 0.55);
+  color: #f4d59a;
+}
+
+.text-button.steal:hover:not(:disabled) {
+  background: rgba(228, 180, 94, 0.18);
+  border-color: rgba(228, 180, 94, 0.7);
 }
 
 .available-list,
@@ -4590,15 +4677,25 @@ main > .panel:first-child {
   grid-template-columns: minmax(0, 1fr) 96px auto minmax(150px, auto);
   align-items: center;
   gap: 14px;
-  height: 100%;
   padding: 14px;
-  min-height: 0;
-  overflow: hidden;
+  min-height: 82px;
+  overflow: visible;
 }
 
 .player-name {
   min-width: 0;
   overflow: visible;
+}
+
+.player-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.player-name-row a {
+  min-width: 0;
 }
 
 .player-name strong {

@@ -9,7 +9,7 @@ import { PlayerName } from './PlayerName'
 
 export function EventSummary({ event }: { event: HammaEvent }) {
   const ledgers = buildTeamLedgers(event)
-  const drafted = event.draftPicks.length
+  const drafted = ledgers.reduce((sum, ledger) => sum + ledger.picks.length, 0)
   const latestRound = [...event.rounds].sort((a, b) => b.roundNumber - a.roundNumber)[0]
   const matchStarted = Boolean(latestRound)
   const completedLedger = event.winningTeamId

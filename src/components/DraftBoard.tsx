@@ -1,13 +1,16 @@
 import { Link } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
-import { compactMoney, money } from '../lib/format'
+import { compactMoney, money, shortDate } from '../lib/format'
 import {
   acquisitionCost,
+  buildDraftAdjustment,
   buildTeamLedgers,
   calculatePlayerSalaries,
   canAcquirePlayer,
+  getCheckInWindow,
   getDraftReadiness,
   isDraftEligiblePlayer,
+  isCaptainPlayer,
   nextDraftSide,
   salaryBudgetAdvantageWinner,
   salaryBudgetContestWinner,
@@ -30,10 +33,13 @@ export function DraftBoard({
 }) {
   const [currentEvent, setCurrentEvent, lastRealtimeUpdate] = useRealtimeCurrentEvent(event)
   const [savingBid, setSavingBid] = useState(false)
+  const [checkingIn, setCheckingIn] = useState(false)
   const [pickingPlayerId, setPickingPlayerId] = useState<string>()
   const [resettingPickId, setResettingPickId] = useState<string>()
+  const [stealingPlayerId, setStealingPlayerId] = useState<string>()
   const [selectedSpecs, setSelectedSpecs] = useState<string[]>([])
   const [bidMessage, setBidMessage] = useState<{ text: string; tone: 'neutral' | 'success' | 'error' }>()
+  const [now, setNow] = useState(Date.now())
   const pickListRefs = useRef<Array<HTMLUListElement | null>>([])
   const syncingPickScroll = useRef(false)
   const prevPickTurnRef = useRef<string | undefined>(undefined)
@@ -49,7 +55,20 @@ export function DraftBoard({
 
   const canCancelBid = canManageAll
   const draftLocked = currentEvent.rounds.length > 0
+  const checkInWindow = getCheckInWindow(currentEvent, now)
+  const currentUserPlayer = currentEvent.players.find((player) => player.id === userId)
+  const canCheckIn = Boolean(userId && currentUserPlayer && !currentUserPlayer.checkedInAt && checkInWindow.isOpen)
+  const uncheckedPlayerCount = currentEvent.players.filter(
+    (player) => !isCaptainPlayer(currentEvent, player.id) && !player.checkedInAt,
+  ).length
   const ledgers = buildTeamLedgers(currentEvent)
+  const draftAdjustment = buildDraftAdjustment(currentEvent, now)
+  const draftAdjustmentActive = draftAdjustment.active
+  const canUseStealBudget = Boolean(
+    !draftLocked &&
+      draftAdjustment.stealingTeam &&
+      (draftAdjustment.stealingTeam.captainDiscordId === userId || canManageAll),
+  )
   const latestPickId = [...currentEvent.draftPicks]
     .sort((a, b) => Date.parse(b.confirmedAt) - Date.parse(a.confirmedAt))[0]?.id
   const salaries = calculatePlayerSalaries(currentEvent)
@@ -80,7 +99,11 @@ export function DraftBoard({
   const isCaptain = ledgers.some((ledger) => ledger.team.captainDiscordId === userId)
   const draftReadiness = getDraftReadiness(currentEvent)
   const draftReady = draftReadiness.ready
-  const draftStatus = draftReadiness
+  const draftStatus = draftLocked
+    ? { label: 'Locked', tone: 'blocked' as const }
+    : draftAdjustmentActive
+      ? { label: 'Adjustment', tone: 'pending' as const }
+      : draftReadiness
   const activeBid = currentEvent.activeDraftBid
   const pickTurn = nextDraftSide(currentEvent)
   const myCaptainLedgers = ledgers.filter((ledger) => ledger.team.captainDiscordId === userId)
@@ -140,6 +163,11 @@ export function DraftBoard({
   )
 
   useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 30_000)
+    return () => window.clearInterval(timer)
+  }, [])
+
+  useEffect(() => {
     const currentTurnId = pickTurn?.team.id
     if (
       currentTurnId &&
@@ -171,6 +199,26 @@ export function DraftBoard({
       tone: lastRealtimeUpdate.tone ?? 'neutral',
     })
   }, [lastRealtimeUpdate])
+
+  async function checkIn() {
+    setCheckingIn(true)
+    setBidMessage(undefined)
+    try {
+      const response = await fetch('/api/event/current', { method: 'POST' })
+      if (!response.ok) throw new Error(await response.text())
+
+      const payload = await response.json() as {
+        message?: string
+        event?: HammaEvent | null
+      }
+      if (payload.event) setCurrentEvent(payload.event)
+      setBidMessage({ text: payload.message ?? 'Checked in.', tone: 'success' })
+    } catch (error) {
+      setBidMessage({ text: error instanceof Error ? error.message : 'Unable to check in.', tone: 'error' })
+    } finally {
+      setCheckingIn(false)
+    }
+  }
 
   async function runBidAction(action: 'bump' | 'forfeit') {
     const actionTeamId = activeBid?.nextTeamId
@@ -254,6 +302,37 @@ export function DraftBoard({
     }
   }
 
+  async function stealPlayer(playerId: string) {
+    const teamId = draftAdjustment.stealingTeam?.id
+    if (!teamId) return
+
+    setStealingPlayerId(playerId)
+    setBidMessage(undefined)
+    try {
+      const response = await fetch('/api/draft/bid', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'steal',
+          playerDiscordId: playerId,
+          teamId,
+        }),
+      })
+      if (!response.ok) throw new Error(await response.text())
+
+      const payload = await response.json() as {
+        message?: string
+        event?: HammaEvent | null
+      }
+      if (payload.event) setCurrentEvent(payload.event)
+      setBidMessage({ text: payload.message ?? 'Player stolen.', tone: 'success' })
+    } catch (error) {
+      setBidMessage({ text: error instanceof Error ? error.message : 'Unable to steal player.', tone: 'error' })
+    } finally {
+      setStealingPlayerId(undefined)
+    }
+  }
+
   async function resetPick(pickId: string) {
     setResettingPickId(pickId)
     setBidMessage(undefined)
@@ -307,24 +386,51 @@ export function DraftBoard({
           <div>
             <h1>Draft</h1>
           </div>
-          <span className={`draft-status ${draftLocked ? 'blocked' : draftStatus.tone}`}>
-            {draftLocked ? 'Locked' : draftStatus.label}
+          <span className={`draft-status ${draftStatus.tone}`}>
+            {draftStatus.label}
           </span>
+        </div>
+        <div className="check-in-panel">
+          <div>
+            <strong>Check-in</strong>
+            <small>
+              {checkInWindow.hasClosed
+                ? `${uncheckedPlayerCount} no-show ${uncheckedPlayerCount === 1 ? 'player' : 'players'} removed from eligibility.`
+                : checkInWindow.isOpen
+                  ? `Open until ${checkInWindow.closesAt ? shortDate(checkInWindow.closesAt) : 'event start'}.`
+                  : `Opens ${checkInWindow.opensAt ? shortDate(checkInWindow.opensAt) : 'before draft'}.`}
+            </small>
+          </div>
+          {currentUserPlayer ? (
+            currentUserPlayer.checkedInAt ? (
+              <CheckInBadge player={currentUserPlayer} event={currentEvent} now={now} />
+            ) : (
+              <button type="button" disabled={!canCheckIn || checkingIn} onClick={() => void checkIn()}>
+                {checkingIn ? <span className="spinner" aria-label="Checking in" /> : null}
+                Check In
+              </button>
+            )
+          ) : null}
         </div>
         {draftLocked ? (
           <div className="toast toast-neutral" role="status">
             The first round has started. Draft is locked.
           </div>
         ) : null}
+        {draftAdjustmentActive && !draftLocked ? (
+          <div className="toast toast-neutral" role="status">
+            Adjustment phase active. {draftAdjustment.needsAdjustment && draftAdjustment.stealingTeam && draftAdjustment.sourceTeam
+              ? `${draftAdjustment.stealingTeam.teamName} has ${money(draftAdjustment.stealBudget)} steal budget from ${draftAdjustment.sourceTeam.teamName}.`
+              : 'Team values are already balanced.'}
+          </div>
+        ) : null}
         {ledgers.length ? (
           <div className="team-grid compact">
             {ledgers.map((ledger, ledgerIndex) => {
-              const isPickTurn = draftReady && !activeBid && pickTurn?.team.id === ledger.team.id
+              const isPickTurn =
+                !draftAdjustmentActive && draftReady && !activeBid && pickTurn?.team.id === ledger.team.id
               const teamPlayerCount = ledger.picks.length + (ledger.captainPlayer ? 1 : 0)
-              const teamValue = ledger.picks.reduce(
-                (sum, pick) => sum + pick.salary + pick.bonusSpent,
-                0,
-              )
+              const teamValue = ledger.picks.reduce((sum, pick) => sum + pick.salary, 0)
               return (
                 <article className={`team-panel${isPickTurn ? ' team-panel-active' : ''}`} key={ledger.team.id}>
                   <div className="team-title-row">
@@ -377,6 +483,7 @@ export function DraftBoard({
                               groupTag={ledger.captainPlayer.groupTag}
                               groupTagColor={ledger.captainPlayer.groupTagColor}
                             />
+                            <CheckInBadge player={ledger.captainPlayer} event={currentEvent} now={now} compact />
                             <span className="captain-crown" aria-hidden="true">
                               ♛
                             </span>
@@ -385,7 +492,13 @@ export function DraftBoard({
                         </div>
                       </li>
                     ) : null}
-                    {ledger.picks.map((pick) => (
+                    {ledger.picks.map((pick) => {
+                      const canStealPick = Boolean(
+                        canUseStealBudget &&
+                          draftAdjustment.sourceTeam?.id === ledger.team.id &&
+                          draftAdjustment.stealablePicks.some((candidate) => candidate.id === pick.id),
+                      )
+                      return (
                       <li key={pick.id}>
                         <div className="pick-main">
                           <Link to="/players/$discordId" params={{ discordId: pick.player.id }}>
@@ -394,6 +507,7 @@ export function DraftBoard({
                               groupTag={pick.player.groupTag}
                               groupTagColor={pick.player.groupTagColor}
                             />
+                            <CheckInBadge player={pick.player} event={currentEvent} now={now} compact />
                           </Link>
                           <small>
                             <span title={money(pick.salary)}>{compactMoney(pick.salary)}</span>
@@ -416,15 +530,26 @@ export function DraftBoard({
                             Undo
                           </button>
                         ) : null}
+                        {canStealPick ? (
+                          <button
+                            className="text-button steal"
+                            type="button"
+                            disabled={stealingPlayerId === pick.playerId}
+                            onClick={() => void stealPlayer(pick.playerId)}
+                          >
+                            {stealingPlayerId === pick.playerId ? <span className="spinner" aria-label="Stealing" /> : null}
+                            Steal
+                          </button>
+                        ) : null}
                       </li>
-                    ))}
+                    )})}
                   </ul>
                   <div className="team-footer-chips">
                     <div className="team-count-chip">
                       {teamPlayerCount} {teamPlayerCount === 1 ? 'player' : 'players'}
                     </div>
                     <div className="team-value-chip" title={money(teamValue)}>
-                      Value {compactMoney(teamValue)}
+                      Adjusted {compactMoney(teamValue)}
                     </div>
                   </div>
                 </article>
@@ -467,6 +592,7 @@ export function DraftBoard({
                         groupTag={bidPlayer.groupTag}
                         groupTagColor={bidPlayer.groupTagColor}
                       />
+                      <CheckInBadge player={bidPlayer} event={currentEvent} now={now} compact />
                     </strong>
                   </Link>
                 ) : (
@@ -492,7 +618,7 @@ export function DraftBoard({
                   <>
                     <button
                       type="button"
-                      disabled={draftLocked || savingBid || !canRaiseBid}
+                      disabled={draftLocked || draftAdjustmentActive || savingBid || !canRaiseBid}
                       onClick={() => void runBidAction('bump')}
                     >
                       {savingBid ? <span className="spinner" aria-label="Saving" /> : null}
@@ -501,7 +627,7 @@ export function DraftBoard({
                     <button
                       className="text-button danger"
                       type="button"
-                      disabled={draftLocked || savingBid || !canActOnBid}
+                      disabled={draftLocked || draftAdjustmentActive || savingBid || !canActOnBid}
                       onClick={() => void runBidAction('forfeit')}
                     >
                       Forfeit
@@ -558,6 +684,7 @@ export function DraftBoard({
             const canPickPlayer = Boolean(
               canBid &&
                 !draftLocked &&
+                !draftAdjustmentActive &&
                 isMyTurn &&
                 draftReady &&
                 !activeBid &&
@@ -566,11 +693,14 @@ export function DraftBoard({
             return (
             <article className="player-card" key={player.id}>
               <div className="player-name">
-                <Link to="/players/$discordId" params={{ discordId: player.id }}>
-                  <strong>
-                    <PlayerName name={player.name} groupTag={player.groupTag} groupTagColor={player.groupTagColor} />
-                  </strong>
-                </Link>
+                <div className="player-name-row">
+                  <Link to="/players/$discordId" params={{ discordId: player.id }}>
+                    <strong>
+                      <PlayerName name={player.name} groupTag={player.groupTag} groupTagColor={player.groupTagColor} />
+                    </strong>
+                  </Link>
+                  <CheckInBadge player={player} event={currentEvent} now={now} compact />
+                </div>
                 {player.specs?.length ? (
                   <div className="player-specs" aria-label={`${player.name} signed specs`}>
                     {player.specs.map((spec) => (
@@ -606,6 +736,32 @@ export function DraftBoard({
         </div>
       </section>
     </div>
+  )
+}
+
+function CheckInBadge({
+  player,
+  event,
+  now,
+  compact = false,
+}: {
+  player: HammaEvent['players'][number]
+  event: HammaEvent
+  now: number
+  compact?: boolean
+}) {
+  const checkInWindow = getCheckInWindow(event, now)
+  const status = player.checkedInAt ? 'checked' : checkInWindow.hasClosed ? 'missing' : 'pending'
+  const label = status === 'checked' ? 'Checked in' : status === 'missing' ? 'No-show' : 'Pending'
+  const compactLabel = status === 'checked' ? 'Checked in' : status === 'missing' ? 'No check-in' : 'Check-in pending'
+  const title = player.checkedInAt
+    ? `Check-in status: checked in at ${shortDate(player.checkedInAt)}`
+    : `Check-in status: ${status === 'missing' ? 'not checked in' : 'pending'}`
+
+  return (
+    <span className={`check-in-badge ${status}${compact ? ' compact' : ''}`} title={title}>
+      {compact ? compactLabel : label}
+    </span>
   )
 }
 

@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { getDiscordSessionUser, requireAdminSession } from '../lib/discord.server'
-import { bumpDraftBid, cancelActiveDraftBid, forfeitDraftBid, getDbEvent, pickDraftPlayer } from '../lib/db.server'
+import { bumpDraftBid, cancelActiveDraftBid, forfeitDraftBid, getDbEvent, pickDraftPlayer, stealDraftPlayer } from '../lib/db.server'
 import { publishEventUpdate } from '../lib/realtime.server'
 import { getDraftReadiness, nextDraftSide } from '../lib/rules'
 import { clearCurrentEventCache, requireCurrentEvent } from '../lib/services'
@@ -42,6 +42,9 @@ export const Route = createFileRoute('/api/draft/bid')({
         } else if (action === 'forfeit') {
           const result = await forfeitDraftBid(event, String(body.bidId ?? ''), teamId)
           message = `${result.player} added to ${result.team}.`
+        } else if (action === 'steal') {
+          const result = await stealDraftPlayer(event, teamId, String(body.playerDiscordId ?? ''))
+          message = `${result.team} stole ${result.player} from ${result.sourceTeam}.`
         } else {
           throw new Response('Unknown bid action', { status: 400 })
         }

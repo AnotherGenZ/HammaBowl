@@ -6,6 +6,7 @@ export const SALARY_POOL = 250_000_000
 export const BONUS_POOL = 50_000_000
 export const MAX_PLAYER_BONUS = 10_000_000
 export const BID_INCREMENT = 1_000_000
+export const CHECK_IN_LEAD_MINUTES = 15
 
 export function isCaptainPlayer(event: HammaEvent, playerId: string) {
   return event.teams.filter(Boolean).some((team) => team.captainDiscordId === playerId)
@@ -14,8 +15,45 @@ export function isCaptainPlayer(event: HammaEvent, playerId: string) {
 export function isDraftEligiblePlayer(
   event: HammaEvent,
   player: HammaEvent['players'][number],
+  now = Date.now(),
 ) {
-  return player.status !== 'disqualified' && !isCaptainPlayer(event, player.id)
+  return (
+    player.status !== 'disqualified' &&
+    !isCaptainPlayer(event, player.id) &&
+    (!isDraftAdjustmentPhase(event, now) || Boolean(player.checkedInAt))
+  )
+}
+
+export function getDraftStartAt(event: HammaEvent) {
+  const eventStart = Date.parse(event.startsAt)
+  if (!Number.isFinite(eventStart)) return undefined
+
+  const minutesBefore =
+    typeof event.draftStartMinutesBefore === 'number'
+      ? event.draftStartMinutesBefore
+      : 0
+  return new Date(eventStart - minutesBefore * 60_000).toISOString()
+}
+
+export function getCheckInWindow(event: HammaEvent, now = Date.now()) {
+  const draftStartAt = getDraftStartAt(event)
+  const draftStart = draftStartAt ? Date.parse(draftStartAt) : Number.NaN
+  const eventStart = Date.parse(event.startsAt)
+  const opens = Number.isFinite(draftStart)
+    ? draftStart - CHECK_IN_LEAD_MINUTES * 60_000
+    : Number.NaN
+
+  return {
+    opensAt: Number.isFinite(opens) ? new Date(opens).toISOString() : undefined,
+    closesAt: Number.isFinite(eventStart) ? event.startsAt : undefined,
+    isOpen: Number.isFinite(opens) && Number.isFinite(eventStart) && now >= opens && now < eventStart,
+    hasClosed: Number.isFinite(eventStart) && now >= eventStart,
+  }
+}
+
+export function isDraftAdjustmentPhase(event: HammaEvent, now = Date.now()) {
+  const eventStart = Date.parse(event.startsAt)
+  return Number.isFinite(eventStart) && now >= eventStart
 }
 
 export function receivedRatingCount(event: HammaEvent, playerId: string) {
@@ -149,10 +187,12 @@ export function buildTeamLedgers(event: HammaEvent): TeamLedger[] {
       .flatMap((pick) => {
         const player = playerById.get(pick.playerId)
         if (!player) return []
+        const adjustedSalary = salaryByPlayer.get(pick.playerId)
+        if (adjustedSalary === undefined && !isDraftEligiblePlayer(event, player)) return []
         return [{
           ...pick,
           player,
-          salary: salaryByPlayer.get(pick.playerId) ?? pick.salary,
+          salary: adjustedSalary ?? pick.salary,
         }]
       })
 
@@ -185,6 +225,47 @@ export function buildTeamLedgers(event: HammaEvent): TeamLedger[] {
       combinedRemaining: budgetRemaining + usableBonusRemaining,
     }
   })
+}
+
+export function buildDraftAdjustment(event: HammaEvent, now = Date.now()) {
+  const active = isDraftAdjustmentPhase(event, now)
+  const ledgers = buildTeamLedgers(event)
+  const teamValues = ledgers.map((ledger) => ({
+    team: ledger.team,
+    value: ledger.picks.reduce((sum, pick) => sum + pick.salary, 0),
+  }))
+
+  if (!active || ledgers.length !== 2) {
+    return {
+      active,
+      teamValues,
+      stealBudget: 0,
+      needsAdjustment: false,
+      stealingTeam: undefined,
+      sourceTeam: undefined,
+      stealablePicks: [] as Array<TeamLedger['picks'][number]>,
+    }
+  }
+
+  const sorted = [...teamValues].sort((a, b) => a.value - b.value)
+  const [lower, higher] = sorted
+  const difference = higher.value - lower.value
+  const stealBudget = Math.floor(difference / 2)
+  const stealingLedger = ledgers.find((ledger) => ledger.team.id === lower.team.id)
+  const sourceLedger = ledgers.find((ledger) => ledger.team.id === higher.team.id)
+  const stealablePicks = (sourceLedger?.picks ?? [])
+    .filter((pick) => pick.salary <= stealBudget)
+    .sort((a, b) => b.salary - a.salary || a.player.name.localeCompare(b.player.name))
+
+  return {
+    active,
+    teamValues,
+    stealBudget,
+    needsAdjustment: stealBudget > 0,
+    stealingTeam: stealingLedger?.team,
+    sourceTeam: sourceLedger?.team,
+    stealablePicks,
+  }
 }
 
 export function canAcquirePlayer(

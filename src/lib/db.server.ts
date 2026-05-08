@@ -51,10 +51,13 @@ import {
   calculatePlayerSalaries,
   canAcquirePlayer,
   getDraftReadiness,
+  isDraftAdjustmentPhase,
   isCaptainPlayer,
   oppositeTeamId,
   reachAwardWinner,
   salaryBudgetAdvantageWinner,
+  buildDraftAdjustment,
+  getCheckInWindow,
 } from './rules'
 import type {
   AdminBadgeManagerData,
@@ -343,6 +346,7 @@ export async function getDbEvent(eventId: string): Promise<HammaEvent | null> {
     outfit: '',
     faction: 'NS',
     status: 'signed_up',
+    checkedInAt: participant.checkedInAt ?? undefined,
     specs: specsByParticipant.get(participant.discordId) ?? [],
   }))
 
@@ -1619,6 +1623,33 @@ function getRegisteredParticipants(): RegisteredParticipant[] {
     .sort((a, b) => a.name.localeCompare(b.name))
 }
 
+export async function checkInEventParticipant(eventId: string, discordId: string) {
+  const event = await getDbEvent(eventId)
+  if (!event) throw new Error('Event not found.')
+
+  const player = event.players.find((candidate) => candidate.id === discordId)
+  if (!player) throw new Error('You are not signed up for this event.')
+  if (player.checkedInAt) return { player: player.name, checkedInAt: player.checkedInAt }
+
+  const checkInWindow = getCheckInWindow(event)
+  if (!checkInWindow.isOpen) {
+    throw new Error('Check-in is only open from 15 minutes before draft start until event start.')
+  }
+
+  const checkedInAt = new Date().toISOString()
+  db.update(eventParticipants)
+    .set({ checkedInAt, updatedAt: checkedInAt })
+    .where(
+      and(
+        eq(eventParticipants.eventId, event.id),
+        eq(eventParticipants.discordId, discordId),
+      ),
+    )
+    .run()
+
+  return { player: player.name, checkedInAt }
+}
+
 export async function confirmDraftPick(
   event: HammaEvent,
   teamId: string,
@@ -1674,6 +1705,9 @@ export async function confirmDraftPick(
 
 export async function openDraftBid(event: HammaEvent, teamId: string, playerDiscordId: string) {
   assertDraftUnlocked(event.id)
+  if (isDraftAdjustmentPhase(event)) {
+    throw new Error('The draft adjustment phase has started. Use steal budget adjustments instead.')
+  }
   if (event.activeDraftBid) throw new Error('A bid is already open.')
   const readiness = getDraftReadiness(event)
   if (!readiness.ready) throw new Error(readiness.label)
@@ -1725,6 +1759,9 @@ export async function openDraftBid(event: HammaEvent, teamId: string, playerDisc
 
 export async function pickDraftPlayer(event: HammaEvent, teamId: string, playerDiscordId: string) {
   assertDraftUnlocked(event.id)
+  if (isDraftAdjustmentPhase(event)) {
+    throw new Error('The draft adjustment phase has started. Use steal budget adjustments instead.')
+  }
   const readiness = getDraftReadiness(event)
   if (!readiness.ready) throw new Error(readiness.label)
   if (event.activeDraftBid) throw new Error('A bid is already open.')
@@ -1750,6 +1787,9 @@ export async function pickDraftPlayer(event: HammaEvent, teamId: string, playerD
 
 export async function bumpDraftBid(event: HammaEvent, bidId: string, teamId: string) {
   assertDraftUnlocked(event.id)
+  if (isDraftAdjustmentPhase(event)) {
+    throw new Error('The draft adjustment phase has started. Cancel the active bid before stealing players.')
+  }
   const bid = getActiveBid(event.id, bidId)
   if (bid.nextTeamId !== teamId) throw new Error('It is not your turn to raise this bid.')
 
@@ -1816,6 +1856,9 @@ export async function bumpDraftBid(event: HammaEvent, bidId: string, teamId: str
 
 export async function forfeitDraftBid(event: HammaEvent, bidId: string, teamId: string) {
   assertDraftUnlocked(event.id)
+  if (isDraftAdjustmentPhase(event)) {
+    throw new Error('The draft adjustment phase has started. Cancel the active bid before stealing players.')
+  }
   const bid = getActiveBid(event.id, bidId)
   if (bid.nextTeamId !== teamId) throw new Error('It is not your turn to forfeit this bid.')
   const nextPickTeamId = oppositeTeamId(event, bid.openedByTeamId)
@@ -1838,6 +1881,49 @@ export async function forfeitDraftBid(event: HammaEvent, bidId: string, teamId: 
     .run()
 
   return result
+}
+
+export async function stealDraftPlayer(event: HammaEvent, teamId: string, playerDiscordId: string) {
+  assertDraftUnlocked(event.id)
+  if (!isDraftAdjustmentPhase(event)) {
+    throw new Error('Steals are only available after the event start time.')
+  }
+  if (event.activeDraftBid) {
+    throw new Error('Cancel or finish the active bid before stealing players.')
+  }
+
+  const adjustment = buildDraftAdjustment(event)
+  if (!adjustment.needsAdjustment || !adjustment.stealingTeam || !adjustment.sourceTeam) {
+    throw new Error('No steal budget is available.')
+  }
+  if (adjustment.stealingTeam.id !== teamId) {
+    throw new Error('Only the lower-value team can use the steal budget.')
+  }
+
+  const pick = adjustment.stealablePicks.find((candidate) => candidate.playerId === playerDiscordId)
+  if (!pick) {
+    throw new Error('That player is not affordable with the current steal budget.')
+  }
+
+  const now = new Date().toISOString()
+  db.update(draftPicks)
+    .set({
+      teamId,
+      openedByTeamId: teamId,
+      bonusSpent: 0,
+      contestedByTeamId: null,
+      confirmedAt: now,
+    })
+    .where(and(eq(draftPicks.eventId, event.id), eq(draftPicks.id, pick.id)))
+    .run()
+  db.update(events).set({ updatedAt: now }).where(eq(events.id, event.id)).run()
+
+  return {
+    player: pick.player.name,
+    team: adjustment.stealingTeam.teamName,
+    sourceTeam: adjustment.sourceTeam.teamName,
+    salary: pick.salary,
+  }
 }
 
 export async function resetDraftPick(eventId: string, pickId: string) {
@@ -4476,6 +4562,7 @@ function bootstrap() {
       status TEXT NOT NULL DEFAULT 'signed_up',
       disqualified INTEGER NOT NULL DEFAULT 0,
       winner INTEGER NOT NULL DEFAULT 0,
+      checked_in_at TEXT,
       updated_at TEXT NOT NULL,
       PRIMARY KEY (event_id, discord_id)
     );
@@ -4625,6 +4712,7 @@ function bootstrap() {
   addColumnIfMissing('badge_definitions', 'color', "TEXT NOT NULL DEFAULT '#e4b45e'")
   addColumnIfMissing('badge_definitions', 'source', "TEXT NOT NULL DEFAULT 'manual'")
   addColumnIfMissing('event_participants', 'winner', 'INTEGER NOT NULL DEFAULT 0')
+  addColumnIfMissing('event_participants', 'checked_in_at', 'TEXT')
   addColumnIfMissing('coinflips', 'calling_team_id', 'TEXT REFERENCES teams(id) ON DELETE SET NULL')
   addColumnIfMissing('coinflips', 'caller_call', 'TEXT')
   addColumnIfMissing('coinflips', 'winner_choice_type', 'TEXT')

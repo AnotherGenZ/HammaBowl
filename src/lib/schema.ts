@@ -223,6 +223,7 @@ export const eventParticipants = sqliteTable(
     status: text('status').notNull().default('signed_up'),
     disqualified: integer('disqualified', { mode: 'boolean' }).notNull().default(false),
     winner: integer('winner', { mode: 'boolean' }).notNull().default(false),
+    checkedInAt: text('checked_in_at'),
     updatedAt: text('updated_at').notNull(),
   },
   (table) => [primaryKey({ columns: [table.eventId, table.discordId] })],

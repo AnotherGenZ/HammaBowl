@@ -1,7 +1,7 @@
 import { env, requireEnv } from './env'
 import { HONU_DEFAULT_ZONE_ID } from './honu'
 import type { Faction, HammaEvent, Player } from './types'
-import { BID_INCREMENT, BONUS_POOL, MAX_PLAYER_BONUS, SALARY_POOL } from './rules'
+import { BID_INCREMENT, BONUS_POOL, MAX_PLAYER_BONUS, SALARY_POOL, buildTeamLedgers } from './rules'
 
 const RAID_HELPER_API_BASE_URL = 'https://raid-helper.xyz/api/v4'
 
@@ -192,17 +192,16 @@ async function hydrateRemoteEvent(
 export function buildRaidHelperCompUpdate(event: HammaEvent): RaidHelperCompUpdate {
   const playerById = new Map(event.players.map((player) => [player.id, player]))
   const compTeams = event.teams.slice(0, 2)
+  const ledgerByTeam = new Map(buildTeamLedgers(event).map((ledger) => [ledger.team.id, ledger]))
   const teamMembers = compTeams.map((team) => {
     const members = team.captainDiscordId
       ? [playerById.get(team.captainDiscordId)?.name ?? team.captainDiscordId]
       : []
-    const draftedPlayers = event.draftPicks
-      .filter((pick) => pick.teamId === team.id && pick.playerId !== team.captainDiscordId)
+    const draftedPlayers = (ledgerByTeam.get(team.id)?.picks ?? [])
       .sort((a, b) => Date.parse(a.confirmedAt) - Date.parse(b.confirmedAt))
 
     for (const pick of draftedPlayers) {
-      const player = playerById.get(pick.playerId)
-      if (player) members.push(player.name)
+      members.push(pick.player.name)
     }
     return members
   })
