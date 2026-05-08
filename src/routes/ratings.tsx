@@ -8,14 +8,15 @@ import type { HammaEvent } from '../lib/types'
 import { PlayerName } from '../components/PlayerName'
 
 type RatingsSortMode = 'name' | 'rating-desc' | 'rating-asc'
+type InitialRating = { toDiscordId: string; score: number }
 
 const RATINGS_PREFERENCES_PREFIX = 'hammabowl:ratings-preferences'
 const RATINGS_SORT_MODES = new Set<RatingsSortMode>(['name', 'rating-desc', 'rating-asc'])
 const useBrowserLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
 
-const requireRatingsAccess = createServerFn({ method: 'GET' }).handler(async () => {
+const loadRatingsPage = createServerFn({ method: 'GET' }).handler(async () => {
   const { getDiscordSessionUser } = await import('../lib/discord.server')
-  const { isEventParticipant } = await import('../lib/db.server')
+  const { getRatingsByRater, isEventParticipant } = await import('../lib/db.server')
   const { getCurrentEvent } = await import('../lib/services')
 
   const user = await getDiscordSessionUser()
@@ -28,18 +29,27 @@ const requireRatingsAccess = createServerFn({ method: 'GET' }).handler(async () 
     throw redirect({ to: '/' })
   }
 
-  return event
+  const initialSelectedRaterId = event ? selectInitialRaterId(event, user) : ''
+
+  return {
+    event,
+    initialSelectedRaterId,
+    initialRatings: event && initialSelectedRaterId
+      ? getRatingsByRater(event.id, initialSelectedRaterId)
+      : [],
+    loadedAt: Date.now(),
+  }
 })
 
 export const Route = createFileRoute('/ratings')({
   loader: async () => {
-    return requireRatingsAccess()
+    return loadRatingsPage()
   },
   head: ({ loaderData }) =>
     pageMeta({
-      title: loaderData ? `${loaderData.name} Ratings` : 'Ratings',
-      description: loaderData
-        ? `Private rating page for ${loaderData.name} participants.`
+      title: loaderData?.event ? `${loaderData.event.name} Ratings` : 'Ratings',
+      description: loaderData?.event
+        ? `Private rating page for ${loaderData.event.name} participants.`
         : 'Private HammaBowl participant rating page.',
       path: '/ratings',
       noIndex: true,
@@ -48,14 +58,20 @@ export const Route = createFileRoute('/ratings')({
 })
 
 function Ratings() {
-  const event = Route.useLoaderData()
+  const { event, initialRatings, initialSelectedRaterId, loadedAt } = Route.useLoaderData()
   const { user } = useSession()
-  const [ratings, setRatings] = useState<Record<string, number>>({})
-  const [ratingsLoaded, setRatingsLoaded] = useState(false)
+  const [ratings, setRatings] = useState<Record<string, number>>(() => ratingsFromList(initialRatings))
+  const [ratingsLoaded, setRatingsLoaded] = useState(Boolean(initialSelectedRaterId))
+  const [loadedRatingsKey, setLoadedRatingsKey] = useState(
+    event && initialSelectedRaterId ? ratingsKey(event.id, initialSelectedRaterId) : undefined,
+  )
   const [saving, setSaving] = useState<string>()
   const [sortMode, setSortMode] = useState<RatingsSortMode>('name')
   const [message, setMessage] = useState<{ text: string; tone: 'neutral' | 'success' | 'error' }>()
-  const [loadedPreferencesKey, setLoadedPreferencesKey] = useState<string>()
+  const initialPreferencesKey = event && user && initialSelectedRaterId
+    ? `${RATINGS_PREFERENCES_PREFIX}:${event.id}:${user.id}`
+    : undefined
+  const [loadedPreferencesKey, setLoadedPreferencesKey] = useState<string | undefined>(initialPreferencesKey)
   const ratingListRef = useRef<HTMLDivElement>(null)
   const pendingRatingScrollPosition = useRef<{
     anchorId?: string
@@ -67,7 +83,7 @@ function Ratings() {
 
   const isAdmin = Boolean(user?.roles.includes('admin'))
   const canRate = user?.roles.some((role) => role === 'participant' || role === 'admin')
-  const ratingsLocked = Boolean(event && !isAdmin && hasDraftStarted(event))
+  const ratingsLocked = Boolean(event && !isAdmin && hasDraftStarted(event, loadedAt))
   const preferencesKey = event && user
     ? `${RATINGS_PREFERENCES_PREFIX}:${event.id}:${user.id}`
     : undefined
@@ -86,7 +102,7 @@ function Ratings() {
     },
     [event, user],
   )
-  const [selectedRaterId, setSelectedRaterId] = useState('')
+  const [selectedRaterId, setSelectedRaterId] = useState(initialSelectedRaterId)
   const players = useMemo(
     () =>
       event?.players.filter(
@@ -144,7 +160,7 @@ function Ratings() {
 
     const storedPreferences = readRatingsPreferences(preferencesKey)
     setSortMode(storedPreferences.sortMode)
-    setSelectedRaterId(user?.id ?? '')
+    setSelectedRaterId((current) => current || (user?.id ?? ''))
     setLoadedPreferencesKey(preferencesKey)
   }, [preferencesKey, user?.id])
 
@@ -187,14 +203,19 @@ function Ratings() {
     if (!event || !canRate || !preferencesLoaded) {
       setRatings({})
       setRatingsLoaded(false)
+      setLoadedRatingsKey(undefined)
       return
     }
 
     if (!selectedRaterId) {
       setRatings({})
       setRatingsLoaded(Boolean(user))
+      setLoadedRatingsKey(undefined)
       return
     }
+
+    const nextRatingsKey = ratingsKey(event.id, selectedRaterId)
+    if (loadedRatingsKey === nextRatingsKey) return
 
     let active = true
     setRatingsLoaded(false)
@@ -213,6 +234,7 @@ function Ratings() {
             payload.ratings.map((rating) => [rating.toDiscordId, rating.score]),
           ),
         )
+        setLoadedRatingsKey(nextRatingsKey)
         setRatingsLoaded(true)
       })
       .catch((error) => {
@@ -225,7 +247,7 @@ function Ratings() {
     return () => {
       active = false
     }
-  }, [event, canRate, isAdmin, preferencesLoaded, selectedRaterId, user])
+  }, [event, canRate, isAdmin, loadedRatingsKey, preferencesLoaded, selectedRaterId, user])
 
   async function rate(toDiscordId: string, score: number) {
     setSaving(toDiscordId)
@@ -499,14 +521,35 @@ function Ratings() {
   )
 }
 
-function hasDraftStarted(event: HammaEvent) {
+function selectInitialRaterId(event: HammaEvent, user: { id: string; roles: string[] }) {
+  if (!user.roles.includes('admin')) return user.id
+
+  const submittedRaterIds = new Set(event.ratings.map((rating) => rating.fromPlayerId))
+  const raterOptions = event.players
+    .filter((player) => player.id === user.id || submittedRaterIds.has(player.id))
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
+
+  return raterOptions.some((player) => player.id === user.id)
+    ? user.id
+    : raterOptions[0]?.id ?? ''
+}
+
+function ratingsFromList(ratings: InitialRating[]) {
+  return Object.fromEntries(ratings.map((rating) => [rating.toDiscordId, rating.score]))
+}
+
+function ratingsKey(eventId: string, selectedRaterId: string) {
+  return `${eventId}:${selectedRaterId}`
+}
+
+function hasDraftStarted(event: HammaEvent, now = Date.now()) {
   if (event.phase === 'draft' || event.phase === 'locked' || event.phase === 'complete') return true
   if (event.activeDraftBid || event.draftPicks.length || event.rounds.length) return true
 
   if (typeof event.draftStartMinutesBefore === 'number') {
     const startTime = Date.parse(event.startsAt)
     if (Number.isFinite(startTime)) {
-      return Date.now() >= startTime - event.draftStartMinutesBefore * 60_000
+      return now >= startTime - event.draftStartMinutesBefore * 60_000
     }
   }
 

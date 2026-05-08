@@ -19,6 +19,12 @@ interface SessionContextValue {
   refreshSession: () => Promise<void>
 }
 
+export interface InitialSessionState {
+  user: SessionUser | null
+  hasCurrentEvent: boolean
+  canRateCurrentEvent: boolean
+}
+
 const SessionContext = createContext<SessionContextValue>({
   user: null,
   loading: true,
@@ -29,11 +35,12 @@ const SessionContext = createContext<SessionContextValue>({
 
 export function SessionProvider({
   children,
-}: Readonly<{ children: ReactNode }>) {
-  const [user, setUser] = useState<SessionUser | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [hasCurrentEvent, setHasCurrentEvent] = useState(false)
-  const [canRateCurrentEvent, setCanRateCurrentEvent] = useState(false)
+  initialSession,
+}: Readonly<{ children: ReactNode; initialSession?: InitialSessionState }>) {
+  const [user, setUser] = useState<SessionUser | null>(initialSession?.user ?? null)
+  const [loading, setLoading] = useState(!initialSession)
+  const [hasCurrentEvent, setHasCurrentEvent] = useState(initialSession?.hasCurrentEvent ?? false)
+  const [canRateCurrentEvent, setCanRateCurrentEvent] = useState(initialSession?.canRateCurrentEvent ?? false)
 
   const refreshSession = useCallback(async () => {
     const [sessionPayload, event]: [{ user: SessionUser | null }, HammaEvent | null] = await Promise.all([
@@ -61,6 +68,13 @@ export function SessionProvider({
   useEffect(() => {
     let active = true
 
+    if (initialSession) {
+      setLoading(false)
+      return () => {
+        active = false
+      }
+    }
+
     refreshSession().finally(() => {
       if (active) setLoading(false)
     })
@@ -68,7 +82,7 @@ export function SessionProvider({
     return () => {
       active = false
     }
-  }, [refreshSession])
+  }, [initialSession, refreshSession])
 
   return (
     <SessionContext value={{ user, loading, hasCurrentEvent, canRateCurrentEvent, refreshSession }}>

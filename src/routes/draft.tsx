@@ -5,12 +5,15 @@ import { useSession } from '../lib/SessionContext'
 import { getCurrentEvent } from '../lib/services'
 
 export const Route = createFileRoute('/draft')({
-  loader: () => getCurrentEvent(),
+  loader: async () => ({
+    event: await getCurrentEvent(),
+    loadedAt: Date.now(),
+  }),
   head: ({ loaderData }) =>
     pageMeta({
-      title: loaderData ? `${loaderData.name} Draft` : 'Draft',
-      description: loaderData
-        ? `Draft board for ${loaderData.name} with captain budgets, bids, and team picks.`
+      title: loaderData?.event ? `${loaderData.event.name} Draft` : 'Draft',
+      description: loaderData?.event
+        ? `Draft board for ${loaderData.event.name} with captain budgets, bids, and team picks.`
         : 'HammaBowl draft board for captain budgets, bids, and team picks.',
       path: '/draft',
     }),
@@ -18,7 +21,7 @@ export const Route = createFileRoute('/draft')({
 })
 
 function Draft() {
-  const event = Route.useLoaderData()
+  const { event, loadedAt } = Route.useLoaderData()
   const { user } = useSession()
 
   const canBid = Boolean(user)
@@ -31,6 +34,7 @@ function Draft() {
           canBid={Boolean(canBid)}
           canManageAll={Boolean(user?.roles.includes('admin'))}
           userId={user?.id}
+          initialNow={loadedAt}
         />
       ) : (
         <section className="panel empty-state">

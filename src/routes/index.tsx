@@ -11,6 +11,7 @@ export const Route = createFileRoute('/')({
   loader: async () => ({
     event: await getCurrentEvent(),
     user: await getSessionUser(),
+    loadedAt: Date.now(),
   }),
   head: ({ loaderData }) => {
     const event = loaderData?.event
@@ -39,7 +40,7 @@ export const Route = createFileRoute('/')({
 })
 
 function Home() {
-  const { event: initialEvent, user } = Route.useLoaderData()
+  const { event: initialEvent, loadedAt } = Route.useLoaderData()
   const [event] = useRealtimeCurrentEvent(initialEvent)
   if (!event) {
     return (
@@ -57,7 +58,7 @@ function Home() {
 
   return (
     <main>
-      <EventSummary event={event} />
+      <EventSummary event={event} initialNow={loadedAt} />
       {!matchStarted ? (
         <section className="panel">
           <div className="section-heading">

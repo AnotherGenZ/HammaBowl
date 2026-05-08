@@ -25,11 +25,13 @@ export function DraftBoard({
   canBid = false,
   canManageAll = false,
   userId,
+  initialNow,
 }: {
   event: HammaEvent
   canBid?: boolean
   canManageAll?: boolean
   userId?: string
+  initialNow?: number
 }) {
   const [currentEvent, setCurrentEvent, lastRealtimeUpdate] = useRealtimeCurrentEvent(event)
   const [savingBid, setSavingBid] = useState(false)
@@ -39,7 +41,7 @@ export function DraftBoard({
   const [stealingPlayerId, setStealingPlayerId] = useState<string>()
   const [selectedSpecs, setSelectedSpecs] = useState<string[]>([])
   const [bidMessage, setBidMessage] = useState<{ text: string; tone: 'neutral' | 'success' | 'error' }>()
-  const [now, setNow] = useState(Date.now())
+  const [now, setNow] = useState(initialNow ?? Date.now())
   const pickListRefs = useRef<Array<HTMLUListElement | null>>([])
   const syncingPickScroll = useRef(false)
   const prevPickTurnRef = useRef<string | undefined>(undefined)

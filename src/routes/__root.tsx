@@ -8,12 +8,38 @@ import {
   createRootRoute,
   useRouterState,
 } from '@tanstack/react-router'
+import { createServerFn } from '@tanstack/react-start'
 import { pageMeta } from '../lib/meta'
-import { SessionProvider, useSession } from '../lib/SessionContext'
+import { SessionProvider, useSession, type InitialSessionState } from '../lib/SessionContext'
 import { PlayerName } from '../components/PlayerName'
 import appCss from '../styles.css?url'
 
+const loadInitialSession = createServerFn({ method: 'GET' }).handler(async (): Promise<InitialSessionState> => {
+  const [{ getDiscordSessionUser }, { getCurrentEvent }] = await Promise.all([
+    import('../lib/discord.server'),
+    import('../lib/services'),
+  ])
+  const [user, event] = await Promise.all([
+    getDiscordSessionUser().catch(() => null),
+    getCurrentEvent().catch(() => null),
+  ])
+
+  return {
+    user,
+    hasCurrentEvent: Boolean(event),
+    canRateCurrentEvent: Boolean(
+      event &&
+      user?.profileComplete &&
+      (
+        user.roles.includes('admin') ||
+        event.players.some((player) => player.id === user.id)
+      ),
+    ),
+  }
+})
+
 export const Route = createRootRoute({
+  loader: () => loadInitialSession(),
   head: () => {
     const defaultMeta = pageMeta()
 
@@ -45,6 +71,7 @@ function RootComponent() {
 }
 
 function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
+  const initialSession = Route.useLoaderData()
   const pathname = useRouterState({ select: (state) => state.location.pathname })
   const isOverlayRoute = pathname === '/overlay'
   const isRatingsRoute = pathname === '/ratings'
@@ -61,7 +88,7 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
         <HeadContent />
       </head>
       <body className={bodyClassName}>
-        <SessionProvider>
+        <SessionProvider initialSession={initialSession}>
           <div className={isOverlayRoute ? 'shell overlay-shell' : 'shell'}>
             {isOverlayRoute ? null : <TopBar />}
             {children}

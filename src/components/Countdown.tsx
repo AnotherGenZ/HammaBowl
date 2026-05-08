@@ -11,6 +11,7 @@ export function Countdown({
   roundStartedAt,
   roundDurationSeconds,
   roundNumber,
+  initialNow,
 }: {
   closingTime?: string
   startsAt: string
@@ -18,6 +19,7 @@ export function Countdown({
   roundStartedAt?: string
   roundDurationSeconds?: number
   roundNumber?: number
+  initialNow?: number
 }) {
   const schedule = useMemo(
     () =>
@@ -31,7 +33,7 @@ export function Countdown({
       }),
     [closingTime, startsAt, draftStartMinutesBefore, roundStartedAt, roundDurationSeconds, roundNumber],
   )
-  const [now, setNow] = useState<number | null>(null)
+  const [now, setNow] = useState(initialNow ?? Date.now())
 
   useEffect(() => {
     const updateNow = () => setNow(Date.now())
@@ -39,10 +41,6 @@ export function Countdown({
     const id = window.setInterval(updateNow, 1000)
     return () => window.clearInterval(id)
   }, [])
-
-  if (now === null) {
-    return <div className="countdown-block countdown-loading" aria-hidden="true" />
-  }
 
   const target = selectCountdownTarget(schedule, now)
   if (!target) return null
