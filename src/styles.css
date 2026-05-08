@@ -2354,10 +2354,14 @@ main > .panel:first-child {
   width: 72px;
   height: 72px;
   border-radius: 8px;
-  object-fit: cover;
   border: 1px solid rgba(255, 255, 255, 0.14);
   background: #15191d;
   flex: 0 0 auto;
+}
+
+img.group-logo {
+  object-fit: contain;
+  padding: 6px;
 }
 
 .group-logo.large {
@@ -2397,6 +2401,14 @@ main > .panel:first-child {
   font-size: 0.72rem;
   font-weight: 900;
   text-transform: uppercase;
+}
+
+.group-form-hint {
+  color: #b4bcbb;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1.35;
+  text-transform: none;
 }
 
 .group-form-wide,

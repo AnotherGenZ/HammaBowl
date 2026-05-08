@@ -7,6 +7,7 @@ import Database from 'better-sqlite3'
 import { and, desc, eq } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { env, envList } from './env'
+import { cleanupOrphanedGroupLogoUploads, persistGroupLogoReference } from './groupLogoStorage.server'
 import { HONU_DEFAULT_ZONE_ID, normalizeHonuZoneId } from './honu'
 import { normalizeProfileBanner } from './profileBanners'
 import {
@@ -91,6 +92,8 @@ const ACTIVE_EVENT_SETTING_KEY = 'active_event_id'
 const ADMIN_BADGE_ID = 'system-admin'
 const MOD_BADGE_ID = 'system-mod'
 const DEFAULT_GROUP_TAG_COLOR = '#47bf8f'
+const GROUP_LOGO_CLEANUP_INTERVAL_MS = 6 * 60 * 60 * 1000
+const GROUP_LOGO_ORPHAN_GRACE_MS = 24 * 60 * 60 * 1000
 const SYSTEM_BADGES = [
   {
     id: ADMIN_BADGE_ID,
@@ -129,6 +132,7 @@ sqlite.pragma('foreign_keys = ON')
 export const db = drizzle(sqlite)
 
 bootstrap()
+ensureGroupLogoCleanupJob()
 
 export async function upsertEventFromRaidHelper(event: HammaEvent) {
   const now = new Date().toISOString()
@@ -2852,15 +2856,7 @@ function normalizeGroupTagColor(value?: string | null) {
 function normalizeGroupLogoUrl(value?: string | null) {
   const logoUrl = value?.trim()
   if (!logoUrl) return undefined
-  if (logoUrl.length > 500_000) throw new Error('Group logo is too large.')
-  if (
-    /^data:image\/(?:png|jpe?g|webp|gif);base64,[a-z0-9+/=]+$/i.test(logoUrl) ||
-    /^\/[a-z0-9/_\-%.]+$/i.test(logoUrl) ||
-    /^https:\/\/[^\s]+$/i.test(logoUrl)
-  ) {
-    return logoUrl
-  }
-  throw new Error('Group logo must be an uploaded image.')
+  return persistGroupLogoReference(logoUrl)
 }
 
 function ensureParticipantIdentity(player: { id: string; name: string; avatarUrl?: string }) {
@@ -4726,6 +4722,7 @@ function bootstrap() {
   migrateEventConfigurationTables()
   migrateParticipantRoleIds()
   migratePlayerBadgeDisplayPreferences()
+  migrateGroupLogoDataUrls()
   sqlite.exec(`
     INSERT INTO participants (discord_id, name, updated_at)
     SELECT discord_id, name, MAX(updated_at)
@@ -4738,6 +4735,58 @@ function bootstrap() {
   `)
   ensureSystemBadges()
   syncSystemBadgeAssignments()
+}
+
+function ensureGroupLogoCleanupJob() {
+  runGroupLogoCleanup()
+  const timer = setInterval(runGroupLogoCleanup, GROUP_LOGO_CLEANUP_INTERVAL_MS)
+  timer.unref?.()
+}
+
+function runGroupLogoCleanup() {
+  try {
+    const logoUrls = sqlite.prepare(`
+      SELECT logo_url AS logoUrl
+      FROM groups
+      WHERE logo_url IS NOT NULL
+    `).all() as Array<{ logoUrl: string | null }>
+    const result = cleanupOrphanedGroupLogoUploads(
+      logoUrls.map((row) => row.logoUrl),
+      { olderThanMs: GROUP_LOGO_ORPHAN_GRACE_MS },
+    )
+    if (result.deleted.length) {
+      console.info(`Cleaned up ${result.deleted.length} orphaned group logo upload(s).`)
+    }
+  } catch (error) {
+    console.warn(
+      `Unable to clean up orphaned group logo uploads: ${
+        error instanceof Error ? error.message : 'Unknown error'
+      }`,
+    )
+  }
+}
+
+function migrateGroupLogoDataUrls() {
+  const rows = sqlite.prepare(`
+    SELECT id, logo_url AS logoUrl
+    FROM groups
+    WHERE logo_url LIKE 'data:image/%;base64,%'
+  `).all() as Array<{ id: string; logoUrl: string }>
+  if (!rows.length) return
+
+  const updateLogo = sqlite.prepare('UPDATE groups SET logo_url = ?, updated_at = ? WHERE id = ?')
+  for (const row of rows) {
+    try {
+      const logoUrl = persistGroupLogoReference(row.logoUrl)
+      if (logoUrl) updateLogo.run(logoUrl, new Date().toISOString(), row.id)
+    } catch (error) {
+      console.warn(
+        `Unable to migrate inline group logo for group ${row.id}: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`,
+      )
+    }
+  }
 }
 
 function migrateEventPlayerCharactersPrimaryKey() {

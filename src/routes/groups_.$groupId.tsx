@@ -2,6 +2,8 @@ import { Link, createFileRoute } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { useMemo, useState, type CSSProperties, type ChangeEvent, type FormEvent, type ReactNode } from 'react'
 import { PlayerName } from '../components/PlayerName'
+import { GROUP_LOGO_ACCEPT_ATTRIBUTE } from '../lib/groupLogoConstants'
+import { processGroupLogoInput } from '../lib/groupLogoInput'
 import { pageMeta } from '../lib/meta'
 import { useSession } from '../lib/SessionContext'
 import type { GroupDetail, GroupParticipant } from '../lib/types'
@@ -45,6 +47,7 @@ function GroupPage() {
   const { user } = useSession()
   const [group, setGroup] = useState<GroupDetail | null>(loaderData.group)
   const [message, setMessage] = useState('')
+  const [logoMessage, setLogoMessage] = useState('')
   const [saving, setSaving] = useState(false)
   const [selectedAdminId, setSelectedAdminId] = useState('')
   const [form, setForm] = useState(() => ({
@@ -86,6 +89,7 @@ function GroupPage() {
       const payload = await response.json()
       if (!response.ok) throw new Error(payload.message ?? 'Unable to update group.')
       setGroup((current) => current ? { ...current, ...payload.group } : payload.group)
+      setLogoMessage('')
       setMessage('Group updated.')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Unable to update group.')
@@ -113,8 +117,15 @@ function GroupPage() {
   }
 
   async function handleLogoChange(event: ChangeEvent<HTMLInputElement>) {
-    const logoUrl = await readImageInput(event.currentTarget.files?.[0])
-    if (logoUrl) setForm((current) => ({ ...current, logoUrl }))
+    setLogoMessage('')
+    try {
+      const result = await processGroupLogoInput(event.currentTarget.files?.[0], { groupId: group?.id })
+      if (result.logoUrl) setForm((current) => ({ ...current, logoUrl: result.logoUrl }))
+      if (result.message) setLogoMessage(result.message)
+    } catch (error) {
+      event.currentTarget.value = ''
+      setLogoMessage(error instanceof Error ? error.message : 'Unable to process logo image.')
+    }
   }
 
   return (
@@ -209,7 +220,8 @@ function GroupPage() {
             </label>
             <label>
               Logo
-              <input accept="image/png,image/jpeg,image/webp,image/gif" type="file" onChange={handleLogoChange} />
+              <input accept={GROUP_LOGO_ACCEPT_ATTRIBUTE} type="file" onChange={handleLogoChange} />
+              {logoMessage ? <small className="group-form-hint">{logoMessage}</small> : null}
             </label>
             <label className="group-form-wide">
               Description
@@ -357,15 +369,4 @@ function GroupLogo({ group }: { group: Pick<GroupDetail, 'tag' | 'logoUrl'> }) {
 
 function groupTagStyle(tagColor?: string): CSSProperties | undefined {
   return tagColor ? ({ '--group-tag-color': tagColor } as CSSProperties) : undefined
-}
-
-function readImageInput(file?: File) {
-  if (!file) return Promise.resolve('')
-  if (!file.type.startsWith('image/')) return Promise.resolve('')
-  return new Promise<string>((resolve) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '')
-    reader.onerror = () => resolve('')
-    reader.readAsDataURL(file)
-  })
 }

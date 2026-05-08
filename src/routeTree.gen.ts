@@ -25,6 +25,7 @@ import { Route as ApiRatingsRouteImport } from './routes/api.ratings'
 import { Route as ApiProfileRouteImport } from './routes/api.profile'
 import { Route as ApiGroupsRouteImport } from './routes/api.groups'
 import { Route as ApiGroupMembershipsRouteImport } from './routes/api.group-memberships'
+import { Route as ApiGroupLogosRouteImport } from './routes/api.group-logos'
 import { Route as AdminHistoryRouteImport } from './routes/admin_.history'
 import { Route as AdminGeneralRouteImport } from './routes/admin_.general'
 import { Route as HallOfLegendsEventIdArchiveRouteImport } from './routes/hall-of-legends_.$eventId_.archive'
@@ -131,6 +132,11 @@ const ApiGroupsRoute = ApiGroupsRouteImport.update({
 const ApiGroupMembershipsRoute = ApiGroupMembershipsRouteImport.update({
   id: '/api/group-memberships',
   path: '/api/group-memberships',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiGroupLogosRoute = ApiGroupLogosRouteImport.update({
+  id: '/api/group-logos',
+  path: '/api/group-logos',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminHistoryRoute = AdminHistoryRouteImport.update({
@@ -286,6 +292,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/admin/general': typeof AdminGeneralRoute
   '/admin/history': typeof AdminHistoryRoute
+  '/api/group-logos': typeof ApiGroupLogosRoute
   '/api/group-memberships': typeof ApiGroupMembershipsRoute
   '/api/groups': typeof ApiGroupsRoute
   '/api/profile': typeof ApiProfileRoute
@@ -331,6 +338,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/admin/general': typeof AdminGeneralRoute
   '/admin/history': typeof AdminHistoryRoute
+  '/api/group-logos': typeof ApiGroupLogosRoute
   '/api/group-memberships': typeof ApiGroupMembershipsRoute
   '/api/groups': typeof ApiGroupsRoute
   '/api/profile': typeof ApiProfileRoute
@@ -377,6 +385,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/admin_/general': typeof AdminGeneralRoute
   '/admin_/history': typeof AdminHistoryRoute
+  '/api/group-logos': typeof ApiGroupLogosRoute
   '/api/group-memberships': typeof ApiGroupMembershipsRoute
   '/api/groups': typeof ApiGroupsRoute
   '/api/profile': typeof ApiProfileRoute
@@ -424,6 +433,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/admin/general'
     | '/admin/history'
+    | '/api/group-logos'
     | '/api/group-memberships'
     | '/api/groups'
     | '/api/profile'
@@ -469,6 +479,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/admin/general'
     | '/admin/history'
+    | '/api/group-logos'
     | '/api/group-memberships'
     | '/api/groups'
     | '/api/profile'
@@ -514,6 +525,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/admin_/general'
     | '/admin_/history'
+    | '/api/group-logos'
     | '/api/group-memberships'
     | '/api/groups'
     | '/api/profile'
@@ -560,6 +572,7 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   AdminGeneralRoute: typeof AdminGeneralRoute
   AdminHistoryRoute: typeof AdminHistoryRoute
+  ApiGroupLogosRoute: typeof ApiGroupLogosRoute
   ApiGroupMembershipsRoute: typeof ApiGroupMembershipsRoute
   ApiGroupsRoute: typeof ApiGroupsRoute
   ApiProfileRoute: typeof ApiProfileRoute
@@ -703,6 +716,13 @@ declare module '@tanstack/react-router' {
       path: '/api/group-memberships'
       fullPath: '/api/group-memberships'
       preLoaderRoute: typeof ApiGroupMembershipsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/group-logos': {
+      id: '/api/group-logos'
+      path: '/api/group-logos'
+      fullPath: '/api/group-logos'
+      preLoaderRoute: typeof ApiGroupLogosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin_/history': {
@@ -935,6 +955,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   AdminGeneralRoute: AdminGeneralRoute,
   AdminHistoryRoute: AdminHistoryRoute,
+  ApiGroupLogosRoute: ApiGroupLogosRoute,
   ApiGroupMembershipsRoute: ApiGroupMembershipsRoute,
   ApiGroupsRoute: ApiGroupsRoute,
   ApiProfileRoute: ApiProfileRoute,
