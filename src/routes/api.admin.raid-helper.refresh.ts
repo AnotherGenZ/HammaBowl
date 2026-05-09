@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { requireAdminSession } from '../lib/discord.server'
 import { getCurrentEvents, refreshRaidHelperEvent } from '../lib/services'
 import { publishEventUpdate } from '../lib/realtime.server'
+import { postDiscordCheckInPrompt } from '../lib/discordCheckIn.server'
 
 export const Route = createFileRoute('/api/admin/raid-helper/refresh')({
   server: {
@@ -18,6 +19,10 @@ export const Route = createFileRoute('/api/admin/raid-helper/refresh')({
             currentEvents,
           })
         }
+        const discordCheckIn = await postDiscordCheckInPrompt(event).catch((error) => ({
+          posted: false,
+          reason: error instanceof Error ? error.message : 'Unable to post Discord check-in prompt.',
+        }))
         publishEventUpdate(event.id, 'raid-helper.refreshed')
 
         return Response.json({
@@ -25,6 +30,7 @@ export const Route = createFileRoute('/api/admin/raid-helper/refresh')({
           eventId: event.id,
           raidHelperEventId: event.raidHelperEventId,
           signups: event.players.length,
+          discordCheckIn,
           event,
           currentEvents,
         })

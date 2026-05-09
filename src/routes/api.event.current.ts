@@ -1,9 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { checkInCurrentEventParticipant } from '../lib/checkIn.server'
 import { getDiscordSessionUser } from '../lib/discord.server'
-import { checkInEventParticipant, getDbEvent } from '../lib/db.server'
 import { ensureHonuAlertRefresh, ensureHonuPsbAccountRefresh } from '../lib/honu.server'
-import { publishEventUpdate } from '../lib/realtime.server'
-import { clearCurrentEventCache, getCurrentEvent, requireCurrentEvent } from '../lib/services'
+import { getCurrentEvent } from '../lib/services'
 
 export const Route = createFileRoute('/api/event/current')({
   server: {
@@ -17,15 +16,9 @@ export const Route = createFileRoute('/api/event/current')({
         const user = await getDiscordSessionUser()
         if (!user) throw new Response('Discord login required', { status: 401 })
 
-        const event = await requireCurrentEvent()
-        const result = await checkInEventParticipant(event.id, user.id)
+        const { event, message } = await checkInCurrentEventParticipant(user.id)
 
-        clearCurrentEventCache()
-        const updated = await getDbEvent(event.id)
-        const message = `${result.player} checked in.`
-        publishEventUpdate(event.id, 'event.check-in', { message, tone: 'success' })
-
-        return Response.json({ ok: true, message, event: updated })
+        return Response.json({ ok: true, message, event })
       },
     },
   },

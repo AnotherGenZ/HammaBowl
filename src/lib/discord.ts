@@ -1,27 +1,27 @@
+import {
+  CDN,
+  DiscordAPIError,
+  REST,
+} from '@discordjs/rest'
+import {
+  OAuth2Routes,
+  OAuth2Scopes,
+  Routes,
+  type APIGuildMember,
+  type APIMessage,
+  type APIUser,
+  type RESTPatchAPIChannelMessageJSONBody,
+  type RESTPostAPIChannelMessageJSONBody,
+  type RESTPostOAuth2AccessTokenResult,
+} from 'discord-api-types/v10'
 import { env, envList, requireEnv } from './env'
 import type { Role } from './types'
 
-const DISCORD_API_BASE_URL = 'https://discord.com/api/v10'
-interface DiscordTokenResponse {
-  access_token: string
-  token_type: string
-  expires_in: number
-  refresh_token?: string
-  scope: string
-}
+const discordCdn = new CDN()
 
-interface DiscordUserResponse {
-  id: string
-  username: string
-  global_name?: string | null
-  avatar?: string | null
-}
-
-interface DiscordGuildMemberResponse {
-  nick?: string | null
-  avatar?: string | null
-  roles: string[]
-  user?: DiscordUserResponse
+export interface DiscordGuildMember {
+  discordId: string
+  roleIds: string[]
 }
 
 export interface DiscordSessionData {
@@ -30,29 +30,16 @@ export interface DiscordSessionData {
   username: string
   displayName: string
   avatar?: string | null
-  accessToken: string
-  refreshToken?: string
-  roleIds: string[]
-  roles: Role[]
   avatarUrl?: string | null
 }
 
-export class DiscordApiError extends Error {
-  constructor(
-    readonly path: string,
-    readonly status: number,
-  ) {
-    super(`Discord API request failed: ${path} ${status}`)
-  }
-}
-
 export function discordAuthorizeUrl(state: string, requestUrl: string) {
-  const url = new URL('https://discord.com/oauth2/authorize')
+  const url = new URL(OAuth2Routes.authorizationURL)
 
   url.searchParams.set('client_id', requireEnv('DISCORD_CLIENT_ID'))
   url.searchParams.set('response_type', 'code')
   url.searchParams.set('redirect_uri', discordRedirectUri(requestUrl))
-  url.searchParams.set('scope', 'identify guilds.members.read')
+  url.searchParams.set('scope', OAuth2Scopes.Identify)
   url.searchParams.set('state', state)
 
   return url.toString()
@@ -67,28 +54,18 @@ export async function exchangeDiscordCode(code: string, requestUrl: string) {
     redirect_uri: discordRedirectUri(requestUrl),
   })
 
-  const response = await fetch(`${DISCORD_API_BASE_URL}/oauth2/token`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+  return new REST().post(discordApiRoute(OAuth2Routes.tokenURL), {
+    auth: false,
     body,
-  })
-
-  if (!response.ok) {
-    throw new Error(`Discord token exchange failed: ${response.status}`)
-  }
-
-  return response.json() as Promise<DiscordTokenResponse>
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    passThroughBody: true,
+  }) as Promise<RESTPostOAuth2AccessTokenResult>
 }
 
 export async function getDiscordIdentity(accessToken: string) {
   const guildId = requireEnv('DISCORD_GUILD_ID')
-  const [user, member] = await Promise.all([
-    discordFetch<DiscordUserResponse>('/users/@me', accessToken),
-    discordFetch<DiscordGuildMemberResponse>(
-      `/users/@me/guilds/${guildId}/member`,
-      accessToken,
-    ),
-  ])
+  const user = await discordUserRest(accessToken).get(Routes.user()) as APIUser
+  const member = await discordBotRest().get(Routes.guildMember(guildId, user.id)) as APIGuildMember
 
   const roleIds = member.roles ?? []
   const roles = mapDiscordRoles(user.id, roleIds)
@@ -99,11 +76,50 @@ export async function getDiscordIdentity(accessToken: string) {
     displayName: member.nick ?? user.global_name ?? user.username,
     avatar: user.avatar,
     avatarUrl: member.avatar
-      ? discordGuildAvatarUrl(guildId, user.id, member.avatar)
-      : discordAvatarUrl(user.id, user.avatar),
+      ? discordCdn.guildMemberAvatar(guildId, user.id, member.avatar, { size: 256 })
+      : discordAvatarUrl(user),
     roleIds,
     roles,
   }
+}
+
+export async function listDiscordGuildMembers() {
+  const guildId = requireEnv('DISCORD_GUILD_ID')
+  const members: DiscordGuildMember[] = []
+  let after = '0'
+
+  for (;;) {
+    const params = new URLSearchParams({ limit: '1000', after })
+    const page = await discordBotRest().get(Routes.guildMembers(guildId), { query: params }) as APIGuildMember[]
+
+    for (const member of page) {
+      if (!member.user?.id) continue
+      members.push({
+        discordId: member.user.id,
+        roleIds: member.roles ?? [],
+      })
+    }
+
+    if (page.length < 1000) return members
+    const lastMemberId = page.at(-1)?.user?.id
+    if (!lastMemberId || lastMemberId === after) return members
+    after = lastMemberId
+  }
+}
+
+export async function postDiscordChannelMessage(
+  channelId: string,
+  body: RESTPostAPIChannelMessageJSONBody,
+) {
+  return discordBotRest().post(Routes.channelMessages(channelId), { body }) as Promise<APIMessage>
+}
+
+export async function editDiscordChannelMessage(
+  channelId: string,
+  messageId: string,
+  body: RESTPatchAPIChannelMessageJSONBody,
+) {
+  return discordBotRest().patch(Routes.channelMessage(channelId, messageId), { body }) as Promise<APIMessage>
 }
 
 export function mapDiscordRoles(discordId: string, roleIds: string[]): Role[] {
@@ -123,9 +139,9 @@ export function mapDiscordRoles(discordId: string, roleIds: string[]): Role[] {
 
 export function isDiscordGuildMemberNotFound(error: unknown) {
   return (
-    error instanceof DiscordApiError &&
+    error instanceof DiscordAPIError &&
     error.status === 404 &&
-    /^\/users\/@me\/guilds\/\d+\/member$/.test(error.path)
+    /\/guilds\/\d+\/members\/\d+$/.test(error.url)
   )
 }
 
@@ -133,25 +149,18 @@ function discordRedirectUri(requestUrl: string) {
   return new URL('/api/auth/discord/callback', new URL(requestUrl).origin).toString()
 }
 
-async function discordFetch<T>(path: string, accessToken: string) {
-  const response = await fetch(`${DISCORD_API_BASE_URL}${path}`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  })
-
-  if (!response.ok) {
-    throw new DiscordApiError(path, response.status)
-  }
-
-  return response.json() as Promise<T>
+function discordUserRest(accessToken: string) {
+  return new REST({ authPrefix: 'Bearer' }).setToken(accessToken)
 }
 
-function discordAvatarUrl(discordId: string, avatarHash?: string | null) {
-  if (!avatarHash) return null
-  const extension = avatarHash.startsWith('a_') ? 'gif' : 'png'
-  return `https://cdn.discordapp.com/avatars/${discordId}/${avatarHash}.${extension}?size=256`
+function discordBotRest() {
+  return new REST().setToken(requireEnv('DISCORD_BOT_TOKEN'))
 }
 
-function discordGuildAvatarUrl(guildId: string, discordId: string, avatarHash: string) {
-  const extension = avatarHash.startsWith('a_') ? 'gif' : 'png'
-  return `https://cdn.discordapp.com/guilds/${guildId}/users/${discordId}/avatars/${avatarHash}.${extension}?size=256`
+function discordApiRoute(url: string) {
+  return new URL(url).pathname.replace(/^\/api\/v\d+/, '') as `/${string}`
+}
+
+function discordAvatarUrl(user: APIUser) {
+  return user.avatar ? discordCdn.avatar(user.id, user.avatar, { size: 256 }) : null
 }

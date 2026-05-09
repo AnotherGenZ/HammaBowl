@@ -16,6 +16,7 @@ export interface RaidHelperSignup {
 
 interface RaidHelperRemoteEvent {
   id: string
+  channelId?: string
   title: string
   startsAt: string
   endsAt?: string
@@ -77,14 +78,14 @@ export function createRaidHelperClient(): RaidHelperClient {
         `${RAID_HELPER_API_BASE_URL}/events/${encodeURIComponent(eventId)}`,
         apiKey,
       )
-      return normalizeRemoteEvent(payload)
+      return normalizeRemoteEvent(payload, eventId)
     },
     async getSignups(eventId) {
       const payload = await requestUnknown(
         `${RAID_HELPER_API_BASE_URL}/events/${encodeURIComponent(eventId)}`,
         apiKey,
       )
-      return normalizeRemoteEvent(payload).signups
+      return normalizeRemoteEvent(payload, eventId).signups
     },
     async updateComp(compId, body) {
       const url = `${RAID_HELPER_API_BASE_URL}/comps/${encodeURIComponent(compId)}`
@@ -159,6 +160,7 @@ async function hydrateRemoteEvent(
   return {
     id: `raid-helper-${fullEvent.id}`,
     raidHelperEventId: fullEvent.id,
+    raidHelperChannelId: fullEvent.channelId,
     name: stripMarkdown(fullEvent.title),
     server: env('HAMMABOWL_SERVER_NAME', 'Jaeger'),
     startsAt: fullEvent.startsAt,
@@ -248,6 +250,18 @@ function signupPlayers(signups: RaidHelperSignup[]): Player[] {
   }
 
   return players.sort((a, b) => a.name.localeCompare(b.name))
+}
+
+export function raidHelperCheckInPingDiscordIds(signups: RaidHelperSignup[]) {
+  return uniqueStrings(
+    signups
+      .filter((signup) => isAcceptedSignup(signup) || isMaybeSignup(signup))
+      .map((signup) => signup.discordId),
+  )
+}
+
+export function raidHelperMaybeSignupCount(signups: RaidHelperSignup[]) {
+  return signups.filter(isMaybeSignup).length
 }
 
 function isAcceptedSignup(signup: RaidHelperSignup) {
@@ -355,7 +369,7 @@ function selectEventById(payload: unknown, eventId: string) {
 }
 
 function normalizeScheduledEvents(payload: unknown): RaidHelperRemoteEvent[] {
-  return eventItems(payload).map(normalizeRemoteEvent)
+  return eventItems(payload).map((item) => normalizeRemoteEvent(item))
 }
 
 function eventItems(payload: unknown): unknown[] {
@@ -372,10 +386,11 @@ function eventItems(payload: unknown): unknown[] {
   return []
 }
 
-function normalizeRemoteEvent(payload: unknown): RaidHelperRemoteEvent {
+function normalizeRemoteEvent(payload: unknown, eventId?: string): RaidHelperRemoteEvent {
   const record = asRecord(payload)
   const source = asRecord(record.event ?? record.data ?? record)
-  const id = stringValue(
+  const channel = asRecord(source.channel ?? record.channel)
+  const id = eventId ?? stringValue(
     source.id ??
       source.eventId ??
       source.eventid ??
@@ -415,6 +430,18 @@ function normalizeRemoteEvent(payload: unknown): RaidHelperRemoteEvent {
 
   return {
     id,
+    channelId: stringValue(
+      source.channelId ??
+        source.channel_id ??
+        source.discordChannelId ??
+        source.discord_channel_id ??
+        source.discordChannel ??
+        record.channelId ??
+        record.channel_id ??
+        record.discordChannelId ??
+        record.discord_channel_id ??
+        channel.id,
+    ) || undefined,
     title,
     startsAt,
     endsAt: endsAt || undefined,

@@ -4,6 +4,9 @@ import { index, integer, primaryKey, real, sqliteTable, text } from 'drizzle-orm
 export const events = sqliteTable('events', {
   id: text('id').primaryKey(),
   raidHelperEventId: text('raid_helper_event_id').notNull().unique(),
+  raidHelperChannelId: text('raid_helper_channel_id'),
+  discordCheckInMessageId: text('discord_check_in_message_id'),
+  discordCheckInMessageChannelId: text('discord_check_in_message_channel_id'),
   name: text('name').notNull(),
   nameOverride: text('name_override'),
   server: text('server').notNull(),

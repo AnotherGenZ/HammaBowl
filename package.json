@@ -6,13 +6,18 @@
     "dev": "vite dev",
     "build": "vite build",
     "typecheck": "tsc --noEmit",
+    "discord:commands": "node scripts/register-discord-commands.mjs",
     "start": "node .output/server/index.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@discordjs/rest": "^2.6.1",
     "@tanstack/react-router": "^1.169.0",
     "@tanstack/react-start": "^1.167.55",
     "better-sqlite3": "^12.9.0",
+    "discord-api-types": "^0.38.47",
+    "discord-interactions": "^4.4.0",
+    "discord.js": "^14.26.4",
     "drizzle-orm": "^0.45.2",
     "lucide-react": "^1.14.0",
     "ps2census": "^4.9.1",

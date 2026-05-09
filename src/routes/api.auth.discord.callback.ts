@@ -50,10 +50,6 @@ export const Route = createFileRoute('/api/auth/discord/callback')({
           displayName: identity.displayName,
           avatar: identity.avatar,
           avatarUrl: identity.avatarUrl,
-          accessToken: token.access_token,
-          refreshToken: token.refresh_token,
-          roleIds: identity.roleIds,
-          roles: identity.roles,
         })
         upsertParticipantProfileIdentity(
           identity.discordId,

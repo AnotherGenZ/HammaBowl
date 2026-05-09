@@ -32,6 +32,7 @@ import { Route as HallOfLegendsEventIdArchiveRouteImport } from './routes/hall-o
 import { Route as ApiEventCurrentRouteImport } from './routes/api.event.current'
 import { Route as ApiDraftPickRouteImport } from './routes/api.draft.pick'
 import { Route as ApiDraftBidRouteImport } from './routes/api.draft.bid'
+import { Route as ApiDiscordInteractionsRouteImport } from './routes/api.discord.interactions'
 import { Route as ApiAuthSessionRouteImport } from './routes/api.auth.session'
 import { Route as ApiAuthLogoutRouteImport } from './routes/api.auth.logout'
 import { Route as ApiAuthDiscordRouteImport } from './routes/api.auth.discord'
@@ -168,6 +169,11 @@ const ApiDraftPickRoute = ApiDraftPickRouteImport.update({
 const ApiDraftBidRoute = ApiDraftBidRouteImport.update({
   id: '/api/draft/bid',
   path: '/api/draft/bid',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDiscordInteractionsRoute = ApiDiscordInteractionsRouteImport.update({
+  id: '/api/discord/interactions',
+  path: '/api/discord/interactions',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAuthSessionRoute = ApiAuthSessionRouteImport.update({
@@ -312,6 +318,7 @@ export interface FileRoutesByFullPath {
   '/api/auth/discord': typeof ApiAuthDiscordRouteWithChildren
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/session': typeof ApiAuthSessionRoute
+  '/api/discord/interactions': typeof ApiDiscordInteractionsRoute
   '/api/draft/bid': typeof ApiDraftBidRoute
   '/api/draft/pick': typeof ApiDraftPickRoute
   '/api/event/current': typeof ApiEventCurrentRouteWithChildren
@@ -358,6 +365,7 @@ export interface FileRoutesByTo {
   '/api/auth/discord': typeof ApiAuthDiscordRouteWithChildren
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/session': typeof ApiAuthSessionRoute
+  '/api/discord/interactions': typeof ApiDiscordInteractionsRoute
   '/api/draft/bid': typeof ApiDraftBidRoute
   '/api/draft/pick': typeof ApiDraftPickRoute
   '/api/event/current': typeof ApiEventCurrentRouteWithChildren
@@ -405,6 +413,7 @@ export interface FileRoutesById {
   '/api/auth/discord': typeof ApiAuthDiscordRouteWithChildren
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/session': typeof ApiAuthSessionRoute
+  '/api/discord/interactions': typeof ApiDiscordInteractionsRoute
   '/api/draft/bid': typeof ApiDraftBidRoute
   '/api/draft/pick': typeof ApiDraftPickRoute
   '/api/event/current': typeof ApiEventCurrentRouteWithChildren
@@ -453,6 +462,7 @@ export interface FileRouteTypes {
     | '/api/auth/discord'
     | '/api/auth/logout'
     | '/api/auth/session'
+    | '/api/discord/interactions'
     | '/api/draft/bid'
     | '/api/draft/pick'
     | '/api/event/current'
@@ -499,6 +509,7 @@ export interface FileRouteTypes {
     | '/api/auth/discord'
     | '/api/auth/logout'
     | '/api/auth/session'
+    | '/api/discord/interactions'
     | '/api/draft/bid'
     | '/api/draft/pick'
     | '/api/event/current'
@@ -545,6 +556,7 @@ export interface FileRouteTypes {
     | '/api/auth/discord'
     | '/api/auth/logout'
     | '/api/auth/session'
+    | '/api/discord/interactions'
     | '/api/draft/bid'
     | '/api/draft/pick'
     | '/api/event/current'
@@ -592,6 +604,7 @@ export interface RootRouteChildren {
   ApiAuthDiscordRoute: typeof ApiAuthDiscordRouteWithChildren
   ApiAuthLogoutRoute: typeof ApiAuthLogoutRoute
   ApiAuthSessionRoute: typeof ApiAuthSessionRoute
+  ApiDiscordInteractionsRoute: typeof ApiDiscordInteractionsRoute
   ApiDraftBidRoute: typeof ApiDraftBidRoute
   ApiDraftPickRoute: typeof ApiDraftPickRoute
   ApiEventCurrentRoute: typeof ApiEventCurrentRouteWithChildren
@@ -765,6 +778,13 @@ declare module '@tanstack/react-router' {
       path: '/api/draft/bid'
       fullPath: '/api/draft/bid'
       preLoaderRoute: typeof ApiDraftBidRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/discord/interactions': {
+      id: '/api/discord/interactions'
+      path: '/api/discord/interactions'
+      fullPath: '/api/discord/interactions'
+      preLoaderRoute: typeof ApiDiscordInteractionsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/auth/session': {
@@ -975,6 +995,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAuthDiscordRoute: ApiAuthDiscordRouteWithChildren,
   ApiAuthLogoutRoute: ApiAuthLogoutRoute,
   ApiAuthSessionRoute: ApiAuthSessionRoute,
+  ApiDiscordInteractionsRoute: ApiDiscordInteractionsRoute,
   ApiDraftBidRoute: ApiDraftBidRoute,
   ApiDraftPickRoute: ApiDraftPickRoute,
   ApiEventCurrentRoute: ApiEventCurrentRouteWithChildren,

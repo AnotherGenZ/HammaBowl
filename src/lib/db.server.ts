@@ -89,6 +89,7 @@ import type {
 
 const dbPath = env('DATABASE_URL', path.join(process.cwd(), 'data', 'hammabowl.sqlite'))
 const ACTIVE_EVENT_SETTING_KEY = 'active_event_id'
+const DISCORD_ROLE_REFRESHED_AT_SETTING_KEY = 'discord_role_refreshed_at'
 const ADMIN_BADGE_ID = 'system-admin'
 const MOD_BADGE_ID = 'system-mod'
 const DEFAULT_GROUP_TAG_COLOR = '#47bf8f'
@@ -146,6 +147,7 @@ export async function upsertEventFromRaidHelper(event: HammaEvent) {
     .values({
       id: event.id,
       raidHelperEventId: event.raidHelperEventId,
+      raidHelperChannelId: event.raidHelperChannelId,
       name: event.name,
       server: event.server,
       startsAt: event.startsAt,
@@ -167,6 +169,7 @@ export async function upsertEventFromRaidHelper(event: HammaEvent) {
       target: events.raidHelperEventId,
       set: {
         name: event.name,
+        raidHelperChannelId: event.raidHelperChannelId,
         startsAt: event.startsAt,
         endsAt: event.endsAt,
         closingTime: event.closingTime,
@@ -391,6 +394,9 @@ export async function getDbEvent(eventId: string): Promise<HammaEvent | null> {
   return {
     id: event.id,
     raidHelperEventId: event.raidHelperEventId,
+    raidHelperChannelId: event.raidHelperChannelId ?? undefined,
+    discordCheckInMessageId: event.discordCheckInMessageId ?? undefined,
+    discordCheckInMessageChannelId: event.discordCheckInMessageChannelId ?? undefined,
     name: event.nameOverride || event.name,
     nameOverride: event.nameOverride ?? undefined,
     server: event.server,
@@ -545,6 +551,21 @@ export async function setActiveEvent(eventId: string): Promise<HammaEvent> {
   const hydrated = await getDbEvent(event.id)
   if (!hydrated) throw new Error('Event not found.')
   return hydrated
+}
+
+export async function setEventDiscordCheckInMessage(
+  eventId: string,
+  channelId: string,
+  messageId: string,
+) {
+  db.update(events)
+    .set({
+      discordCheckInMessageChannelId: channelId,
+      discordCheckInMessageId: messageId,
+      updatedAt: new Date().toISOString(),
+    })
+    .where(eq(events.id, eventId))
+    .run()
 }
 
 export async function ensureDefaultTeams(event: HammaEvent) {
@@ -1633,7 +1654,9 @@ export async function checkInEventParticipant(eventId: string, discordId: string
 
   const player = event.players.find((candidate) => candidate.id === discordId)
   if (!player) throw new Error('You are not signed up for this event.')
-  if (player.checkedInAt) return { player: player.name, checkedInAt: player.checkedInAt }
+  if (player.checkedInAt) {
+    return { player: player.name, checkedInAt: player.checkedInAt, alreadyCheckedIn: true }
+  }
 
   const checkInWindow = getCheckInWindow(event)
   if (!checkInWindow.isOpen) {
@@ -1651,7 +1674,7 @@ export async function checkInEventParticipant(eventId: string, discordId: string
     )
     .run()
 
-  return { player: player.name, checkedInAt }
+  return { player: player.name, checkedInAt, alreadyCheckedIn: false }
 }
 
 export async function confirmDraftPick(
@@ -2237,6 +2260,12 @@ function getParticipantRoleIds(discordId: string) {
     .where(eq(participantRoleIds.discordId, discordId))
     .all()
     .map((row) => row.roleId)
+}
+
+export function getParticipantDiscordRoleIds(discordId: string) {
+  const normalizedId = discordId.trim()
+  if (!normalizedId) return []
+  return getParticipantRoleIds(normalizedId)
 }
 
 function replaceParticipantRoleIds(discordId: string, roleIds: string[], updatedAt: string) {
@@ -3018,13 +3047,38 @@ export function upsertParticipantProfileIdentity(
     .run()
 }
 
-export function updateParticipantDiscordRoleIds(discordId: string, roleIds: string[]) {
-  const normalizedId = discordId.trim()
-  if (!normalizedId) return
+export function getLastDiscordGuildMemberRoleRefreshAt() {
+  return getAppSetting(DISCORD_ROLE_REFRESHED_AT_SETTING_KEY)
+}
 
+export function replaceKnownParticipantDiscordRoleIds(
+  memberRoles: Array<{ discordId: string; roleIds: string[] }>,
+) {
   const now = new Date().toISOString()
-  replaceParticipantRoleIds(normalizedId, roleIds, now)
-  db.update(participants).set({ updatedAt: now }).where(eq(participants.discordId, normalizedId)).run()
+  const rolesByDiscordId = new Map(
+    memberRoles
+      .map((member) => [member.discordId.trim(), member.roleIds] as const)
+      .filter(([discordId]) => Boolean(discordId)),
+  )
+  const participantIds = db
+    .select({ discordId: participants.discordId })
+    .from(participants)
+    .all()
+    .map((participant) => participant.discordId)
+
+  for (const discordId of participantIds) {
+    replaceParticipantRoleIds(discordId, rolesByDiscordId.get(discordId) ?? [], now)
+    db.update(participants).set({ updatedAt: now }).where(eq(participants.discordId, discordId)).run()
+  }
+
+  setAppSetting(DISCORD_ROLE_REFRESHED_AT_SETTING_KEY, now)
+  syncSystemBadgeAssignments()
+
+  return {
+    refreshedAt: now,
+    guildMemberCount: rolesByDiscordId.size,
+    updatedParticipantCount: participantIds.length,
+  }
 }
 
 export function hasCompletePlayerCharacters(discordId: string) {
@@ -4396,6 +4450,9 @@ function bootstrap() {
     CREATE TABLE IF NOT EXISTS events (
       id TEXT PRIMARY KEY,
       raid_helper_event_id TEXT NOT NULL UNIQUE,
+      raid_helper_channel_id TEXT,
+      discord_check_in_message_id TEXT,
+      discord_check_in_message_channel_id TEXT,
       name TEXT NOT NULL,
       name_override TEXT,
       server TEXT NOT NULL,
@@ -4681,6 +4738,9 @@ function bootstrap() {
     );
   `)
   addColumnIfMissing('events', 'name_override', 'TEXT')
+  addColumnIfMissing('events', 'raid_helper_channel_id', 'TEXT')
+  addColumnIfMissing('events', 'discord_check_in_message_id', 'TEXT')
+  addColumnIfMissing('events', 'discord_check_in_message_channel_id', 'TEXT')
   addColumnIfMissing('events', 'ends_at', 'TEXT')
   addColumnIfMissing('events', 'draft_start_minutes_before', 'INTEGER')
   addColumnIfMissing('events', 'round_count', 'INTEGER NOT NULL DEFAULT 3')

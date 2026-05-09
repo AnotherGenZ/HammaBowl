@@ -95,6 +95,9 @@ export type EventTrophyId = 'hammo-bowl-cup' | 'hamma-dome-biolab'
 export interface HammaEvent {
   id: string
   raidHelperEventId: string
+  raidHelperChannelId?: string
+  discordCheckInMessageId?: string
+  discordCheckInMessageChannelId?: string
   name: string
   nameOverride?: string
   server: string
