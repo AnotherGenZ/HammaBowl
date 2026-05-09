@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router'
+import { Check, Clock } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { compactMoney, money, shortDate } from '../lib/format'
 import {
@@ -756,13 +757,21 @@ function CheckInBadge({
   const status = player.checkedInAt ? 'checked' : checkInWindow.hasClosed ? 'missing' : 'pending'
   const label = status === 'checked' ? 'Checked in' : status === 'missing' ? 'No-show' : 'Pending'
   const compactLabel = status === 'checked' ? 'Checked in' : status === 'missing' ? 'No check-in' : 'Check-in pending'
-  const title = player.checkedInAt
-    ? `Check-in status: checked in at ${shortDate(player.checkedInAt)}`
-    : `Check-in status: ${status === 'missing' ? 'not checked in' : 'pending'}`
+  const title = compact ? compactLabel : label
+  const icon =
+    status === 'checked'
+      ? <Check aria-hidden="true" />
+      : status === 'pending'
+        ? <Clock aria-hidden="true" />
+        : null
 
   return (
-    <span className={`check-in-badge ${status}${compact ? ' compact' : ''}`} title={title}>
-      {compact ? compactLabel : label}
+    <span
+      className={`check-in-badge ${status}${compact ? ' compact' : ''}${icon ? ' icon-only' : ''}`}
+      title={title}
+      aria-label={title}
+    >
+      {icon ?? (compact ? compactLabel : label)}
     </span>
   )
 }
