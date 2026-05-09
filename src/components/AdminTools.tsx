@@ -2730,6 +2730,25 @@ function summarizeResult(result: unknown) {
   if (!result || typeof result !== 'object') return 'Action completed.'
   const record = result as Record<string, unknown>
   if (typeof record.message === 'string') return record.message
-  if (record.ok && record.signups) return `Raid Helper refreshed: ${record.signups} accepted signups.`
+  if (record.ok && typeof record.signups === 'number') {
+    const base = `Raid Helper refreshed: ${record.signups} accepted signups.`
+    const discordCheckIn = summarizeDiscordCheckIn(record.discordCheckIn)
+    return discordCheckIn ? `${base} ${discordCheckIn}` : base
+  }
   return 'Action completed.'
+}
+
+function summarizeDiscordCheckIn(result: unknown) {
+  if (!result || typeof result !== 'object') return ''
+
+  const record = result as Record<string, unknown>
+  if (record.posted) {
+    return record.messageId
+      ? `Discord check-in posted (${record.messageId}).`
+      : 'Discord check-in posted.'
+  }
+
+  return typeof record.reason === 'string'
+    ? `Discord check-in not posted: ${record.reason}`
+    : 'Discord check-in not posted.'
 }

@@ -52,19 +52,7 @@ export async function postDiscordCheckInPrompt(event: HammaEvent): Promise<Disco
     }
   }
 
-  const message = await postDiscordChannelMessage(channelId, {
-    ...messageBody,
-    ...(event.raidHelperEventId
-      ? {
-          message_reference: {
-            channel_id: channelId,
-            message_id: event.raidHelperEventId,
-            fail_if_not_exists: false,
-          },
-        }
-      : {}),
-    allowed_mentions: { parse: [], replied_user: false },
-  })
+  const message = await postCheckInMessage(channelId, event, messageBody)
 
   await setEventDiscordCheckInMessage(event.id, channelId, message.id)
 
@@ -97,6 +85,42 @@ function buildCheckInPromptMessage(
   }
 }
 
+async function postCheckInMessage(
+  channelId: string,
+  event: HammaEvent,
+  messageBody: RESTPostAPIChannelMessageJSONBody,
+) {
+  const body: RESTPostAPIChannelMessageJSONBody = {
+    ...messageBody,
+    allowed_mentions: { parse: [], replied_user: false },
+  }
+
+  if (!event.raidHelperEventId) {
+    return postDiscordChannelMessage(channelId, body)
+  }
+
+  try {
+    return await postDiscordChannelMessage(channelId, {
+      ...body,
+      message_reference: {
+        channel_id: channelId,
+        message_id: event.raidHelperEventId,
+        fail_if_not_exists: false,
+      },
+    })
+  } catch (error) {
+    if (!isDiscordMessageReferenceFailure(error)) throw error
+
+    console.warn('Discord rejected check-in reply reference; posting check-in without a reply.', {
+      eventId: event.id,
+      raidHelperEventId: event.raidHelperEventId,
+      channelId,
+      status: error instanceof DiscordAPIError ? error.status : undefined,
+    })
+    return postDiscordChannelMessage(channelId, body)
+  }
+}
+
 function buildCheckInEmbed(event: HammaEvent): APIEmbed {
   const checkInWindow = getCheckInWindow(event)
   const startsAt = discordTimestamp(event.startsAt, 'F')
@@ -105,17 +129,26 @@ function buildCheckInEmbed(event: HammaEvent): APIEmbed {
 
   return {
     title: `${event.name} check-in`,
-    description: `Press the button when you are ready for draft. Check-in is available from ${opensAt} until ${closesAt}.`,
+    description: `Press the button when you are ready for draft. Check-in is available in ${opensAt} until ${closesAt}.`,
     color: 0x47bf8f,
     fields: [
-      { name: 'Starts', value: startsAt, inline: false },
+      { name: 'Event Start', value: startsAt, inline: false },
+      {
+        name: 'Ratings',
+        value: '[Complete your player ratings](https://hambowl.angz.dev/ratings)',
+        inline: false,
+      },
     ],
     footer: {
-      text: 'Reminder: complete your player ratings at https://hambowl.angz.dev/ratings',
+      text: 'Reminder: complete your player ratings before draft.',
     },
   }
 }
 
 function isDiscordMessageNotFound(error: unknown) {
   return error instanceof DiscordAPIError && error.status === 404
+}
+
+function isDiscordMessageReferenceFailure(error: unknown) {
+  return error instanceof DiscordAPIError && [400, 403, 404].includes(error.status)
 }
