@@ -1,21 +1,25 @@
 import { REST } from '@discordjs/rest'
 import { ApplicationCommandType, Routes } from 'discord-api-types/v10'
 
-const command = {
-  name: 'checkin',
-  description: 'Check in for the current Hamma Bowl event.',
-  type: ApplicationCommandType.ChatInput,
-}
+const commands = [
+  {
+    name: 'checkin',
+    description: 'Check in for the current Hamma Bowl event.',
+    type: ApplicationCommandType.ChatInput,
+  },
+]
 
 const clientId = requireEnv('DISCORD_CLIENT_ID')
 const guildId = requireEnv('DISCORD_GUILD_ID')
 const token = requireEnv('DISCORD_BOT_TOKEN')
+const rest = new REST().setToken(token)
+const route = Routes.applicationGuildCommands(clientId, guildId)
 
-await new REST().setToken(token).post(Routes.applicationGuildCommands(clientId, guildId), {
-  body: command,
-})
+for (const command of commands) {
+  await rest.post(route, { body: command })
+}
 
-console.log(`Registered /${command.name} in Discord guild ${guildId}.`)
+console.log(`Registered Discord slash commands in guild ${guildId}: ${commands.map((command) => `/${command.name}`).join(', ')}.`)
 
 function requireEnv(name) {
   const value = process.env[name]

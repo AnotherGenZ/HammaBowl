@@ -19,6 +19,7 @@ export default defineConfig({
           handler: path.resolve('src/server/groupLogoUploads.ts'),
         },
       ],
+      plugins: [path.resolve('src/server/discordCommandsPlugin.ts')],
       experimental: {
         websocket: true,
       },

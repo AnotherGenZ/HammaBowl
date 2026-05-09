@@ -10,10 +10,9 @@ import {
   type APIMessageComponentInteraction,
 } from 'discord-api-types/v10'
 import { checkInCurrentEventParticipant, checkInEventParticipantAndPublish } from '../lib/checkIn.server'
+import { CHECK_IN_COMMAND_NAME } from '../lib/discordCommands'
 import { DISCORD_CHECK_IN_BUTTON_PREFIX } from '../lib/discordCheckIn.server'
 import { env, requireEnv } from '../lib/env'
-
-const CHECK_IN_COMMAND_NAME = 'checkin'
 
 export const Route = createFileRoute('/api/discord/interactions')({
   server: {
