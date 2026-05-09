@@ -378,6 +378,11 @@ export interface AdminBadgeManagerData {
   assignments: AdminBadgeAssignment[]
 }
 
+export interface AdminSignupManagerData {
+  players: RegisteredParticipant[]
+  signedUpPlayers: RegisteredParticipant[]
+}
+
 export interface AdminPlayerProfileEditorData {
   player: RegisteredParticipant
   catchphrase: string

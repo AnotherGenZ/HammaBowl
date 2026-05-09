@@ -8,6 +8,7 @@ import { getCurrentEvent, getCurrentEvents } from '../lib/services'
 
 const EVENT_SECTIONS: AdminSidebarSection[] = [
   { id: 'admin-event-details', label: 'Event Details', status: 'ok' },
+  { id: 'admin-signups', label: 'Signups', status: 'ok' },
   { id: 'admin-draft', label: 'Draft', status: 'ok' },
   { id: 'admin-teams', label: 'Captains & Team Setup', status: 'warning' },
   { id: 'admin-jaeger', label: 'Jaeger Assignments', status: 'ok' },

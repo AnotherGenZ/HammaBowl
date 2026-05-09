@@ -2,6 +2,7 @@ import { type CSSProperties, type ReactNode, useEffect, useState } from 'react'
 import type {
   AdminBadgeManagerData,
   AdminPlayerCharacterConfig,
+  AdminSignupManagerData,
   EventLink,
   EventTrophyId,
   Team,
@@ -127,6 +128,14 @@ export function AdminTools({
 
       <div className="admin-stack">
         <EventIdentityControls event={currentEvent} busy={busy} onRun={run} onEvent={setConfiguredEvent} />
+
+        <SignupManager
+          event={currentEvent}
+          busy={busy}
+          onRun={run}
+          onEvent={setConfiguredEvent}
+          refreshKey={realtimeRefreshKey}
+        />
 
         <DraftControls event={currentEvent} busy={busy} onRun={run} onEvent={setConfiguredEvent} />
 
@@ -404,6 +413,208 @@ export function GeneralAdminTools({
       </div>
     </section>
   )
+}
+
+function SignupManager({
+  event,
+  busy,
+  onRun,
+  onEvent,
+  refreshKey,
+}: {
+  event: HammaEvent
+  busy?: string
+  onRun: (label: string, action: () => Promise<unknown>) => Promise<void>
+  onEvent: (event: HammaEvent) => void
+  refreshKey: number
+}) {
+  const [data, setData] = useState<AdminSignupManagerData>({
+    players: [],
+    signedUpPlayers: [],
+  })
+  const [addDiscordId, setAddDiscordId] = useState('')
+  const [removeDiscordId, setRemoveDiscordId] = useState('')
+  const [confirmRemoveId, setConfirmRemoveId] = useState('')
+  const [loaded, setLoaded] = useState(false)
+  const ready = useClientReady()
+
+  useEffect(() => {
+    if (!ready) return
+    let active = true
+    setLoaded(false)
+    fetch(`/api/admin/signups?eventId=${encodeURIComponent(event.id)}`)
+      .then((response) => {
+        if (!response.ok) throw new Error('Unable to load signups.')
+        return response.json() as Promise<AdminSignupManagerData>
+      })
+      .then((payload) => {
+        if (!active) return
+        setData(payload)
+        setAddDiscordId((current) =>
+          current && payload.players.some((player) => player.discordId === current) ? current : '',
+        )
+        setRemoveDiscordId((current) =>
+          current && payload.signedUpPlayers.some((player) => player.discordId === current)
+            ? current
+            : '',
+        )
+        setLoaded(true)
+      })
+      .catch(() => {
+        if (active) setLoaded(true)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [event.id, ready, refreshKey])
+
+  useEffect(() => {
+    setRemoveDiscordId((current) =>
+      current && event.players.some((player) => player.id === current) ? current : '',
+    )
+  }, [event.players])
+
+  async function addSignup() {
+    const result = await postAdminJson('/api/admin/signups', {
+      action: 'add',
+      eventId: event.id,
+      discordId: addDiscordId,
+    }) as AdminSignupManagerData & { event?: HammaEvent }
+    if (result.event) onEvent(result.event)
+    setData({
+      players: result.players ?? data.players,
+      signedUpPlayers: result.signedUpPlayers ?? data.signedUpPlayers,
+    })
+    setAddDiscordId('')
+    return result
+  }
+
+  async function removeSignup() {
+    const result = await postAdminJson('/api/admin/signups', {
+      action: 'remove',
+      eventId: event.id,
+      discordId: confirmRemoveId,
+    }) as AdminSignupManagerData & { event?: HammaEvent }
+    if (result.event) onEvent(result.event)
+    setData({
+      players: result.players ?? data.players,
+      signedUpPlayers: result.signedUpPlayers ?? data.signedUpPlayers,
+    })
+    setRemoveDiscordId('')
+    setConfirmRemoveId('')
+    return result
+  }
+
+  const playerToRemove = data.signedUpPlayers.find((player) => player.discordId === confirmRemoveId)
+
+  return (
+    <AdminSection id="admin-signups" title="Signups">
+      {!ready ? <div className="empty-inline">Loading signups.</div> : null}
+      <div className="event-result-grid">
+        <div className="event-result-card">
+          <strong>Add player</strong>
+          <label>
+            Player
+            <select
+              value={addDiscordId}
+              disabled={!ready || !data.players.length}
+              onChange={(event) => setAddDiscordId(event.currentTarget.value)}
+            >
+              {data.players.length ? (
+                <>
+                  <option value="">Choose player</option>
+                  {data.players.map((player) => (
+                    <option key={player.discordId} value={player.discordId}>
+                      {formatParticipantLabel(player)}
+                    </option>
+                  ))}
+                </>
+              ) : (
+                <option value="">{loaded ? 'No known players' : 'Loading players'}</option>
+              )}
+            </select>
+          </label>
+          <button
+            type="button"
+            disabled={!ready || busy === 'signup-add' || !addDiscordId}
+            onClick={() => void onRun('signup-add', addSignup)}
+          >
+            Add to signups
+          </button>
+        </div>
+
+        <div className="event-result-card">
+          <strong>Remove player</strong>
+          <label>
+            Signed up player
+            <select
+              value={removeDiscordId}
+              disabled={!ready || !data.signedUpPlayers.length}
+              onChange={(event) => setRemoveDiscordId(event.currentTarget.value)}
+            >
+              {data.signedUpPlayers.length ? (
+                <>
+                  <option value="">Choose player</option>
+                  {data.signedUpPlayers.map((player) => (
+                    <option key={player.discordId} value={player.discordId}>
+                      {formatParticipantLabel(player)}
+                    </option>
+                  ))}
+                </>
+              ) : (
+                <option value="">{loaded ? 'No signed up players' : 'Loading signups'}</option>
+              )}
+            </select>
+          </label>
+          <button
+            type="button"
+            className="danger-button"
+            disabled={!ready || busy === 'signup-remove' || !removeDiscordId}
+            onClick={() => setConfirmRemoveId(removeDiscordId)}
+          >
+            Remove from signups
+          </button>
+        </div>
+      </div>
+
+      {confirmRemoveId ? (
+        <div className="modal-backdrop" role="presentation" onMouseDown={() => setConfirmRemoveId('')}>
+          <div
+            className="modal-panel signup-confirm-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="signup-remove-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div>
+              <h3 id="signup-remove-title">Remove signup?</h3>
+              <p>
+                Remove {playerToRemove ? formatParticipantLabel(playerToRemove) : 'this player'} from {event.name}?
+              </p>
+            </div>
+            <div className="admin-section-footer">
+              <button type="button" className="secondary" onClick={() => setConfirmRemoveId('')}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="danger-button"
+                disabled={busy === 'signup-remove'}
+                onClick={() => void onRun('signup-remove', removeSignup)}
+              >
+                Remove player
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </AdminSection>
+  )
+}
+
+function formatParticipantLabel(player: RegisteredParticipant) {
+  return player.groupTag ? `[${player.groupTag}] ${player.name}` : player.name
 }
 
 function useClientReady() {

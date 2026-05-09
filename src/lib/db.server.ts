@@ -26,6 +26,7 @@ import {
   eventPlayerCharacters,
   eventParticipantSpecs,
   eventParticipants,
+  eventSignupOverrides,
   events,
   groupAdministrators,
   groupMembers,
@@ -63,6 +64,7 @@ import {
 } from './rules'
 import type {
   AdminBadgeManagerData,
+  AdminSignupManagerData,
   AdminPlayerProfileEditorData,
   AdminPlayerCharacterConfig,
   Team,
@@ -192,7 +194,20 @@ export async function upsertEventFromRaidHelper(event: HammaEvent) {
   }
   replaceEventAvailableSpecs(persistedEvent.id, event.availableSpecs ?? [], now)
 
-  const acceptedDiscordIds = new Set(event.players.map((player) => player.id))
+  const signupOverrides = getEventSignupOverrideMap(persistedEvent.id)
+  const forcedAddedIds = new Set(
+    Array.from(signupOverrides.entries()).flatMap(([discordId, action]) =>
+      action === 'add' ? [discordId] : [],
+    ),
+  )
+  const forcedRemovedIds = new Set(
+    Array.from(signupOverrides.entries()).flatMap(([discordId, action]) =>
+      action === 'remove' ? [discordId] : [],
+    ),
+  )
+  const syncedPlayers = event.players.filter((player) => !forcedRemovedIds.has(player.id))
+  const syncedPlayerIds = new Set(syncedPlayers.map((player) => player.id))
+  const acceptedDiscordIds = new Set([...syncedPlayerIds, ...forcedAddedIds])
   const staleParticipants = db
     .select()
     .from(eventParticipants)
@@ -224,28 +239,40 @@ export async function upsertEventFromRaidHelper(event: HammaEvent) {
       .run()
   }
 
-  for (const player of event.players) {
+  for (const player of syncedPlayers) {
+    const forceActive = forcedAddedIds.has(player.id)
     upsertParticipant(player.id, player.name, now)
     db.insert(eventParticipants)
       .values({
         eventId: persistedEvent.id,
         discordId: player.id,
         name: player.name,
-        status: player.status,
-        disqualified: player.status === 'disqualified',
+        status: forceActive ? 'signed_up' : player.status,
+        disqualified: forceActive ? false : player.status === 'disqualified',
         updatedAt: now,
       })
       .onConflictDoUpdate({
         target: [eventParticipants.eventId, eventParticipants.discordId],
         set: {
           name: player.name,
-          status: player.status,
-          disqualified: player.status === 'disqualified',
+          status: forceActive ? 'signed_up' : player.status,
+          disqualified: forceActive ? false : player.status === 'disqualified',
           updatedAt: now,
         },
-      })
+    })
       .run()
     replaceEventParticipantSpecs(persistedEvent.id, player.id, player.specs ?? [], now)
+  }
+
+  for (const discordId of forcedAddedIds) {
+    if (syncedPlayerIds.has(discordId)) continue
+    const participant = db
+      .select()
+      .from(participants)
+      .where(eq(participants.discordId, discordId))
+      .get()
+    if (!participant) continue
+    ensureEventParticipant(persistedEvent.id, discordId, participant.name, now)
   }
 
   return persistedEvent.id
@@ -2473,6 +2500,164 @@ export function getRegisteredPlayerList(): RegisteredParticipant[] {
   return getRegisteredParticipants()
 }
 
+export function getAdminSignupManagerData(eventId: string): AdminSignupManagerData {
+  const normalizedEventId = eventId.trim()
+  if (!normalizedEventId) throw new Error('Event is required.')
+  if (!db.select().from(events).where(eq(events.id, normalizedEventId)).get()) {
+    throw new Error('Event not found.')
+  }
+
+  const participantRows = db
+    .select()
+    .from(eventParticipants)
+    .where(eq(eventParticipants.eventId, normalizedEventId))
+    .all()
+    .filter((participant) => !participant.disqualified)
+  const names = getParticipantNameMap(participantRows.map((participant) => participant.discordId))
+  const groupBadges = getParticipantGroupBadgeMap(participantRows.map((participant) => participant.discordId))
+  const signedUpPlayers = participantRows
+    .map((participant) => ({
+      discordId: participant.discordId,
+      name: names.get(participant.discordId) ?? participant.name,
+      groupTag: groupBadges.get(participant.discordId)?.tag,
+      groupTagColor: groupBadges.get(participant.discordId)?.color,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name))
+
+  return {
+    players: getRegisteredPlayerList(),
+    signedUpPlayers,
+  }
+}
+
+export async function addEventSignup(eventId: string, discordId: string) {
+  const normalizedEventId = eventId.trim()
+  const normalizedDiscordId = discordId.trim()
+  if (!normalizedEventId) throw new Error('Event is required.')
+  if (!normalizedDiscordId) throw new Error('Player is required.')
+
+  const event = db.select().from(events).where(eq(events.id, normalizedEventId)).get()
+  if (!event) throw new Error('Event not found.')
+
+  const participant = db
+    .select()
+    .from(participants)
+    .where(eq(participants.discordId, normalizedDiscordId))
+    .get()
+  if (!participant) throw new Error('Player not found.')
+
+  const now = new Date().toISOString()
+  setEventSignupOverride(normalizedEventId, normalizedDiscordId, 'add', now)
+  db.insert(eventParticipants)
+    .values({
+      eventId: normalizedEventId,
+      discordId: normalizedDiscordId,
+      name: participant.name,
+      status: 'signed_up',
+      disqualified: false,
+      updatedAt: now,
+    })
+    .onConflictDoUpdate({
+      target: [eventParticipants.eventId, eventParticipants.discordId],
+      set: {
+        name: participant.name,
+        status: 'signed_up',
+        disqualified: false,
+        updatedAt: now,
+      },
+    })
+    .run()
+
+  db.update(events).set({ updatedAt: now }).where(eq(events.id, normalizedEventId)).run()
+  return getDbEvent(normalizedEventId)
+}
+
+export async function removeEventSignup(eventId: string, discordId: string) {
+  const normalizedEventId = eventId.trim()
+  const normalizedDiscordId = discordId.trim()
+  if (!normalizedEventId) throw new Error('Event is required.')
+  if (!normalizedDiscordId) throw new Error('Player is required.')
+
+  const event = await getDbEvent(normalizedEventId)
+  if (!event) throw new Error('Event not found.')
+
+  const player = event.players.find((candidate) => candidate.id === normalizedDiscordId)
+  if (!player) throw new Error('Player is not signed up for this event.')
+  if (event.teams.some((team) => team.captainDiscordId === normalizedDiscordId)) {
+    throw new Error('Captains cannot be removed from signups.')
+  }
+  if (event.draftPicks.some((pick) => pick.playerId === normalizedDiscordId)) {
+    throw new Error('Drafted players cannot be removed from signups.')
+  }
+
+  const now = new Date().toISOString()
+  setEventSignupOverride(normalizedEventId, normalizedDiscordId, 'remove', now)
+  db.update(eventParticipants)
+    .set({
+      status: 'disqualified',
+      disqualified: true,
+      checkedInAt: null,
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(eventParticipants.eventId, normalizedEventId),
+        eq(eventParticipants.discordId, normalizedDiscordId),
+      ),
+    )
+    .run()
+
+  db.delete(eventParticipantSpecs)
+    .where(
+      and(
+        eq(eventParticipantSpecs.eventId, normalizedEventId),
+        eq(eventParticipantSpecs.discordId, normalizedDiscordId),
+      ),
+    )
+    .run()
+  db.update(events).set({ updatedAt: now }).where(eq(events.id, normalizedEventId)).run()
+
+  return getDbEvent(normalizedEventId)
+}
+
+function setEventSignupOverride(
+  eventId: string,
+  discordId: string,
+  action: 'add' | 'remove',
+  updatedAt = new Date().toISOString(),
+) {
+  db.insert(eventSignupOverrides)
+    .values({
+      eventId,
+      discordId,
+      action,
+      updatedAt,
+    })
+    .onConflictDoUpdate({
+      target: [eventSignupOverrides.eventId, eventSignupOverrides.discordId],
+      set: {
+        action,
+        updatedAt,
+      },
+    })
+    .run()
+}
+
+function getEventSignupOverrideMap(eventId: string) {
+  return new Map(
+    db
+      .select()
+      .from(eventSignupOverrides)
+      .where(eq(eventSignupOverrides.eventId, eventId))
+      .all()
+      .flatMap((override) =>
+        override.action === 'add' || override.action === 'remove'
+          ? [[override.discordId, override.action] as const]
+          : [],
+      ),
+  )
+}
+
 export function getParticipantGroupTag(discordId: string) {
   return getParticipantGroupBadgeMap([discordId]).get(discordId)?.tag
 }
@@ -4623,6 +4808,13 @@ function bootstrap() {
       disqualified INTEGER NOT NULL DEFAULT 0,
       winner INTEGER NOT NULL DEFAULT 0,
       checked_in_at TEXT,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (event_id, discord_id)
+    );
+    CREATE TABLE IF NOT EXISTS event_signup_overrides (
+      event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+      discord_id TEXT NOT NULL,
+      action TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       PRIMARY KEY (event_id, discord_id)
     );

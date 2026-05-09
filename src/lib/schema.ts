@@ -232,6 +232,17 @@ export const eventParticipants = sqliteTable(
   (table) => [primaryKey({ columns: [table.eventId, table.discordId] })],
 )
 
+export const eventSignupOverrides = sqliteTable(
+  'event_signup_overrides',
+  {
+    eventId: text('event_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
+    discordId: text('discord_id').notNull(),
+    action: text('action').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.eventId, table.discordId] })],
+)
+
 export const eventParticipantSpecs = sqliteTable(
   'event_participant_specs',
   {
@@ -357,6 +368,7 @@ export const eventRelations = relations(events, ({ many }) => ({
   availableSpecs: many(eventAvailableSpecs),
   links: many(eventLinks),
   participants: many(eventParticipants),
+  signupOverrides: many(eventSignupOverrides),
   participantSpecs: many(eventParticipantSpecs),
   teams: many(teams),
   ratings: many(ratings),

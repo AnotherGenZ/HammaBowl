@@ -36,6 +36,7 @@ import { Route as ApiDiscordInteractionsRouteImport } from './routes/api.discord
 import { Route as ApiAuthSessionRouteImport } from './routes/api.auth.session'
 import { Route as ApiAuthLogoutRouteImport } from './routes/api.auth.logout'
 import { Route as ApiAuthDiscordRouteImport } from './routes/api.auth.discord'
+import { Route as ApiAdminSignupsRouteImport } from './routes/api.admin.signups'
 import { Route as ApiAdminResultRouteImport } from './routes/api.admin.result'
 import { Route as ApiAdminPlayersRouteImport } from './routes/api.admin.players'
 import { Route as ApiAdminPlayerProfileRouteImport } from './routes/api.admin.player-profile'
@@ -191,6 +192,11 @@ const ApiAuthDiscordRoute = ApiAuthDiscordRouteImport.update({
   path: '/api/auth/discord',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAdminSignupsRoute = ApiAdminSignupsRouteImport.update({
+  id: '/api/admin/signups',
+  path: '/api/admin/signups',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAdminResultRoute = ApiAdminResultRouteImport.update({
   id: '/api/admin/result',
   path: '/api/admin/result',
@@ -315,6 +321,7 @@ export interface FileRoutesByFullPath {
   '/api/admin/player-profile': typeof ApiAdminPlayerProfileRoute
   '/api/admin/players': typeof ApiAdminPlayersRoute
   '/api/admin/result': typeof ApiAdminResultRoute
+  '/api/admin/signups': typeof ApiAdminSignupsRoute
   '/api/auth/discord': typeof ApiAuthDiscordRouteWithChildren
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/session': typeof ApiAuthSessionRoute
@@ -362,6 +369,7 @@ export interface FileRoutesByTo {
   '/api/admin/player-profile': typeof ApiAdminPlayerProfileRoute
   '/api/admin/players': typeof ApiAdminPlayersRoute
   '/api/admin/result': typeof ApiAdminResultRoute
+  '/api/admin/signups': typeof ApiAdminSignupsRoute
   '/api/auth/discord': typeof ApiAuthDiscordRouteWithChildren
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/session': typeof ApiAuthSessionRoute
@@ -410,6 +418,7 @@ export interface FileRoutesById {
   '/api/admin/player-profile': typeof ApiAdminPlayerProfileRoute
   '/api/admin/players': typeof ApiAdminPlayersRoute
   '/api/admin/result': typeof ApiAdminResultRoute
+  '/api/admin/signups': typeof ApiAdminSignupsRoute
   '/api/auth/discord': typeof ApiAuthDiscordRouteWithChildren
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/session': typeof ApiAuthSessionRoute
@@ -459,6 +468,7 @@ export interface FileRouteTypes {
     | '/api/admin/player-profile'
     | '/api/admin/players'
     | '/api/admin/result'
+    | '/api/admin/signups'
     | '/api/auth/discord'
     | '/api/auth/logout'
     | '/api/auth/session'
@@ -506,6 +516,7 @@ export interface FileRouteTypes {
     | '/api/admin/player-profile'
     | '/api/admin/players'
     | '/api/admin/result'
+    | '/api/admin/signups'
     | '/api/auth/discord'
     | '/api/auth/logout'
     | '/api/auth/session'
@@ -553,6 +564,7 @@ export interface FileRouteTypes {
     | '/api/admin/player-profile'
     | '/api/admin/players'
     | '/api/admin/result'
+    | '/api/admin/signups'
     | '/api/auth/discord'
     | '/api/auth/logout'
     | '/api/auth/session'
@@ -601,6 +613,7 @@ export interface RootRouteChildren {
   ApiAdminPlayerProfileRoute: typeof ApiAdminPlayerProfileRoute
   ApiAdminPlayersRoute: typeof ApiAdminPlayersRoute
   ApiAdminResultRoute: typeof ApiAdminResultRoute
+  ApiAdminSignupsRoute: typeof ApiAdminSignupsRoute
   ApiAuthDiscordRoute: typeof ApiAuthDiscordRouteWithChildren
   ApiAuthLogoutRoute: typeof ApiAuthLogoutRoute
   ApiAuthSessionRoute: typeof ApiAuthSessionRoute
@@ -808,6 +821,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthDiscordRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/admin/signups': {
+      id: '/api/admin/signups'
+      path: '/api/admin/signups'
+      fullPath: '/api/admin/signups'
+      preLoaderRoute: typeof ApiAdminSignupsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/admin/result': {
       id: '/api/admin/result'
       path: '/api/admin/result'
@@ -992,6 +1012,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAdminPlayerProfileRoute: ApiAdminPlayerProfileRoute,
   ApiAdminPlayersRoute: ApiAdminPlayersRoute,
   ApiAdminResultRoute: ApiAdminResultRoute,
+  ApiAdminSignupsRoute: ApiAdminSignupsRoute,
   ApiAuthDiscordRoute: ApiAuthDiscordRouteWithChildren,
   ApiAuthLogoutRoute: ApiAuthLogoutRoute,
   ApiAuthSessionRoute: ApiAuthSessionRoute,
