@@ -372,17 +372,27 @@ export function oppositeTeamId(event: HammaEvent, teamId: string) {
   return event.teams.find((team) => team.id !== teamId)?.id
 }
 
+function canAffordAnyDraftEligiblePlayer(event: HammaEvent, teamId: string) {
+  return undraftedDraftEligiblePlayers(event).some((player) =>
+    acquisitionCost(event, teamId, player.id, 0)?.affordable,
+  )
+}
+
 export function nextDraftSide(event: HammaEvent) {
   if (event.nextPickTeamId) {
     const nextPickLedger = buildTeamLedgers(event).find(
-      (ledger) => ledger.team.id === event.nextPickTeamId,
+      (ledger) =>
+        ledger.team.id === event.nextPickTeamId &&
+        canAffordAnyDraftEligiblePlayer(event, ledger.team.id),
     )
     if (nextPickLedger) return nextPickLedger
   }
 
   if (!event.draftPicks.length && event.coinflip?.firstPickTeamId) {
     const firstPickLedger = buildTeamLedgers(event).find(
-      (ledger) => ledger.team.id === event.coinflip?.firstPickTeamId,
+      (ledger) =>
+        ledger.team.id === event.coinflip?.firstPickTeamId &&
+        canAffordAnyDraftEligiblePlayer(event, ledger.team.id),
     )
     if (firstPickLedger) return firstPickLedger
   }
@@ -391,5 +401,5 @@ export function nextDraftSide(event: HammaEvent) {
     (a, b) => b.combinedRemaining - a.combinedRemaining,
   )
 
-  return sorted[0]
+  return sorted.find((ledger) => canAffordAnyDraftEligiblePlayer(event, ledger.team.id))
 }
