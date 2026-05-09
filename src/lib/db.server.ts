@@ -6,6 +6,7 @@ import { randomUUID } from 'node:crypto'
 import Database from 'better-sqlite3'
 import { and, desc, eq } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
+import { discordTimestamp } from './discordFormatting'
 import { env, envList } from './env'
 import { cleanupOrphanedGroupLogoUploads, persistGroupLogoReference } from './groupLogoStorage.server'
 import { HONU_DEFAULT_ZONE_ID, normalizeHonuZoneId } from './honu'
@@ -1660,7 +1661,13 @@ export async function checkInEventParticipant(eventId: string, discordId: string
 
   const checkInWindow = getCheckInWindow(event)
   if (!checkInWindow.isOpen) {
-    throw new Error('Check-in is only open from 15 minutes before draft start until event start.')
+    if (!checkInWindow.hasClosed) {
+      const opensAt = checkInWindow.opensAt
+        ? discordTimestamp(checkInWindow.opensAt, 'R')
+        : '15 minutes before draft start'
+      throw new Error(`Check-in opens ${opensAt} and closes at event start.`)
+    }
+    throw new Error('Check-in has already closed.')
   }
 
   const checkedInAt = new Date().toISOString()

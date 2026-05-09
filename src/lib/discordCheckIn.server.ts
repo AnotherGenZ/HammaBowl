@@ -8,8 +8,8 @@ import {
   type RESTPostAPIChannelMessageJSONBody,
 } from 'discord-api-types/v10'
 import { editDiscordChannelMessage, postDiscordChannelMessage } from './discord'
+import { discordTimestamp } from './discordFormatting'
 import { env } from './env'
-import { createRaidHelperClient, raidHelperCheckInPingDiscordIds, raidHelperMaybeSignupCount } from './raidHelper'
 import { getCheckInWindow } from './rules'
 import { setEventDiscordCheckInMessage } from './db.server'
 import type { HammaEvent } from './types'
@@ -34,10 +34,7 @@ export async function postDiscordCheckInPrompt(event: HammaEvent): Promise<Disco
     return { posted: false, reason: 'Raid Helper event did not include a Discord channel id.' }
   }
 
-  const signups = await createRaidHelperClient().getSignups(event.raidHelperEventId)
-  const pingDiscordIds = raidHelperCheckInPingDiscordIds(signups)
-  const maybeSignupCount = raidHelperMaybeSignupCount(signups)
-  const messageBody = buildCheckInPromptMessage(event, maybeSignupCount)
+  const messageBody = buildCheckInPromptMessage(event)
   const existingChannelId = event.discordCheckInMessageChannelId ?? channelId
   const existingMessageId = event.discordCheckInMessageId
 
@@ -55,7 +52,6 @@ export async function postDiscordCheckInPrompt(event: HammaEvent): Promise<Disco
     }
   }
 
-  const [firstPingChunk, ...remainingPingChunks] = mentionChunks(pingDiscordIds)
   const message = await postDiscordChannelMessage(channelId, {
     ...messageBody,
     ...(event.raidHelperEventId
@@ -67,37 +63,24 @@ export async function postDiscordCheckInPrompt(event: HammaEvent): Promise<Disco
           },
         }
       : {}),
-    ...(firstPingChunk
-      ? {
-          content: firstPingChunk.content,
-          allowed_mentions: { users: firstPingChunk.userIds, replied_user: false },
-        }
-      : { allowed_mentions: { replied_user: false } }),
+    allowed_mentions: { parse: [], replied_user: false },
   })
 
   await setEventDiscordCheckInMessage(event.id, channelId, message.id)
-
-  for (const chunk of remainingPingChunks) {
-    await postDiscordChannelMessage(channelId, {
-      content: chunk.content,
-      allowed_mentions: { users: chunk.userIds },
-    })
-  }
 
   return {
     posted: true,
     channelId,
     messageId: message.id,
-    pingedPlayerCount: pingDiscordIds.length,
+    pingedPlayerCount: 0,
   }
 }
 
 function buildCheckInPromptMessage(
   event: HammaEvent,
-  maybeSignupCount: number,
 ): RESTPostAPIChannelMessageJSONBody {
   return {
-    embeds: [buildCheckInEmbed(event, maybeSignupCount)],
+    embeds: [buildCheckInEmbed(event)],
     components: [
       {
         type: ComponentType.ActionRow,
@@ -114,10 +97,10 @@ function buildCheckInPromptMessage(
   }
 }
 
-function buildCheckInEmbed(event: HammaEvent, maybeSignupCount: number): APIEmbed {
+function buildCheckInEmbed(event: HammaEvent): APIEmbed {
   const checkInWindow = getCheckInWindow(event)
   const startsAt = discordTimestamp(event.startsAt, 'F')
-  const opensAt = checkInWindow.opensAt ? discordTimestamp(checkInWindow.opensAt, 't') : '15 minutes before draft'
+  const opensAt = checkInWindow.opensAt ? discordTimestamp(checkInWindow.opensAt, 'R') : '15 minutes before draft'
   const closesAt = checkInWindow.closesAt ? discordTimestamp(checkInWindow.closesAt, 't') : 'event start'
 
   return {
@@ -125,41 +108,12 @@ function buildCheckInEmbed(event: HammaEvent, maybeSignupCount: number): APIEmbe
     description: `Press the button when you are ready for draft. Check-in is available from ${opensAt} until ${closesAt}.`,
     color: 0x47bf8f,
     fields: [
-      { name: 'Accepted', value: String(event.players.length), inline: true },
-      { name: 'Maybe', value: String(maybeSignupCount), inline: true },
       { name: 'Starts', value: startsAt, inline: false },
     ],
+    footer: {
+      text: 'Reminder: complete your player ratings at https://hambowl.angz.dev/ratings',
+    },
   }
-}
-
-function mentionChunks(userIds: string[]) {
-  const chunks: Array<{ userIds: string[]; content: string }> = []
-  let currentIds: string[] = []
-  let currentMentions: string[] = []
-
-  for (const userId of userIds) {
-    const mention = `<@${userId}>`
-    const nextContent = [...currentMentions, mention].join(' ')
-    if (currentIds.length && (currentIds.length >= 100 || nextContent.length > 1900)) {
-      chunks.push({ userIds: currentIds, content: currentMentions.join(' ') })
-      currentIds = []
-      currentMentions = []
-    }
-    currentIds.push(userId)
-    currentMentions.push(mention)
-  }
-
-  if (currentIds.length) {
-    chunks.push({ userIds: currentIds, content: currentMentions.join(' ') })
-  }
-
-  return chunks
-}
-
-function discordTimestamp(value: string, format: 'F' | 't') {
-  const time = Date.parse(value)
-  if (!Number.isFinite(time)) return value
-  return `<t:${Math.floor(time / 1000)}:${format}>`
 }
 
 function isDiscordMessageNotFound(error: unknown) {
