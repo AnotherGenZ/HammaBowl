@@ -4,6 +4,7 @@ import {
   addHistoricalTeamMember,
   createManualHistoricalEvent,
   getAdminHistoricalEvents,
+  resetHonuReportState,
   setWinningTeam,
   updateEventAdminSettings,
   upsertHistoricalTeam,
@@ -53,6 +54,8 @@ export const Route = createFileRoute('/api/admin/history')({
           })
         } else if (action === 'winner') {
           await setWinningTeam(String(body.eventId ?? ''), String(body.teamId ?? ''))
+        } else if (action === 'reset-honu') {
+          await resetHonuReportState(String(body.eventId ?? ''))
         } else {
           throw new Response('Unknown historical admin action', { status: 400 })
         }

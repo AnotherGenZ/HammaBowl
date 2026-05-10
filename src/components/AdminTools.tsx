@@ -722,6 +722,15 @@ function EventIdentityControls({
     return result
   }
 
+  async function resetHonuReports() {
+    const result = await postAdminJson('/api/admin/event', {
+      eventId: event.id,
+      resetHonuReports: true,
+    })
+    if (isEventResult(result) && result.event) onEvent(result.event)
+    return result
+  }
+
   return (
     <AdminSection id="admin-event-details" title="Event Details">
       <div className="event-result-grid">
@@ -871,6 +880,15 @@ function EventIdentityControls({
               'A Honu alert is created after the final round ends.'
             )}
           </small>
+          <div className="button-row left">
+            <button
+              type="button"
+              disabled={busy === 'honu-reset'}
+              onClick={() => void onRun('honu-reset', resetHonuReports)}
+            >
+              Reset Honu links
+            </button>
+          </div>
         </div>
       </div>
       <div className="admin-section-footer">

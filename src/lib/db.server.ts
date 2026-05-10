@@ -964,6 +964,31 @@ export async function saveHonuTeamReports(eventId: string) {
   return { ok: true, reportCount: reports.length }
 }
 
+export async function resetHonuReportState(eventId: string) {
+  const event = db.select().from(events).where(eq(events.id, eventId)).get()
+  if (!event) throw new Error('Event not found.')
+
+  const now = new Date().toISOString()
+  db.update(events)
+    .set({
+      honuAlertId: null,
+      honuAlertCreatedAt: null,
+      updatedAt: now,
+    })
+    .where(eq(events.id, eventId))
+    .run()
+  db.update(teams)
+    .set({
+      honuReportUrl: null,
+      honuReportCreatedAt: null,
+    })
+    .where(eq(teams.eventId, eventId))
+    .run()
+  removeGeneratedHonuReportEventLinks(eventId)
+
+  return { ok: true, message: 'Honu alert and team report links reset.' }
+}
+
 export async function updateEventAdminSettings(
   eventId: string,
   values: {

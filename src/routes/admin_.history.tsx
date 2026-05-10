@@ -358,6 +358,16 @@ function HistoricalEventEditor({
               </a>
             ) : null}
           </label>
+          <div className="history-field-action">
+            <span>Honu links</span>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void onRun({ action: 'reset-honu', eventId: event.id })}
+            >
+              Reset Honu links
+            </button>
+          </div>
         </div>
         <label className="full-field">
           Lore

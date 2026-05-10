@@ -3792,6 +3792,15 @@ img.group-logo {
   color: #fff7e6;
 }
 
+.history-field-action {
+  display: grid;
+  gap: 6px;
+  color: #b4bcbb;
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
 .team-admin-card label,
 .history-admin-grid label,
 .full-field,
