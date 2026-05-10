@@ -5415,7 +5415,7 @@ function getHonuTeamReports(event: HammaEvent): HonuTeamReport[] {
     const characterIds = getHonuTeamReportCharacterIds(event.id, team.id)
     if (!characterIds.length) return []
 
-    return [{ teamId: team.id, url: buildHonuReportUrl(start, end, characterIds) }]
+    return [{ teamId: team.id, url: buildHonuReportUrl(start, end, team.faction, characterIds) }]
   })
 }
 
@@ -5501,11 +5501,19 @@ function getHonuTeamReportCharacterIds(eventId: string, teamId: string) {
   return rows.map((row) => row.characterId)
 }
 
-function buildHonuReportUrl(start: number, end: number, characterIds: string[]) {
+function buildHonuReportUrl(start: number, end: number, faction: Faction | undefined, characterIds: string[]) {
   const entities = characterIds.map((characterId) => `+${characterId};`).join('')
-  const options = `${start},${end},;${entities}`
+  const teamId = honuTeamIdForFaction(faction)
+  const options = `${start},${end},${teamId};${entities}`
   const encodedOptions = encodeURIComponent(Buffer.from(options, 'utf8').toString('base64url'))
   return `https://wt.honu.pw/report/${encodedOptions}`
+}
+
+function honuTeamIdForFaction(faction: Faction | undefined) {
+  if (faction === 'VS') return '1'
+  if (faction === 'NC') return '2'
+  if (faction === 'TR') return '3'
+  return ''
 }
 
 function isGeneratedHonuReportLink(link: EventLink) {
