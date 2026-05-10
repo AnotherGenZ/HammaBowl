@@ -4,10 +4,12 @@ import { env } from './env'
 import { HONU_DEFAULT_ZONE_ID, HONU_JAEGER_WORLD_ID, normalizeHonuZoneId } from './honu'
 import {
   getHonuPsbAccountCacheUpdatedAt,
+  getDbEvent,
   getPendingHonuAlertEvents,
   markEventHonuAlertCreated,
   replaceHonuPsbAccountCache,
   saveDueHonuTeamReports,
+  saveHonuTeamReports,
   searchHonuPsbAccounts,
   type HonuPsbAccountCacheRow,
 } from './db.server'
@@ -25,10 +27,39 @@ export function isHonuConfigured() {
   return Boolean(env('HONU_API_KEY').trim())
 }
 
+export async function generateHonuLinksForEvent(eventId: string) {
+  const reports = await saveHonuTeamReports(eventId)
+  const event = await getDbEvent(eventId)
+  if (!event) throw new Error('Event not found.')
+
+  const messages: string[] = []
+  if (reports.reportCount) {
+    messages.push(
+      `${reports.reportCount} Honu team report${reports.reportCount === 1 ? '' : 's'} saved.`,
+    )
+  } else {
+    messages.push('No Honu team report links were generated.')
+  }
+
+  const alert = await ensureHonuAlertForEvent(event)
+  if (alert) {
+    messages.push(alert.message)
+  } else if (event.honuAlertId) {
+    messages.push(`Honu alert ${event.honuAlertId} already exists.`)
+  } else if (!isHonuConfigured()) {
+    messages.push('Honu alert was not created because Honu is not configured.')
+  } else {
+    messages.push('Honu alert is not due yet.')
+  }
+
+  return { ok: true, message: messages.join(' ') }
+}
+
 export async function ensureHonuAlertForEvent(event: HammaEvent) {
   if (!isHonuConfigured() || event.honuAlertId || !isHonuAlertDue(event)) return null
 
-  const firstRound = event.rounds[0]
+  const firstRound = event.rounds.find((round) => round.roundNumber === 1)
+  if (!firstRound) return null
   const duration = calculateHonuAlertDurationSeconds(event)
   if (!duration) return null
 
@@ -148,7 +179,7 @@ export async function refreshHonuPsbAccounts() {
 }
 
 function calculateHonuAlertDurationSeconds(event: HammaEvent) {
-  const firstRound = event.rounds[0]
+  const firstRound = event.rounds.find((round) => round.roundNumber === 1)
   if (!firstRound) return 0
 
   const lastRound = getLastConfiguredRound(event)

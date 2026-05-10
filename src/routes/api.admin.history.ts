@@ -9,6 +9,7 @@ import {
   updateEventAdminSettings,
   upsertHistoricalTeam,
 } from '../lib/db.server'
+import { generateHonuLinksForEvent } from '../lib/honu.server'
 
 export const Route = createFileRoute('/api/admin/history')({
   server: {
@@ -17,6 +18,7 @@ export const Route = createFileRoute('/api/admin/history')({
         await requireAdminSession()
         const body = await request.json().catch(() => ({}))
         const action = String(body.action ?? '')
+        let message = 'Historical event saved.'
 
         if (action === 'create-event') {
           await createManualHistoricalEvent({
@@ -55,14 +57,18 @@ export const Route = createFileRoute('/api/admin/history')({
         } else if (action === 'winner') {
           await setWinningTeam(String(body.eventId ?? ''), String(body.teamId ?? ''))
         } else if (action === 'reset-honu') {
-          await resetHonuReportState(String(body.eventId ?? ''))
+          const result = await resetHonuReportState(String(body.eventId ?? ''))
+          message = result.message
+        } else if (action === 'generate-honu') {
+          const result = await generateHonuLinksForEvent(String(body.eventId ?? ''))
+          message = result.message
         } else {
           throw new Response('Unknown historical admin action', { status: 400 })
         }
 
         return Response.json({
           ok: true,
-          message: 'Historical event saved.',
+          message,
           ...(await getAdminHistoricalEvents()),
         })
       },

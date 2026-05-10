@@ -731,6 +731,15 @@ function EventIdentityControls({
     return result
   }
 
+  async function generateHonuReports() {
+    const result = await postAdminJson('/api/admin/event', {
+      eventId: event.id,
+      generateHonuReports: true,
+    })
+    if (isEventResult(result) && result.event) onEvent(result.event)
+    return result
+  }
+
   return (
     <AdminSection id="admin-event-details" title="Event Details">
       <div className="event-result-grid">
@@ -881,6 +890,13 @@ function EventIdentityControls({
             )}
           </small>
           <div className="button-row left">
+            <button
+              type="button"
+              disabled={busy === 'honu-generate'}
+              onClick={() => void onRun('honu-generate', generateHonuReports)}
+            >
+              Generate Honu links
+            </button>
             <button
               type="button"
               disabled={busy === 'honu-reset'}

@@ -360,13 +360,22 @@ function HistoricalEventEditor({
           </label>
           <div className="history-field-action">
             <span>Honu links</span>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void onRun({ action: 'reset-honu', eventId: event.id })}
-            >
-              Reset Honu links
-            </button>
+            <div className="button-row left">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void onRun({ action: 'generate-honu', eventId: event.id })}
+              >
+                Generate Honu links
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void onRun({ action: 'reset-honu', eventId: event.id })}
+              >
+                Reset Honu links
+              </button>
+            </div>
           </div>
         </div>
         <label className="full-field">

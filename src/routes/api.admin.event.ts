@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { requireAdminSession } from '../lib/discord.server'
 import { getDbEvent, resetHonuReportState, setActiveEvent, updateEventAdminSettings } from '../lib/db.server'
+import { generateHonuLinksForEvent } from '../lib/honu.server'
 import { publishEventUpdate } from '../lib/realtime.server'
 import { clearCurrentEventCache, getCurrentEvent, getCurrentEvents, requireCurrentEvent } from '../lib/services'
 
@@ -41,6 +42,19 @@ export const Route = createFileRoute('/api/admin/event')({
           clearCurrentEventCache()
           const updated = await getDbEvent(eventId)
           publishEventUpdate(eventId, 'event.honu.reset', { message: result.message })
+
+          return Response.json({
+            ok: true,
+            message: result.message,
+            event: updated,
+          })
+        }
+
+        if (body.generateHonuReports) {
+          const result = await generateHonuLinksForEvent(eventId)
+          clearCurrentEventCache()
+          const updated = await getDbEvent(eventId)
+          publishEventUpdate(eventId, 'event.honu.generated', { message: result.message })
 
           return Response.json({
             ok: true,
