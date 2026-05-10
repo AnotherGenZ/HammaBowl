@@ -1904,6 +1904,70 @@ main > .panel:first-child {
   grid-column: 1 / -1;
 }
 
+.profile-events-table-wrap {
+  overflow-x: auto;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.profile-events-table {
+  min-width: 620px;
+}
+
+.profile-events-table th {
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.profile-events-table td {
+  vertical-align: middle;
+}
+
+.profile-events-table td:first-child a {
+  display: block;
+  width: fit-content;
+  color: #f4f0e8;
+  font-weight: 900;
+}
+
+.profile-events-table td:first-child a:hover {
+  color: #f8e4a9;
+}
+
+.profile-event-date {
+  display: block;
+  margin-top: 6px;
+  color: #a9b3b2;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.profile-event-result {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  padding: 0 10px;
+  color: #b4bcbb;
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.profile-event-result.win {
+  border-color: rgba(228, 180, 94, 0.5);
+  background: rgba(228, 180, 94, 0.12);
+  color: #f8e4a9;
+}
+
+.profile-event-result.loss {
+  border-color: rgba(177, 52, 42, 0.46);
+  background: rgba(177, 52, 42, 0.12);
+  color: #ffb4aa;
+}
+
 /* ── Rating chart ───────────────────────────────────── */
 
 .rating-chart {

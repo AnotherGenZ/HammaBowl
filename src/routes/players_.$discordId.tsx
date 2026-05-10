@@ -201,6 +201,47 @@ function PlayerProfilePage() {
 
         <article className="panel profile-wide">
           <div className="section-heading">
+            <h2>Events</h2>
+          </div>
+          {profile.events.length ? (
+            <div className="profile-events-table-wrap">
+              <table className="profile-events-table">
+                <thead>
+                  <tr>
+                    <th>Event</th>
+                    <th>Team</th>
+                    <th>Role</th>
+                    <th>Result</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {profile.events.map((event) => (
+                    <tr key={event.id}>
+                      <td>
+                        <Link to="/hall-of-legends/$eventId" params={{ eventId: event.id }}>
+                          {event.name}
+                        </Link>
+                        <span className="profile-event-date">{shortDate(event.startsAt)}</span>
+                      </td>
+                      <td>{event.teamName ?? 'Unassigned'}</td>
+                      <td>{eventRoleLabel(event.role)}</td>
+                      <td>
+                        <span className={`profile-event-result ${event.winner ? 'win' : 'loss'}`}>
+                          {event.winner ? 'Win' : 'Loss'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="empty-inline">No completed event participation yet.</div>
+          )}
+        </article>
+
+        <article className="panel profile-wide">
+          <div className="section-heading">
             <h2>Rating history</h2>
             {ratingHistory.length > 1 ? (
               <button
@@ -528,6 +569,12 @@ function badgeStyle(color: string) {
 
 function groupTagStyle(color?: string) {
   return color ? ({ '--group-tag-color': color } as CSSProperties) : undefined
+}
+
+function eventRoleLabel(role?: 'captain' | 'player') {
+  if (role === 'captain') return 'Captain'
+  if (role === 'player') return 'Player'
+  return 'Participant'
 }
 
 function Metric({ label, value }: { label: string; value: string }) {

@@ -3935,15 +3935,34 @@ function getPlayerProfileEvents(discordId: string) {
     SELECT
       e.id AS id,
       COALESCE(e.name_override, e.name) AS name,
-      e.starts_at AS startsAt
+      e.starts_at AS startsAt,
+      COALESCE(captain_team.id, picked_team.id) AS teamId,
+      COALESCE(captain_team.name, picked_team.name) AS teamName,
+      CASE
+        WHEN captain_team.id IS NOT NULL THEN 'captain'
+        WHEN picked_team.id IS NOT NULL THEN 'player'
+        ELSE NULL
+      END AS role,
+      ep.winner AS winner
     FROM event_participants ep
     JOIN events e ON e.id = ep.event_id
+    LEFT JOIN teams captain_team
+      ON captain_team.event_id = ep.event_id
+      AND captain_team.captain_discord_id = ep.discord_id
+    LEFT JOIN draft_picks dp
+      ON dp.event_id = ep.event_id
+      AND dp.player_discord_id = ep.discord_id
+    LEFT JOIN teams picked_team ON picked_team.id = dp.team_id
     WHERE ep.discord_id = ? AND ep.disqualified = 0 AND e.phase = 'complete'
     ORDER BY e.starts_at DESC
   `).all(discordId) as Array<{
     id: string
     name: string
     startsAt: string
+    teamId: string | null
+    teamName: string | null
+    role: 'captain' | 'player' | null
+    winner: number
   }>
 }
 
@@ -3970,6 +3989,15 @@ export function getPlayerProfile(discordId: string): PlayerProfile | null {
     bannerUrl: normalizeProfileBanner(profile?.bannerUrl) || undefined,
     catchphrase: profile?.catchphrase ?? undefined,
     characters: getPlayerCharacters(discordId),
+    events: getPlayerProfileEvents(discordId).map((event) => ({
+      id: event.id,
+      name: event.name,
+      startsAt: event.startsAt,
+      teamId: event.teamId ?? undefined,
+      teamName: event.teamName ?? undefined,
+      role: event.role ?? undefined,
+      winner: Boolean(event.winner),
+    })),
     stats: {
       events: countPlayerEvents(discordId),
       wins: countPlayerWins(discordId),

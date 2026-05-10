@@ -306,6 +306,15 @@ export interface PlayerProfile {
   bannerUrl?: string
   catchphrase?: string
   characters: PlayerCharacter[]
+  events: Array<{
+    id: string
+    name: string
+    startsAt: string
+    teamId?: string
+    teamName?: string
+    role?: 'captain' | 'player'
+    winner: boolean
+  }>
   stats: {
     events: number
     wins: number
