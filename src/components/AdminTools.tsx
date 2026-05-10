@@ -1243,7 +1243,7 @@ function EventJaegerAssignments({
   }
 
   async function copyCsv() {
-    const response = await fetch(`/api/admin/player-characters?eventId=${encodeURIComponent(event.id)}&format=csv`)
+    const response = await fetch(eventJaegerCsvUrl(event.id))
     if (!response.ok) throw new Error(await response.text())
     await navigator.clipboard.writeText(await response.text())
     return { ok: true, message: 'Character CSV copied to clipboard.' }
@@ -1268,13 +1268,22 @@ function EventJaegerAssignments({
           >
             Copy CSV
           </button>
-          <a
-            className="button-link secondary"
-            href={`/api/admin/player-characters?eventId=${encodeURIComponent(event.id)}&format=csv`}
-            download
-          >
-            Export CSV
-          </a>
+          {event.teams.length ? (
+            event.teams.map((team) => (
+              <a
+                key={team.id}
+                className="button-link secondary"
+                href={eventJaegerCsvUrl(event.id, team.id)}
+                download
+              >
+                {team.teamName} CSV
+              </a>
+            ))
+          ) : (
+            <a className="button-link secondary" href={eventJaegerCsvUrl(event.id)} download>
+              Export CSV
+            </a>
+          )}
           <button
             type="button"
             disabled={busy === 'event-jaeger' || !selectedDiscordId || !accountPrefix.trim()}
@@ -1316,6 +1325,12 @@ function EventJaegerAssignments({
       </div>
     </AdminSection>
   )
+}
+
+function eventJaegerCsvUrl(eventId: string, teamId?: string) {
+  const params = new URLSearchParams({ eventId, format: 'csv' })
+  if (teamId) params.set('teamId', teamId)
+  return `/api/admin/player-characters?${params.toString()}`
 }
 
 function countUnresolvedEventJaegerAssignments(

@@ -3466,6 +3466,8 @@ export function getEventPlayerCharacterAssignments(eventId: string): EventPlayer
 }
 
 export function getEventPlayerCharacterExportRows(eventId: string): Array<{
+  teamId: string
+  teamName: string
   playerName: string
   characterId: string
 }> {
@@ -3495,6 +3497,8 @@ export function getEventPlayerCharacterExportRows(eventId: string): Array<{
       WHERE t.event_id = ? AND t.faction IS NOT NULL
     )
     SELECT
+      tm.teamId,
+      tm.teamName,
       COALESCE(p.name, ep.name, tm.discordId) AS playerName,
       COALESCE(
         CASE
@@ -3533,11 +3537,15 @@ export function getEventPlayerCharacterExportRows(eventId: string): Array<{
       AND pc.faction = tm.currentFaction
     ORDER BY tm.teamName COLLATE NOCASE, playerName COLLATE NOCASE
   `).all(eventId, eventId) as Array<{
+    teamId: string
+    teamName: string
     playerName: string
     characterId: string | null
   }>
 
   return rows.map((row) => ({
+    teamId: row.teamId,
+    teamName: row.teamName,
     playerName: row.playerName,
     characterId: row.characterId ?? '',
   }))

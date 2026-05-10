@@ -19,11 +19,21 @@ export const Route = createFileRoute('/api/admin/player-characters')({
         const url = new URL(request.url)
         const event = await requireEventByIdOrCurrent(url.searchParams.get('eventId') ?? '')
         if (url.searchParams.get('format') === 'csv') {
-          const csv = toCharacterCsv(getEventPlayerCharacterExportRows(event.id))
+          const rows = getEventPlayerCharacterExportRows(event.id)
+          const teamId = url.searchParams.get('teamId')?.trim()
+          const team = teamId ? event.teams.find((candidate) => candidate.id === teamId) : undefined
+          if (teamId && !team) throw new Response('Team not found.', { status: 404 })
+
+          const csv = toCharacterCsv(teamId ? rows.filter((row) => row.teamId === teamId) : rows)
+          const fileNameParts = [
+            csvFileName(event.name),
+            team ? csvFileName(team.teamName) : undefined,
+            'characters',
+          ].filter(Boolean)
           return new Response(csv, {
             headers: {
               'Content-Type': 'text/csv; charset=utf-8',
-              'Content-Disposition': `attachment; filename="${csvFileName(event.name)}-characters.csv"`,
+              'Content-Disposition': `attachment; filename="${fileNameParts.join('-')}.csv"`,
             },
           })
         }
