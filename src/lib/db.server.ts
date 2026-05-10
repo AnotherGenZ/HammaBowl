@@ -5504,7 +5504,7 @@ function getHonuTeamReportCharacterIds(eventId: string, teamId: string) {
 function buildHonuReportUrl(start: number, end: number, characterIds: string[]) {
   const entities = characterIds.map((characterId) => `+${characterId};`).join('')
   const options = `${start},${end},;${entities}`
-  const encodedOptions = encodeURIComponent(Buffer.from(options, 'utf8').toString('base64'))
+  const encodedOptions = encodeURIComponent(Buffer.from(options, 'utf8').toString('base64url'))
   return `https://wt.honu.pw/report/${encodedOptions}`
 }
 
