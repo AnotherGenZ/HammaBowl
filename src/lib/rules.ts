@@ -12,6 +12,11 @@ export function isCaptainPlayer(event: HammaEvent, playerId: string) {
   return event.teams.filter(Boolean).some((team) => team.captainDiscordId === playerId)
 }
 
+function hasEventStarted(event: HammaEvent, now = Date.now()) {
+  const eventStart = Date.parse(event.startsAt)
+  return Number.isFinite(eventStart) && now >= eventStart
+}
+
 export function isDraftEligiblePlayer(
   event: HammaEvent,
   player: HammaEvent['players'][number],
@@ -20,7 +25,7 @@ export function isDraftEligiblePlayer(
   return (
     player.status !== 'disqualified' &&
     !isCaptainPlayer(event, player.id) &&
-    (!isDraftAdjustmentPhase(event, now) || Boolean(player.checkedInAt))
+    (!hasEventStarted(event, now) || Boolean(player.checkedInAt))
   )
 }
 
@@ -52,8 +57,16 @@ export function getCheckInWindow(event: HammaEvent, now = Date.now()) {
 }
 
 export function isDraftAdjustmentPhase(event: HammaEvent, now = Date.now()) {
-  const eventStart = Date.parse(event.startsAt)
-  return Number.isFinite(eventStart) && now >= eventStart
+  if (!hasEventStarted(event, now) || event.activeDraftBid) return false
+
+  const remainingPlayers = undraftedDraftEligiblePlayers(event)
+  if (!remainingPlayers.length) return true
+
+  return !buildTeamLedgers(event).some((ledger) =>
+    remainingPlayers.some((player) =>
+      acquisitionCost(event, ledger.team.id, player.id, 0)?.affordable,
+    ),
+  )
 }
 
 export function receivedRatingCount(event: HammaEvent, playerId: string) {
