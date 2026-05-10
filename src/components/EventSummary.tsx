@@ -20,8 +20,9 @@ export function EventSummary({ event, initialNow }: { event: HammaEvent; initial
   const visibleEventTimes = isComplete
     ? eventTimes.filter((item) => item.label === 'Event start')
     : eventTimes
+  const hasManualHonuReportLink = event.eventLinks.some((link) => isHonuReportUrl(link.url))
   const detailLinks = [
-    ...(isComplete ? [] : event.eventLinks),
+    ...event.eventLinks,
     ...(event.honuAlertId
       ? [{
           name: 'Honu alert',
@@ -30,7 +31,7 @@ export function EventSummary({ event, initialNow }: { event: HammaEvent; initial
         }]
       : []),
     ...event.teams.flatMap((team) =>
-      team.honuReportUrl
+      !hasManualHonuReportLink && team.honuReportUrl
         ? [{
             name: `${team.teamName} report`,
             url: team.honuReportUrl,
@@ -138,6 +139,15 @@ export function EventSummary({ event, initialNow }: { event: HammaEvent; initial
       ) : null}
     </section>
   )
+}
+
+function isHonuReportUrl(value: string) {
+  try {
+    const url = new URL(value)
+    return url.hostname === 'wt.honu.pw' && url.pathname.startsWith('/report/')
+  } catch {
+    return false
+  }
 }
 
 type EventLedger = ReturnType<typeof buildTeamLedgers>[number]
