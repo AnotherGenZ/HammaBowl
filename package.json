@@ -19,6 +19,7 @@
     "discord-interactions": "^4.4.0",
     "discord.js": "^14.26.4",
     "drizzle-orm": "^0.45.2",
+    "emoji-picker-react": "^4.19.1",
     "lucide-react": "^1.14.0",
     "ps2census": "^4.9.1",
     "react": "^19.2.5",

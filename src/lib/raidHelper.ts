@@ -161,6 +161,8 @@ async function hydrateRemoteEvent(
     id: `raid-helper-${fullEvent.id}`,
     raidHelperEventId: fullEvent.id,
     raidHelperChannelId: fullEvent.channelId,
+    source: 'raid_helper',
+    eventChannelId: fullEvent.channelId,
     name: stripMarkdown(fullEvent.title),
     server: env('HAMMABOWL_SERVER_NAME', 'Jaeger'),
     startsAt: fullEvent.startsAt,

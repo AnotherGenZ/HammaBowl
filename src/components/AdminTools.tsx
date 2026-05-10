@@ -1,9 +1,11 @@
-import { type CSSProperties, type ReactNode, useEffect, useState } from 'react'
+import { type CSSProperties, type Dispatch, type ReactNode, type SetStateAction, useEffect, useId, useRef, useState } from 'react'
+import EmojiPicker, { EmojiStyle, Theme, type EmojiClickData } from 'emoji-picker-react'
 import type {
   AdminBadgeManagerData,
   AdminPlayerCharacterConfig,
   AdminSignupManagerData,
   EventLink,
+  EventSpecOption,
   EventTrophyId,
   Team,
   EventPlayerCharacterAssignment,
@@ -24,6 +26,15 @@ const EVENT_TROPHY_OPTIONS: Array<{ id: EventTrophyId; label: string }> = [
   { id: 'hammo-bowl-cup', label: 'HammaBowl Cup' },
   { id: 'hamma-dome-biolab', label: 'Hamma Dome I - Bitol Bio' },
 ]
+const DEFAULT_SPEC_OPTIONS: EventSpecOption[] = [
+  { emoji: '⚔️', name: 'Infantry' },
+  { emoji: '✈️', name: 'Air' },
+  { emoji: '🛡️', name: 'Armor' },
+  { emoji: '📡', name: 'Logistics' },
+  { emoji: '🔄', name: 'Flex' },
+]
+const TWEMOJI_VERSION = '17.0.2'
+const TWEMOJI_BASE_URL = `https://cdn.jsdelivr.net/gh/jdecked/twemoji@${TWEMOJI_VERSION}/assets/svg`
 
 interface RealtimeAdminUpdate {
   type: string
@@ -35,32 +46,52 @@ export function AdminTools({
   event,
   currentEvents,
   onEventJaegerWarningCount,
+  onCreationModeChange,
 }: {
-  event: HammaEvent
+  event: HammaEvent | null
   currentEvents: HammaEvent[]
   onEventJaegerWarningCount?: (count: number) => void
+  onCreationModeChange?: (creating: boolean) => void
 }) {
-  const [currentEvent, setCurrentEvent] = useState(event)
+  const [currentEvent, setCurrentEvent] = useState<HammaEvent | null>(event)
   const [currentEventOptions, setCurrentEventOptions] = useState(currentEvents)
+  const [creatingEvent, setCreatingEvent] = useState(!event)
+  const [lastEditingEvent, setLastEditingEvent] = useState<HammaEvent | null>(event)
   const [realtimeRefreshKey, setRealtimeRefreshKey] = useState(0)
   const [message, setMessage] = useState<string>()
   const [busy, setBusy] = useState<string>()
-  const undraftedPlayers = undraftedDraftEligiblePlayers(currentEvent)
+  const undraftedPlayers = currentEvent ? undraftedDraftEligiblePlayers(currentEvent) : []
   const canSyncTeams = undraftedPlayers.length === 0
-  const draftLocked = currentEvent.rounds.length > 0
+  const draftLocked = Boolean(currentEvent?.rounds.length)
 
   function setConfiguredEvent(event: HammaEvent) {
+    setCreatingEvent(false)
+    setLastEditingEvent(event)
     setCurrentEvent(event)
     setCurrentEventOptions((options) => mergeEventOptions(options, event))
   }
 
   useEffect(() => {
-    setCurrentEvent((current) => currentEvents.find((option) => option.id === current.id) ?? event)
+    if (creatingEvent) {
+      setCurrentEventOptions(currentEvents)
+      return
+    }
+
+    setCurrentEvent((current) => {
+      if (current) return currentEvents.find((option) => option.id === current.id) ?? event
+      return event
+    })
     setCurrentEventOptions(currentEvents)
-  }, [event, currentEvents])
+    if (event) setLastEditingEvent(event)
+  }, [creatingEvent, event, currentEvents])
+
+  useEffect(() => {
+    onCreationModeChange?.(creatingEvent)
+  }, [creatingEvent, onCreationModeChange])
 
   useEffect(() => {
     if (typeof EventSource === 'undefined') return
+    if (!currentEvent) return
 
     let active = true
     const source = new EventSource('/api/event/current/stream')
@@ -89,7 +120,7 @@ export function AdminTools({
       active = false
       source.close()
     }
-  }, [currentEvent.id])
+  }, [currentEvent?.id])
 
   async function run(label: string, action: () => Promise<unknown>) {
     setBusy(label)
@@ -111,91 +142,117 @@ export function AdminTools({
     }
   }
 
+  function beginCreateEvent() {
+    if (currentEvent) setLastEditingEvent(currentEvent)
+    setCurrentEvent(null)
+    setCreatingEvent(true)
+    setMessage(undefined)
+  }
+
+  function cancelCreateEvent() {
+    const fallback = lastEditingEvent ?? currentEventOptions[0] ?? event
+    if (fallback) {
+      setConfiguredEvent(fallback)
+    } else {
+      setCreatingEvent(false)
+    }
+  }
+
   return (
     <section className="panel">
       <div className="section-heading">
         <div>
-          <h1>Event controls</h1>
+          <h1>Event Admin</h1>
         </div>
         <EventTargetControls
           event={currentEvent}
           currentEvents={currentEventOptions}
+          creating={creatingEvent}
           onEvent={setConfiguredEvent}
+          onNew={beginCreateEvent}
+          onCancel={cancelCreateEvent}
         />
       </div>
 
       {message ? <div className="admin-result">{message}</div> : null}
 
       <div className="admin-stack">
-        <EventIdentityControls event={currentEvent} busy={busy} onRun={run} onEvent={setConfiguredEvent} />
-
-        <SignupManager
+        <NativeEventOps
           event={currentEvent}
+          creating={creatingEvent}
           busy={busy}
           onRun={run}
           onEvent={setConfiguredEvent}
           refreshKey={realtimeRefreshKey}
         />
 
-        <DraftControls event={currentEvent} busy={busy} onRun={run} onEvent={setConfiguredEvent} />
+        {currentEvent && !creatingEvent ? (
+          <>
+            <EventIdentityControls event={currentEvent} busy={busy} onRun={run} onEvent={setConfiguredEvent} />
 
-        <TeamEditor
-          event={currentEvent}
-          busy={busy}
-          onRun={run}
-          onEvent={setConfiguredEvent}
-          locked={draftLocked}
-        />
+            <DraftControls event={currentEvent} busy={busy} onRun={run} onEvent={setConfiguredEvent} />
 
-        <EventJaegerAssignments
-          event={currentEvent}
-          busy={busy}
-          onRun={run}
-          refreshKey={realtimeRefreshKey}
-          onWarningCount={onEventJaegerWarningCount}
-        />
+            <TeamEditor
+              event={currentEvent}
+              busy={busy}
+              onRun={run}
+              onEvent={setConfiguredEvent}
+              locked={draftLocked}
+            />
 
-        <CoinflipControls event={currentEvent} busy={busy} onRun={run} onEvent={setConfiguredEvent} />
+            <EventJaegerAssignments
+              event={currentEvent}
+              busy={busy}
+              onRun={run}
+              refreshKey={realtimeRefreshKey}
+              onWarningCount={onEventJaegerWarningCount}
+            />
 
-        <RatingAdjustments
-          event={currentEvent}
-          busy={busy}
-          onRun={run}
-          onEvent={setConfiguredEvent}
-        />
+            <CoinflipControls event={currentEvent} busy={busy} onRun={run} onEvent={setConfiguredEvent} />
 
-        <RoundControls event={currentEvent} busy={busy} onRun={run} onEvent={setConfiguredEvent} />
+            <RatingAdjustments
+              event={currentEvent}
+              busy={busy}
+              onRun={run}
+              onEvent={setConfiguredEvent}
+            />
 
-        <AdminSection
-          id="admin-composition"
-          title="Team composition"
-          actions={
-            <button
-              type="button"
-              disabled={busy === 'post' || !canSyncTeams}
-              title={
-                canSyncTeams
-                  ? undefined
-                  : `${undraftedPlayers.length} draft-eligible players remain undrafted.`
-              }
-              onClick={() =>
-                void run('post', () =>
-                  postAdminJson('/api/admin/raid-helper/post-composition', {
-                    eventId: currentEvent.id,
-                  }),
-                )
+            <RoundControls event={currentEvent} busy={busy} onRun={run} onEvent={setConfiguredEvent} />
+
+            <AdminSection
+              id="admin-composition"
+              title="Team composition"
+              actions={
+                <button
+                  type="button"
+                  disabled={busy === 'post' || !canSyncTeams}
+                  title={
+                    canSyncTeams
+                      ? undefined
+                      : `${undraftedPlayers.length} draft-eligible players remain undrafted.`
+                  }
+                  onClick={() =>
+                    void run('post', () =>
+                      postAdminJson('/api/admin/raid-helper/post-composition', {
+                        eventId: currentEvent.id,
+                      }),
+                    )
+                  }
+                >
+                  {currentEvent.source === 'native' ? 'Publish teams' : 'Sync teams'}
+                </button>
               }
             >
-              Sync teams
-            </button>
-          }
-        >
-          <p>
-            {canSyncTeams
-              ? 'Updates the Raid Helper comp with the current persisted teams.'
-              : `Finish the draft before syncing. ${undraftedPlayers.length} draft-eligible players remain undrafted.`}
-          </p>
-        </AdminSection>
+              <p>
+                {canSyncTeams
+                  ? currentEvent.source === 'native'
+                    ? 'Publishes or updates the Discord teams message from the current persisted draft.'
+                    : 'Updates the Raid Helper comp with the current persisted teams.'
+                  : `Finish the draft before syncing. ${undraftedPlayers.length} draft-eligible players remain undrafted.`}
+              </p>
+            </AdminSection>
+          </>
+        ) : null}
       </div>
     </section>
   )
@@ -204,32 +261,69 @@ export function AdminTools({
 function EventTargetControls({
   event,
   currentEvents,
+  creating,
   onEvent,
+  onNew,
+  onCancel,
 }: {
-  event: HammaEvent
+  event: HammaEvent | null
   currentEvents: HammaEvent[]
+  creating: boolean
   onEvent: (event: HammaEvent) => void
+  onNew: () => void
+  onCancel: () => void
 }) {
-  const options = mergeEventOptions(currentEvents, event)
+  const options = event ? mergeEventOptions(currentEvents, event) : currentEvents
 
   return (
-    <label className="admin-heading-control">
-      Configure event
-      <select
-        value={event.id}
-        onChange={(changeEvent) => {
-          const nextEvent = options.find((option) => option.id === changeEvent.currentTarget.value)
-          if (nextEvent) onEvent(nextEvent)
-        }}
-      >
-        {options.map((option) => (
-          <option key={option.id} value={option.id}>
-            {option.name} - {shortDate(option.startsAt)}
-          </option>
-        ))}
-      </select>
-    </label>
+    <div className="admin-heading-actions">
+      {creating ? (
+        <div className="event-mode-chip">Creating new event</div>
+      ) : (
+        <div className="admin-heading-event-select">
+          <label className="admin-heading-control">
+            Editing event
+            <select
+              value={event?.id ?? ''}
+              disabled={!options.length}
+              onChange={(changeEvent) => {
+                const nextEvent = options.find((option) => option.id === changeEvent.currentTarget.value)
+                if (nextEvent) onEvent(nextEvent)
+              }}
+            >
+              {options.length ? null : <option value="">No events available</option>}
+              {options.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.name} - {shortDate(option.startsAt)}
+                </option>
+              ))}
+            </select>
+          </label>
+          {event ? <div className="event-mode-chip">{formatEventModeChip(event)}</div> : null}
+        </div>
+      )}
+      <div className="button-row">
+        {creating && options.length ? (
+          <button type="button" className="secondary" onClick={onCancel}>
+            Cancel
+          </button>
+        ) : creating ? null : (
+          <button type="button" className="secondary" onClick={onNew}>
+            New event
+          </button>
+        )}
+      </div>
+    </div>
   )
+}
+
+function formatEventModeChip(event: HammaEvent) {
+  const source = event.source === 'raid_helper'
+    ? 'Raid Helper'
+    : event.source === 'native'
+      ? 'Native'
+      : 'Manual'
+  return `${source} · ${event.phase}`
 }
 
 function ActiveEventControls({
@@ -386,25 +480,46 @@ export function GeneralAdminTools({
           />
         ) : null}
 
+        {activeEvent?.source === 'native' ? null : (
+          <AdminSection
+            id="admin-event-sync"
+            title="Event sync"
+            actions={
+              <button
+                type="button"
+                disabled={busy === 'refresh'}
+                onClick={() =>
+                  void run('refresh', async () => {
+                    const result = await postAdminAction('/api/admin/raid-helper/refresh')
+                    return result
+                  })
+                }
+              >
+                {busy === 'refresh' ? 'Refreshing' : 'Force refresh'}
+              </button>
+            }
+          >
+            <p>Pull current events, closing times, and accepted signups from Raid Helper.</p>
+          </AdminSection>
+        )}
+
         <AdminSection
-          id="admin-event-sync"
-          title="Event sync"
+          id="admin-discord-cache"
+          title="Discord cache"
           actions={
             <button
               type="button"
-              disabled={busy === 'refresh'}
+              disabled={busy === 'discord-options-refresh'}
               onClick={() =>
-                void run('refresh', async () => {
-                  const result = await postAdminAction('/api/admin/raid-helper/refresh')
-                  return result
-                })
+                void run('discord-options-refresh', () =>
+                  postAdminJson('/api/admin/event', { action: 'discord-options.refresh' }))
               }
             >
-              {busy === 'refresh' ? 'Refreshing' : 'Force refresh'}
+              {busy === 'discord-options-refresh' ? 'Refreshing' : 'Refresh emojis'}
             </button>
           }
         >
-          <p>Pull current events, closing times, and accepted signups from Raid Helper.</p>
+          <p>Force refresh cached Discord channels, roles, and custom emojis from the bot.</p>
         </AdminSection>
 
         <PlayerRenameManager busy={busy} onRun={run} refreshKey={realtimeRefreshKey} />
@@ -415,206 +530,1149 @@ export function GeneralAdminTools({
   )
 }
 
-function SignupManager({
+function formatParticipantLabel(player: RegisteredParticipant) {
+  return player.groupTag ? `[${player.groupTag}] ${player.name}` : player.name
+}
+
+function combinedSignupPlayers(data: AdminSignupManagerData) {
+  const players = new Map<string, RegisteredParticipant>()
+  for (const player of [...data.players, ...data.signedUpPlayers]) {
+    players.set(player.discordId, player)
+  }
+
+  return Array.from(players.values()).sort((left, right) =>
+    formatParticipantLabel(left).localeCompare(formatParticipantLabel(right)),
+  )
+}
+
+interface NativeEventOpsData {
+  signups: Array<{
+    discordId: string
+    name: string
+    status: string
+    specs: string[]
+    note?: string
+  }>
+  csv: string
+  roleGates: {
+    allowedRoleIds: string[]
+    bannedRoleIds: string[]
+  }
+  limits: Array<{ status?: string; specName?: string; limit: number }>
+  reminders: Array<{
+    kind: string
+    target: string
+    offsetMinutes: number
+    channelId?: string
+    message?: string
+    enabled: boolean
+  }>
+  recurrences: Array<{ intervalDays: number; nextPostAt: string; enabled: boolean }>
+}
+
+interface DiscordGuildOptionsData {
+  channels: Array<{ id: string; name: string }>
+  roles: Array<{ id: string; name: string; color?: number; managed?: boolean }>
+  emojis: Array<{ id: string; name: string; animated?: boolean; guildName?: string; mention: string; url: string }>
+  refreshedAt?: string
+  stale?: boolean
+  error?: string
+}
+
+type EventSetupField = 'title' | 'startsAt' | 'durationMinutes' | 'signupCloseMinutesBefore'
+type EventSetupErrors = Partial<Record<EventSetupField, string>>
+
+function NativeEventOps({
   event,
+  creating,
   busy,
   onRun,
   onEvent,
   refreshKey,
 }: {
-  event: HammaEvent
+  event: HammaEvent | null
+  creating: boolean
   busy?: string
   onRun: (label: string, action: () => Promise<unknown>) => Promise<void>
   onEvent: (event: HammaEvent) => void
   refreshKey: number
 }) {
-  const [data, setData] = useState<AdminSignupManagerData>({
+  const [title, setTitle] = useState('')
+  const [startsAt, setStartsAt] = useState('')
+  const [durationMinutes, setDurationMinutes] = useState('120')
+  const [signupCloseMinutesBefore, setSignupCloseMinutesBefore] = useState('60')
+  const [channelId, setChannelId] = useState('')
+  const [description, setDescription] = useState('')
+  const [imageUrl, setImageUrl] = useState('')
+  const [embedUseDiscordMentions, setEmbedUseDiscordMentions] = useState(false)
+  const [autoCreateSignupThread, setAutoCreateSignupThread] = useState(false)
+  const [specOptions, setSpecOptions] = useState<EventSpecOption[]>(DEFAULT_SPEC_OPTIONS)
+  const [signupLimit, setSignupLimit] = useState('')
+  const [allowedRoleIds, setAllowedRoleIds] = useState<string[]>([])
+  const [bannedRoleIds, setBannedRoleIds] = useState<string[]>([])
+  const [mentionRoleIds, setMentionRoleIds] = useState<string[]>([])
+  const [signupDiscordId, setSignupDiscordId] = useState('')
+  const [signupName, setSignupName] = useState('')
+  const [signupStatus, setSignupStatus] = useState('accepted')
+  const [signupSpecs, setSignupSpecs] = useState<string[]>([])
+  const [signupNote, setSignupNote] = useState('')
+  const [signupPlayers, setSignupPlayers] = useState<AdminSignupManagerData>({
     players: [],
     signedUpPlayers: [],
   })
-  const [addDiscordId, setAddDiscordId] = useState('')
-  const [removeDiscordId, setRemoveDiscordId] = useState('')
-  const [confirmRemoveId, setConfirmRemoveId] = useState('')
-  const [loaded, setLoaded] = useState(false)
+  const [signupPlayersLoaded, setSignupPlayersLoaded] = useState(false)
+  const [targetMessage, setTargetMessage] = useState('')
+  const [targetGroup, setTargetGroup] = useState('signed')
+  const [eventSetupErrors, setEventSetupErrors] = useState<EventSetupErrors>({})
+  const [eventOps, setEventOps] = useState<NativeEventOpsData | null>(null)
+  const [discordOptions, setDiscordOptions] = useState<DiscordGuildOptionsData>({
+    channels: [],
+    roles: [],
+    emojis: [],
+  })
   const ready = useClientReady()
 
   useEffect(() => {
-    if (!ready) return
     let active = true
-    setLoaded(false)
-    fetch(`/api/admin/signups?eventId=${encodeURIComponent(event.id)}`)
+    const query = event ? `?eventId=${encodeURIComponent(event.id)}` : ''
+    void fetch(`/api/admin/event${query}`)
+      .then(async (response) => {
+        if (!response.ok) throw new Error(await response.text())
+        return response.json() as Promise<{
+          eventOps?: NativeEventOpsData | null
+          discordOptions?: DiscordGuildOptionsData
+        }>
+      })
+      .then((payload) => {
+        if (!active) return
+        setEventOps(event?.source === 'native' ? payload.eventOps ?? null : null)
+        if (payload.discordOptions) {
+          setDiscordOptions({
+            channels: payload.discordOptions.channels ?? [],
+            roles: payload.discordOptions.roles ?? [],
+            emojis: payload.discordOptions.emojis ?? [],
+            refreshedAt: payload.discordOptions.refreshedAt,
+            stale: payload.discordOptions.stale,
+            error: payload.discordOptions.error,
+          })
+        }
+      })
+      .catch((error) => console.warn('Native event ops load failed', error))
+    return () => {
+      active = false
+    }
+  }, [event?.id, event?.source])
+
+  useEffect(() => {
+    if (!creating) return
+    setTitle('')
+    setStartsAt('')
+    setDurationMinutes('120')
+    setSignupCloseMinutesBefore('60')
+    setChannelId('')
+    setDescription('')
+    setImageUrl('')
+    setEmbedUseDiscordMentions(false)
+    setAutoCreateSignupThread(false)
+    setSpecOptions(DEFAULT_SPEC_OPTIONS)
+    setSignupLimit('')
+    setAllowedRoleIds([])
+    setBannedRoleIds([])
+    setMentionRoleIds([])
+    setSignupDiscordId('')
+    setSignupName('')
+    setSignupStatus('accepted')
+    setSignupSpecs([])
+    setSignupNote('')
+    setEventSetupErrors({})
+    setEventOps(null)
+  }, [creating])
+
+  useEffect(() => {
+    if (!ready || !event) return
+    let active = true
+    setSignupPlayersLoaded(false)
+
+    void fetch(`/api/admin/signups?eventId=${encodeURIComponent(event.id)}`)
       .then((response) => {
-        if (!response.ok) throw new Error('Unable to load signups.')
+        if (!response.ok) throw new Error('Unable to load signup players.')
         return response.json() as Promise<AdminSignupManagerData>
       })
       .then((payload) => {
         if (!active) return
-        setData(payload)
-        setAddDiscordId((current) =>
-          current && payload.players.some((player) => player.discordId === current) ? current : '',
+        setSignupPlayers(payload)
+        setSignupDiscordId((current) =>
+          current && combinedSignupPlayers(payload).some((player) => player.discordId === current) ? current : '',
         )
-        setRemoveDiscordId((current) =>
-          current && payload.signedUpPlayers.some((player) => player.discordId === current)
-            ? current
-            : '',
-        )
-        setLoaded(true)
+        setSignupPlayersLoaded(true)
       })
       .catch(() => {
-        if (active) setLoaded(true)
+        if (active) setSignupPlayersLoaded(true)
       })
 
     return () => {
       active = false
     }
-  }, [event.id, ready, refreshKey])
+  }, [event?.id, ready, refreshKey])
 
   useEffect(() => {
-    setRemoveDiscordId((current) =>
-      current && event.players.some((player) => player.id === current) ? current : '',
-    )
-  }, [event.players])
+    if (creating || !event) return
+    setTitle(event.name)
+    setStartsAt(toDatetimeLocalValue(event.startsAt))
+    setDurationMinutes(event.endsAt ? String(Math.max(1, Math.round((Date.parse(event.endsAt) - Date.parse(event.startsAt)) / 60000))) : '120')
+    setSignupCloseMinutesBefore(String(minutesBeforeEventStart(event.startsAt, event.closingTime) ?? 60))
+    setChannelId(event.eventChannelId ?? event.raidHelperChannelId ?? '')
+    setDescription(event.eventDescription ?? '')
+    setImageUrl(event.eventImageUrl ?? '')
+    setEmbedUseDiscordMentions(Boolean(event.embedUseDiscordMentions))
+    setAutoCreateSignupThread(Boolean(event.autoCreateSignupThread))
+    const eventSpecs = event.availableSpecOptions?.length
+      ? event.availableSpecOptions
+      : specOptionsFromNames(event.availableSpecs ?? [])
+    setSpecOptions(event.source === 'native' ? applySpecLimits(eventSpecs, eventOps?.limits ?? []) : eventSpecs)
+    setMentionRoleIds(event.mentionRoleIds ?? [])
+    if (event.source === 'native' && eventOps) {
+      setAllowedRoleIds(eventOps.roleGates.allowedRoleIds)
+      setBannedRoleIds(eventOps.roleGates.bannedRoleIds)
+      setSignupLimit(String(eventOps.limits.find((limit) => !limit.status && !limit.specName)?.limit ?? ''))
+    } else if (event.source !== 'native') {
+      setAllowedRoleIds([])
+      setBannedRoleIds([])
+      setSignupLimit('')
+    }
+  }, [creating, event, eventOps])
 
-  async function addSignup() {
-    const result = await postAdminJson('/api/admin/signups', {
-      action: 'add',
+  useEffect(() => {
+    if (!signupDiscordId) {
+      setSignupName('')
+      setSignupStatus('accepted')
+      setSignupSpecs([])
+      setSignupNote('')
+      return
+    }
+
+    const selectedPlayer = combinedSignupPlayers(signupPlayers).find((player) => player.discordId === signupDiscordId)
+    const existingSignup = eventOps?.signups.find((signup) => signup.discordId === signupDiscordId)
+    const existingStatus = existingSignup?.status === 'late'
+      ? 'accepted'
+      : existingSignup?.status === 'bench'
+        ? 'maybe'
+        : existingSignup?.status
+    setSignupName(existingSignup?.name ?? selectedPlayer?.name ?? signupDiscordId)
+    setSignupStatus(existingStatus ?? 'accepted')
+    setSignupSpecs(existingSignup?.specs ?? [])
+    setSignupNote(existingSignup?.note ?? '')
+  }, [eventOps?.signups, signupDiscordId, signupPlayers])
+
+  async function createEvent() {
+    const errors = validateEventSetupForm({ title, startsAt, durationMinutes, signupCloseMinutesBefore })
+    setEventSetupErrors(errors)
+    if (Object.keys(errors).length) return { ok: false, message: 'Fix the highlighted event setup fields.' }
+
+    try {
+      const result = await postAdminJson('/api/admin/event', {
+        action: 'native-event.create',
+        name: title,
+        startsAt,
+        durationMinutes,
+        closingTime: signupCloseTimeFromMinutes(startsAt, signupCloseMinutesBefore),
+        channelId,
+        description,
+        imageUrl,
+        embedUseDiscordMentions,
+        autoCreateSignupThread,
+        specs: specOptions,
+        signupLimit,
+        allowedRoleIds,
+        bannedRoleIds,
+        mentionRoleIds,
+      })
+      setEventSetupErrors({})
+      if (isEventResult(result)) onEvent(result.event)
+      if (isNativeEventOpsResult(result)) setEventOps(result.eventOps)
+      return result
+    } catch (error) {
+      setEventSetupErrors(errorsFromAdminError(error))
+      throw error
+    }
+  }
+
+  async function updateEvent() {
+    if (!event) return { ok: true, message: 'No event selected.' }
+    const errors = validateEventSetupForm({ title, startsAt, durationMinutes, signupCloseMinutesBefore })
+    setEventSetupErrors(errors)
+    if (Object.keys(errors).length) return { ok: false, message: 'Fix the highlighted event setup fields.' }
+
+    try {
+      const result = await postAdminJson('/api/admin/event', {
+        action: 'native-event.update',
+        eventId: event.id,
+        name: title,
+        startsAt,
+        durationMinutes,
+        closingTime: signupCloseTimeFromMinutes(startsAt, signupCloseMinutesBefore),
+        channelId,
+        description,
+        imageUrl,
+        embedUseDiscordMentions,
+        autoCreateSignupThread,
+        specs: specOptions,
+        signupLimit,
+        allowedRoleIds,
+        bannedRoleIds,
+        mentionRoleIds,
+      })
+      setEventSetupErrors({})
+      if (isEventResult(result)) onEvent(result.event)
+      if (isNativeEventOpsResult(result)) setEventOps(result.eventOps)
+      return result
+    } catch (error) {
+      setEventSetupErrors(errorsFromAdminError(error))
+      throw error
+    }
+  }
+
+  async function saveSignup() {
+    if (!event) return { ok: true, message: 'No event selected.' }
+    const selectedPlayer = combinedSignupPlayers(signupPlayers).find((player) => player.discordId === signupDiscordId)
+    const existingSignup = eventOps?.signups.find((signup) => signup.discordId === signupDiscordId)
+    const result = await postAdminJson('/api/admin/event', {
+      action: 'native-event.signup',
       eventId: event.id,
-      discordId: addDiscordId,
-    }) as AdminSignupManagerData & { event?: HammaEvent }
-    if (result.event) onEvent(result.event)
-    setData({
-      players: result.players ?? data.players,
-      signedUpPlayers: result.signedUpPlayers ?? data.signedUpPlayers,
+      discordId: signupDiscordId,
+      name: signupName || existingSignup?.name || selectedPlayer?.name || signupDiscordId,
+      status: signupStatus,
+      specs: signupSpecs,
+      note: signupNote,
     })
-    setAddDiscordId('')
+    if (isEventResult(result)) onEvent(result.event)
+    if (isNativeEventOpsResult(result)) setEventOps(result.eventOps)
     return result
   }
 
   async function removeSignup() {
-    const result = await postAdminJson('/api/admin/signups', {
-      action: 'remove',
+    if (!event) return { ok: true, message: 'No event selected.' }
+    const result = await postAdminJson('/api/admin/event', {
+      action: 'native-event.signup.remove',
       eventId: event.id,
-      discordId: confirmRemoveId,
-    }) as AdminSignupManagerData & { event?: HammaEvent }
-    if (result.event) onEvent(result.event)
-    setData({
-      players: result.players ?? data.players,
-      signedUpPlayers: result.signedUpPlayers ?? data.signedUpPlayers,
+      discordId: signupDiscordId,
     })
-    setRemoveDiscordId('')
-    setConfirmRemoveId('')
+    if (isEventResult(result)) onEvent(result.event)
+    if (isNativeEventOpsResult(result)) setEventOps(result.eventOps)
+    setSignupPlayers((current) => ({
+      ...current,
+      signedUpPlayers: current.signedUpPlayers.filter((player) => player.discordId !== signupDiscordId),
+    }))
+    setSignupDiscordId('')
     return result
   }
 
-  const playerToRemove = data.signedUpPlayers.find((player) => player.discordId === confirmRemoveId)
+  async function saveEventAndPostSignupMessage() {
+    if (!event) return { ok: true, message: 'No event selected.' }
+    const saveResult = await updateEvent()
+    if (isFailedAdminResult(saveResult)) return saveResult
+    return postAdminJson('/api/admin/event', {
+      action: 'native-event.post',
+      eventId: event.id,
+    })
+  }
+
+  async function saveEventAndSyncScheduledEvent() {
+    if (!event) return { ok: true, message: 'No event selected.' }
+    const saveResult = await updateEvent()
+    if (isFailedAdminResult(saveResult)) return saveResult
+    return postAdminJson('/api/admin/event', {
+      action: 'native-event.scheduled-event',
+      eventId: event.id,
+    })
+  }
+
+  const nativeSelected = event?.source === 'native'
+  const signupPlayerOptions = combinedSignupPlayers(signupPlayers)
+  const selectedSignup = eventOps?.signups.find((signup) => signup.discordId === signupDiscordId)
+  const editingNativeEvent = !creating && nativeSelected
+  const eventSetupActionLabel = creating
+    ? 'Create event'
+    : editingNativeEvent
+      ? 'Save event'
+      : 'Create native event'
+  const eventSetupBusyLabel = creating || !editingNativeEvent ? 'native-event-create' : 'native-event-update'
+  const eventSetupAction = creating || !editingNativeEvent ? createEvent : updateEvent
 
   return (
-    <AdminSection id="admin-signups" title="Signups">
-      {!ready ? <div className="empty-inline">Loading signups.</div> : null}
-      <div className="event-result-grid">
-        <div className="event-result-card">
-          <strong>Add player</strong>
-          <label>
-            Player
-            <select
-              value={addDiscordId}
-              disabled={!ready || !data.players.length}
-              onChange={(event) => setAddDiscordId(event.currentTarget.value)}
-            >
-              {data.players.length ? (
-                <>
-                  <option value="">Choose player</option>
-                  {data.players.map((player) => (
-                    <option key={player.discordId} value={player.discordId}>
-                      {formatParticipantLabel(player)}
-                    </option>
-                  ))}
-                </>
-              ) : (
-                <option value="">{loaded ? 'No known players' : 'Loading players'}</option>
-              )}
-            </select>
-          </label>
+    <>
+      <AdminSection
+        id="admin-event-overview"
+        title="Overview"
+        actions={
           <button
             type="button"
-            disabled={!ready || busy === 'signup-add' || !addDiscordId}
-            onClick={() => void onRun('signup-add', addSignup)}
+            disabled={busy === eventSetupBusyLabel}
+            onClick={() => void onRun(eventSetupBusyLabel, eventSetupAction)}
           >
-            Add to signups
+            {eventSetupActionLabel}
           </button>
-        </div>
-
-        <div className="event-result-card">
-          <strong>Remove player</strong>
-          <label>
-            Signed up player
-            <select
-              value={removeDiscordId}
-              disabled={!ready || !data.signedUpPlayers.length}
-              onChange={(event) => setRemoveDiscordId(event.currentTarget.value)}
-            >
-              {data.signedUpPlayers.length ? (
-                <>
-                  <option value="">Choose player</option>
-                  {data.signedUpPlayers.map((player) => (
-                    <option key={player.discordId} value={player.discordId}>
-                      {formatParticipantLabel(player)}
-                    </option>
-                  ))}
-                </>
-              ) : (
-                <option value="">{loaded ? 'No signed up players' : 'Loading signups'}</option>
-              )}
-            </select>
-          </label>
-          <button
-            type="button"
-            className="danger-button"
-            disabled={!ready || busy === 'signup-remove' || !removeDiscordId}
-            onClick={() => setConfirmRemoveId(removeDiscordId)}
-          >
-            Remove from signups
-          </button>
-        </div>
-      </div>
-
-      {confirmRemoveId ? (
-        <div className="modal-backdrop" role="presentation" onMouseDown={() => setConfirmRemoveId('')}>
-          <div
-            className="modal-panel signup-confirm-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="signup-remove-title"
-            onMouseDown={(event) => event.stopPropagation()}
-          >
-            <div>
-              <h3 id="signup-remove-title">Remove signup?</h3>
-              <p>
-                Remove {playerToRemove ? formatParticipantLabel(playerToRemove) : 'this player'} from {event.name}?
-              </p>
+        }
+      >
+        <div className="event-result-grid">
+          <div className="event-result-card">
+            <strong>{creating ? 'New native event' : nativeSelected ? 'Native event' : 'Native event copy'}</strong>
+            {!creating && !nativeSelected ? (
+              <small>Match settings below apply to the selected event. Event setup changes here create a new native event.</small>
+            ) : null}
+            <label>
+              Title
+              <input
+                value={title}
+                aria-invalid={Boolean(eventSetupErrors.title)}
+                onChange={(event) => {
+                  clearEventSetupError(setEventSetupErrors, 'title')
+                  setTitle(event.currentTarget.value)
+                }}
+              />
+              <FieldError message={eventSetupErrors.title} />
+            </label>
+            <label>
+              Start time
+              <input
+                type="datetime-local"
+                value={startsAt}
+                aria-invalid={Boolean(eventSetupErrors.startsAt)}
+                onChange={(event) => {
+                  clearEventSetupError(setEventSetupErrors, 'startsAt')
+                  setStartsAt(event.currentTarget.value)
+                }}
+              />
+              <FieldError message={eventSetupErrors.startsAt} />
+            </label>
+            <label>
+              Duration minutes
+              <input
+                type="number"
+                min="1"
+                max="1440"
+                value={durationMinutes}
+                aria-invalid={Boolean(eventSetupErrors.durationMinutes)}
+                onChange={(event) => {
+                  clearEventSetupError(setEventSetupErrors, 'durationMinutes')
+                  setDurationMinutes(event.currentTarget.value)
+                }}
+              />
+              <FieldError message={eventSetupErrors.durationMinutes} />
+            </label>
+            <label>
+              Signup closes minutes before start
+              <input
+                type="number"
+                min="0"
+                max="10080"
+                value={signupCloseMinutesBefore}
+                aria-invalid={Boolean(eventSetupErrors.signupCloseMinutesBefore)}
+                onChange={(event) => {
+                  clearEventSetupError(setEventSetupErrors, 'signupCloseMinutesBefore')
+                  setSignupCloseMinutesBefore(event.currentTarget.value)
+                }}
+              />
+              <FieldError message={eventSetupErrors.signupCloseMinutesBefore} />
+            </label>
+            <label>
+              Discord channel
+              <select value={channelId} onChange={(event) => setChannelId(event.currentTarget.value)}>
+                <option value="">Choose channel</option>
+                {selectedMissingFromOptions(channelId, discordOptions.channels) ? (
+                  <option value={channelId}>{channelId}</option>
+                ) : null}
+                {discordOptions.channels.map((channel) => (
+                  <option key={channel.id} value={channel.id}>
+                    #{channel.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="embed-color-indicator">
+              <span>Embed color</span>
+              <div className="embed-color-indicator-options">
+                <span><i data-state="open" /> Green: signups open</span>
+                <span><i data-state="closing" /> Yellow: under 1 hour left</span>
+                <span><i data-state="closed" /> Red: signups closed</span>
+              </div>
             </div>
-            <div className="admin-section-footer">
-              <button type="button" className="secondary" onClick={() => setConfirmRemoveId('')}>
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="danger-button"
-                disabled={busy === 'signup-remove'}
-                onClick={() => void onRun('signup-remove', removeSignup)}
-              >
-                Remove player
-              </button>
-            </div>
+            <label>
+              Image URL
+              <input value={imageUrl} inputMode="url" onChange={(event) => setImageUrl(event.currentTarget.value)} />
+            </label>
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={embedUseDiscordMentions}
+                onChange={(event) => setEmbedUseDiscordMentions(event.currentTarget.checked)}
+              />
+              Use Discord mentions for player names in signup embeds
+            </label>
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={autoCreateSignupThread}
+                onChange={(event) => setAutoCreateSignupThread(event.currentTarget.checked)}
+              />
+              Automatically create a discussion thread when posting signup message
+            </label>
+          </div>
+
+          <div className="event-result-card">
+            <strong>Description</strong>
+            <label>
+              Event description
+              <textarea rows={8} value={description} onChange={(event) => setDescription(event.currentTarget.value)} />
+            </label>
           </div>
         </div>
-      ) : null}
-    </AdminSection>
+      </AdminSection>
+
+      <AdminSection id="admin-event-signup-options" title="Signup Options">
+        <div className="event-result-grid">
+          <div className="event-result-card">
+            <strong>Spec definitions</strong>
+            <label>
+              Specs
+              <SpecOptionEditor
+                value={specOptions}
+                emojiOptions={discordOptions.emojis}
+                onChange={setSpecOptions}
+              />
+            </label>
+          </div>
+          <div className="event-result-card">
+            <strong>Signup limits</strong>
+            <label>
+              Total accepted limit
+              <input type="number" min="1" value={signupLimit} onChange={(event) => setSignupLimit(event.currentTarget.value)} />
+            </label>
+          </div>
+          <div className="event-result-card">
+            <strong>Discord gates</strong>
+            <label>
+              Mention roles
+              <RoleMultiSelect
+                options={discordOptions.roles}
+                value={mentionRoleIds}
+                onChange={setMentionRoleIds}
+              />
+            </label>
+            <label>
+              Allowed roles
+              <RoleMultiSelect
+                options={discordOptions.roles}
+                value={allowedRoleIds}
+                onChange={setAllowedRoleIds}
+              />
+            </label>
+            <label>
+              Banned roles
+              <RoleMultiSelect
+                options={discordOptions.roles}
+                value={bannedRoleIds}
+                onChange={setBannedRoleIds}
+              />
+            </label>
+            {discordOptions.error ? <small>{discordOptions.error}</small> : null}
+            {discordOptions.stale ? <small>Showing cached Discord options.</small> : null}
+          </div>
+        </div>
+      </AdminSection>
+
+      {creating ? null : (
+        <AdminSection id="admin-signups" title="Signup Management">
+          <div className="event-result-grid">
+            <div className="event-result-card">
+              <strong>Signup editor</strong>
+              {!editingNativeEvent ? (
+                <small>Create a native event before managing signup specs, notes, and removals.</small>
+              ) : null}
+              <label>
+                Player
+                <select
+                  value={signupDiscordId}
+                  disabled={!editingNativeEvent || !ready || !signupPlayerOptions.length}
+                  onChange={(event) => setSignupDiscordId(event.currentTarget.value)}
+                >
+                  <option value="">
+                    {signupPlayersLoaded
+                      ? signupPlayerOptions.length
+                        ? 'Choose player'
+                        : 'No players available'
+                      : 'Loading players'}
+                  </option>
+                  {signupPlayerOptions.map((player) => (
+                    <option key={player.discordId} value={player.discordId}>
+                      {formatParticipantLabel(player)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Status
+                <select
+                  value={signupStatus}
+                  disabled={!editingNativeEvent}
+                  onChange={(event) => setSignupStatus(event.currentTarget.value)}
+                >
+                  {[
+                    { value: 'accepted', label: 'available' },
+                    { value: 'maybe', label: 'maybe' },
+                    { value: 'absent', label: 'absent' },
+                  ].map((status) => (
+                    <option key={status.value} value={status.value}>{status.label}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Specs
+                <SpecCheckboxes
+                  options={specOptions}
+                  value={signupSpecs}
+                  disabled={!editingNativeEvent}
+                  onChange={setSignupSpecs}
+                />
+              </label>
+              <label>
+                Note
+                <textarea
+                  rows={2}
+                  value={signupNote}
+                  disabled={!editingNativeEvent}
+                  onChange={(event) => setSignupNote(event.currentTarget.value)}
+                />
+              </label>
+              <div className="button-row left">
+                <button
+                  type="button"
+                  disabled={!editingNativeEvent || !signupDiscordId || busy === 'native-event-signup'}
+                  onClick={() => void onRun('native-event-signup', saveSignup)}
+                >
+                  Save signup
+                </button>
+                <button
+                  type="button"
+                  className="danger-button"
+                  disabled={!editingNativeEvent || !selectedSignup || busy === 'native-event-signup-remove'}
+                  onClick={() => void onRun('native-event-signup-remove', removeSignup)}
+                >
+                  Remove signup
+                </button>
+              </div>
+            </div>
+          </div>
+        </AdminSection>
+      )}
+
+      {creating ? null : (
+        <AdminSection
+          id="admin-event-discord"
+          title="Discord Publishing"
+          actions={
+            <>
+              <button type="button" disabled={!editingNativeEvent || busy === 'native-event-post'} onClick={() => void onRun('native-event-post', saveEventAndPostSignupMessage)}>
+                Post signup message
+              </button>
+              <button type="button" disabled={!editingNativeEvent || busy === 'native-event-scheduled'} onClick={() => void onRun('native-event-scheduled', saveEventAndSyncScheduledEvent)}>
+                Sync Scheduled Event
+              </button>
+              <button type="button" disabled={!editingNativeEvent || busy === 'native-event-close'} onClick={() => void onRun('native-event-close', () => postAdminJson('/api/admin/event', { action: 'native-event.close', eventId: event?.id }))}>
+                Close signups
+              </button>
+              <button type="button" disabled={!editingNativeEvent || busy === 'native-event-open'} onClick={() => void onRun('native-event-open', () => postAdminJson('/api/admin/event', { action: 'native-event.open', eventId: event?.id }))}>
+                Reopen
+              </button>
+            </>
+          }
+        >
+          <div className="event-result-grid">
+            <div className="event-result-card">
+              <strong>Targeted message</strong>
+              {!editingNativeEvent ? <small>Discord publishing controls require a native event.</small> : null}
+              <label>
+                Target
+                <select
+                  value={targetGroup}
+                  disabled={!editingNativeEvent}
+                  onChange={(event) => setTargetGroup(event.currentTarget.value)}
+                >
+                  {['signed', 'maybe', 'unsigned', 'admins'].map((target) => (
+                    <option key={target} value={target}>{target}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Message
+                <textarea
+                  rows={3}
+                  value={targetMessage}
+                  disabled={!editingNativeEvent}
+                  onChange={(event) => setTargetMessage(event.currentTarget.value)}
+                />
+              </label>
+              <div className="button-row left">
+                <button type="button" disabled={!editingNativeEvent || busy === 'native-event-message'} onClick={() => void onRun('native-event-message', () => postAdminJson('/api/admin/event', { action: 'native-event.message', eventId: event?.id, target: targetGroup, message: targetMessage }))}>
+                  Send message
+                </button>
+              </div>
+            </div>
+          </div>
+        </AdminSection>
+      )}
+    </>
   )
 }
 
-function formatParticipantLabel(player: RegisteredParticipant) {
-  return player.groupTag ? `[${player.groupTag}] ${player.name}` : player.name
+function RoleMultiSelect({
+  options,
+  value,
+  onChange,
+}: {
+  options: DiscordGuildOptionsData['roles']
+  value: string[]
+  onChange: (value: string[]) => void
+}) {
+  const [query, setQuery] = useState('')
+  const [open, setOpen] = useState(false)
+  const [activeIndex, setActiveIndex] = useState(0)
+  const rootRef = useRef<HTMLDivElement | null>(null)
+  const inputRef = useRef<HTMLInputElement | null>(null)
+  const listboxId = useId()
+  const selected = normalizeSelectedOptions(value)
+  const selectedIds = new Set(selected)
+  const selectedRoles = selected.map((roleId) =>
+    options.find((role) => role.id === roleId) ?? { id: roleId, name: roleId },
+  )
+  const filteredOptions = options
+    .filter((role) => !selectedIds.has(role.id))
+    .filter((role) => role.name.toLowerCase().includes(query.trim().toLowerCase()))
+    .slice(0, 12)
+  const activeRole = filteredOptions[activeIndex]
+
+  useEffect(() => {
+    setActiveIndex(0)
+  }, [query, value, options])
+
+  useEffect(() => {
+    if (!open) return
+
+    function closeOnOutsidePointer(event: PointerEvent) {
+      const target = event.target
+      if (!(target instanceof Node)) return
+      if (!rootRef.current?.contains(target)) setOpen(false)
+    }
+
+    document.addEventListener('pointerdown', closeOnOutsidePointer)
+    return () => document.removeEventListener('pointerdown', closeOnOutsidePointer)
+  }, [open])
+
+  function addRole(roleId: string) {
+    onChange([...selected, roleId])
+    setQuery('')
+    setOpen(false)
+    inputRef.current?.focus()
+  }
+
+  function removeRole(roleId: string) {
+    onChange(selected.filter((selectedRoleId) => selectedRoleId !== roleId))
+    inputRef.current?.focus()
+  }
+
+  return (
+    <div className="role-combobox" ref={rootRef}>
+      <div
+        className="role-combobox-control"
+        onMouseDown={(event) => {
+          if (event.target === event.currentTarget) inputRef.current?.focus()
+        }}
+      >
+        {selectedRoles.map((role) => (
+            <span className="role-chip" key={role.id}>
+              @{role.name}
+              <button
+                type="button"
+                aria-label={`Remove ${role.name}`}
+                onClick={() => removeRole(role.id)}
+              >
+                x
+              </button>
+            </span>
+          ))}
+        <input
+          ref={inputRef}
+          value={query}
+          role="combobox"
+          aria-autocomplete="list"
+          aria-expanded={open}
+          aria-controls={listboxId}
+          aria-activedescendant={open && activeRole ? `${listboxId}-${activeRole.id}` : undefined}
+          placeholder={selectedRoles.length ? 'Add role' : 'Search roles'}
+          onFocus={() => setOpen(true)}
+          onChange={(event) => {
+            setQuery(event.currentTarget.value)
+            setOpen(true)
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') {
+              setOpen(false)
+              return
+            }
+            if (event.key === 'Backspace' && !query && selected.at(-1)) {
+              event.preventDefault()
+              removeRole(selected.at(-1) ?? '')
+              return
+            }
+            if (event.key === 'ArrowDown') {
+              event.preventDefault()
+              setOpen(true)
+              setActiveIndex((index) => Math.min(index + 1, Math.max(filteredOptions.length - 1, 0)))
+              return
+            }
+            if (event.key === 'ArrowUp') {
+              event.preventDefault()
+              setActiveIndex((index) => Math.max(index - 1, 0))
+              return
+            }
+            if (event.key === 'Enter' && activeRole) {
+              event.preventDefault()
+              addRole(activeRole.id)
+            }
+          }}
+        />
+      </div>
+      {open ? (
+        <div className="role-combobox-menu" id={listboxId} role="listbox" aria-multiselectable="true">
+          {filteredOptions.length ? (
+            filteredOptions.map((role, index) => (
+              <button
+                key={role.id}
+                id={`${listboxId}-${role.id}`}
+                type="button"
+                role="option"
+                aria-selected={index === activeIndex}
+                data-active={index === activeIndex ? 'true' : undefined}
+                onMouseEnter={() => setActiveIndex(index)}
+                onClick={() => addRole(role.id)}
+              >
+                @{role.name}
+              </button>
+            ))
+          ) : (
+            <div className="empty-inline">No matching roles</div>
+          )}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function FieldError({ message }: { message?: string }) {
+  return message ? <span className="field-error">{message}</span> : null
+}
+
+function SpecOptionEditor({
+  value,
+  emojiOptions,
+  onChange,
+}: {
+  value: EventSpecOption[]
+  emojiOptions: DiscordGuildOptionsData['emojis']
+  onChange: (value: EventSpecOption[]) => void
+}) {
+  function updateSpec(index: number, patch: Partial<EventSpecOption>) {
+    onChange(value.map((spec, specIndex) => specIndex === index ? { ...spec, ...patch } : spec))
+  }
+
+  function removeSpec(index: number) {
+    onChange(value.filter((_, specIndex) => specIndex !== index))
+  }
+
+  return (
+    <div className="spec-option-editor">
+      {value.map((spec, index) => (
+        <div className="spec-option-row" key={index}>
+          <SpecEmojiPicker
+            value={spec.emoji ?? ''}
+            options={emojiOptions}
+            onChange={(emoji) => updateSpec(index, { emoji })}
+          />
+          <input
+            value={spec.name}
+            aria-label="Spec name"
+            placeholder="Spec name"
+            onChange={(event) => updateSpec(index, { name: event.currentTarget.value })}
+          />
+          <input
+            type="number"
+            min="1"
+            max="500"
+            value={spec.limit ?? ''}
+            aria-label="Spec limit"
+            placeholder="Limit"
+            onChange={(event) => updateSpec(index, { limit: event.currentTarget.value ? Number(event.currentTarget.value) : undefined })}
+          />
+          <button type="button" className="secondary" onClick={() => removeSpec(index)}>
+            Remove
+          </button>
+        </div>
+      ))}
+      <button
+        type="button"
+        className="secondary"
+        onClick={() => onChange([...value, { emoji: '', name: '' }])}
+      >
+        Add spec
+      </button>
+    </div>
+  )
+}
+
+function SpecEmojiPicker({
+  value,
+  options,
+  onChange,
+}: {
+  value: string
+  options: DiscordGuildOptionsData['emojis']
+  onChange: (value: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const ready = useClientReady()
+  const rootRef = useRef<HTMLDivElement | null>(null)
+  const popoverId = useId()
+  const customEmojis = options.map((emoji) => ({
+    id: emoji.id,
+    names: [emoji.name, emoji.guildName].filter(Boolean) as string[],
+    imgUrl: emoji.url,
+  }))
+  const emojiById = new Map(options.map((emoji) => [emoji.id, emoji]))
+
+  useEffect(() => {
+    if (!open) return
+
+    function closeOnOutsidePointer(event: PointerEvent) {
+      const target = event.target
+      if (!(target instanceof Node)) return
+      if (!rootRef.current?.contains(target)) setOpen(false)
+    }
+
+    document.addEventListener('pointerdown', closeOnOutsidePointer)
+    return () => document.removeEventListener('pointerdown', closeOnOutsidePointer)
+  }, [open])
+
+  function chooseEmoji(emoji: EmojiClickData) {
+    if (emoji.isCustom) {
+      onChange(emojiById.get(emoji.emoji)?.mention ?? emoji.emoji)
+    } else {
+      onChange(emoji.emoji)
+    }
+    setOpen(false)
+  }
+
+  return (
+    <div className="spec-emoji-picker" ref={rootRef}>
+      <button
+        type="button"
+        className="spec-emoji-trigger"
+        aria-label="Choose spec emoji"
+        aria-expanded={open}
+        aria-controls={open ? popoverId : undefined}
+        onClick={() => setOpen((current) => !current)}
+      >
+        {value ? <EmojiPreview value={value} /> : <span className="spec-emoji-placeholder">Emoji</span>}
+      </button>
+      {open ? (
+        <div className="spec-emoji-popover" id={popoverId}>
+          {ready ? (
+            <EmojiPicker
+              autoFocusSearch
+              customEmojis={customEmojis}
+              emojiStyle={EmojiStyle.TWITTER}
+              getEmojiUrl={twemojiUrl}
+              height={380}
+              lazyLoadEmojis
+              onEmojiClick={chooseEmoji}
+              previewConfig={{ showPreview: false }}
+              searchPlaceholder="Search emojis"
+              skinTonesDisabled
+              theme={Theme.DARK}
+              width="100%"
+            />
+          ) : (
+            <div className="empty-inline">Loading emojis...</div>
+          )}
+          <label>
+            Custom value
+            <input
+              value={value}
+              placeholder="Paste emoji or <:name:id>"
+              onChange={(event) => onChange(event.currentTarget.value)}
+            />
+          </label>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function SpecCheckboxes({
+  options,
+  value,
+  disabled,
+  onChange,
+}: {
+  options: EventSpecOption[]
+  value: string[]
+  disabled?: boolean
+  onChange: (value: string[]) => void
+}) {
+  const selected = new Set(value)
+  const usableOptions = options.filter((spec) => spec.name.trim())
+
+  if (!usableOptions.length) return <div className="empty-inline">No specs configured</div>
+
+  return (
+    <div className="spec-checkbox-grid">
+      {usableOptions.map((spec) => (
+        <label className="checkbox-field" key={spec.name}>
+          <input
+            type="checkbox"
+            checked={selected.has(spec.name)}
+            disabled={disabled}
+            onChange={(event) => {
+              onChange(event.currentTarget.checked
+                ? [...value, spec.name]
+                : value.filter((item) => item !== spec.name))
+            }}
+          />
+          <SpecLabel spec={spec} />
+        </label>
+      ))}
+    </div>
+  )
+}
+
+function normalizeSelectedOptions(value: string[]) {
+  return Array.from(new Set(value.map((item) => item.trim()).filter(Boolean)))
+}
+
+function validateEventSetupForm(values: {
+  title: string
+  startsAt: string
+  durationMinutes: string
+  signupCloseMinutesBefore: string
+}): EventSetupErrors {
+  const errors: EventSetupErrors = {}
+  if (!values.title.trim()) errors.title = 'Event title is required.'
+  if (!values.startsAt.trim() || Number.isNaN(Date.parse(values.startsAt))) {
+    errors.startsAt = 'Event time must be a valid date.'
+  }
+
+  const duration = Number(values.durationMinutes)
+  if (!Number.isInteger(duration) || duration < 1 || duration > 1440) {
+    errors.durationMinutes = 'Duration must be a whole number from 1 to 1440.'
+  }
+
+  const closeMinutes = Number(values.signupCloseMinutesBefore)
+  if (!Number.isInteger(closeMinutes) || closeMinutes < 0 || closeMinutes > 10080) {
+    errors.signupCloseMinutesBefore = 'Signup close offset must be a whole number from 0 to 10080.'
+  }
+
+  return errors
+}
+
+function clearEventSetupError(
+  setErrors: Dispatch<SetStateAction<EventSetupErrors>>,
+  field: EventSetupField,
+) {
+  setErrors((current) => {
+    if (!current[field]) return current
+    const next = { ...current }
+    delete next[field]
+    return next
+  })
+}
+
+function applySpecLimits(specs: EventSpecOption[], limits: NativeEventOpsData['limits']) {
+  const limitsBySpec = new Map(limits
+    .filter((limit) => limit.specName && !limit.status)
+    .map((limit) => [limit.specName, limit.limit]))
+
+  return specs.map((spec) => ({
+    ...spec,
+    limit: limitsBySpec.get(spec.name) ?? spec.limit,
+  }))
+}
+
+function specOptionsFromNames(names: string[]) {
+  const specs = names.map((name) => ({ name }))
+  return specs.length ? specs : DEFAULT_SPEC_OPTIONS
+}
+
+function SpecLabel({ spec }: { spec: EventSpecOption }) {
+  return (
+    <span className="spec-label">
+      {spec.emoji ? <EmojiPreview value={spec.emoji} /> : null}
+      <span>{spec.name}</span>
+    </span>
+  )
+}
+
+function EmojiPreview({ value }: { value: string }) {
+  const customEmoji = parseCustomDiscordEmoji(value)
+  if (customEmoji) {
+    return (
+      <img
+        className="emoji-preview"
+        src={`https://cdn.discordapp.com/emojis/${customEmoji.id}.${customEmoji.animated ? 'gif' : 'png'}`}
+        alt={`:${customEmoji.name}:`}
+        loading="lazy"
+      />
+    )
+  }
+  return (
+    <img
+      className="emoji-preview"
+      src={twemojiUrl(nativeEmojiToUnified(value))}
+      alt={value}
+      loading="lazy"
+    />
+  )
+}
+
+function parseCustomDiscordEmoji(value: string) {
+  const match = value.match(/^<(?<animated>a?):(?<name>[A-Za-z0-9_]+):(?<id>\d+)>$/)
+  if (!match?.groups) return null
+  return {
+    animated: match.groups.animated === 'a',
+    name: match.groups.name,
+    id: match.groups.id,
+  }
+}
+
+function twemojiUrl(unified: string) {
+  return `${TWEMOJI_BASE_URL}/${normalizeTwemojiUnified(unified)}.svg`
+}
+
+function nativeEmojiToUnified(value: string) {
+  return Array.from(value)
+    .map((char) => char.codePointAt(0)?.toString(16))
+    .filter(Boolean)
+    .join('-')
+}
+
+function normalizeTwemojiUnified(unified: string) {
+  return unified
+    .toLowerCase()
+    .split('-')
+    .filter((part) => part !== 'fe0f')
+    .join('-')
+}
+
+function selectedMissingFromOptions(value: string, options: Array<{ id: string }>) {
+  return Boolean(value && !options.some((option) => option.id === value))
 }
 
 function useClientReady() {
@@ -2941,7 +3999,7 @@ function TeamForm({
 
 async function postAdminAction(url: string) {
   const response = await fetch(url, { method: 'POST' })
-  if (!response.ok) throw new Error(await response.text())
+  if (!response.ok) throw await adminRequestError(response)
   return response.json()
 }
 
@@ -2951,8 +4009,47 @@ async function postAdminJson(url: string, body: unknown) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
-  if (!response.ok) throw new Error(await response.text())
+  if (!response.ok) throw await adminRequestError(response)
   return response.json()
+}
+
+class AdminRequestError extends Error {
+  details: unknown
+
+  constructor(message: string, details: unknown) {
+    super(message)
+    this.name = 'AdminRequestError'
+    this.details = details
+  }
+}
+
+async function adminRequestError(response: Response) {
+  const text = await response.text()
+  try {
+    const parsed = JSON.parse(text) as { message?: unknown; error?: unknown }
+    const message = typeof parsed.message === 'string'
+      ? parsed.message
+      : typeof parsed.error === 'string'
+        ? parsed.error
+        : text || 'Action failed.'
+    return new AdminRequestError(message, parsed)
+  } catch {
+    return new AdminRequestError(text || 'Action failed.', text)
+  }
+}
+
+function errorsFromAdminError(error: unknown): EventSetupErrors {
+  if (!(error instanceof AdminRequestError)) return {}
+  const details = error.details
+  if (!details || typeof details !== 'object' || !('fieldErrors' in details)) return {}
+  const rawErrors = (details as { fieldErrors?: unknown }).fieldErrors
+  if (!rawErrors || typeof rawErrors !== 'object') return {}
+  const errors: EventSetupErrors = {}
+  for (const field of ['title', 'startsAt', 'durationMinutes', 'signupCloseMinutesBefore'] as const) {
+    const message = (rawErrors as Partial<Record<EventSetupField, unknown>>)[field]
+    if (typeof message === 'string') errors[field] = message
+  }
+  return errors
 }
 
 function isEventResult(result: unknown): result is { event: HammaEvent } {
@@ -2966,6 +4063,36 @@ function isCurrentEventsResult(result: unknown): result is { currentEvents: Hamm
       'currentEvents' in result &&
       Array.isArray((result as { currentEvents?: unknown }).currentEvents),
   )
+}
+
+function isNativeEventOpsResult(result: unknown): result is { eventOps: NativeEventOpsData } {
+  return Boolean(result && typeof result === 'object' && 'eventOps' in result)
+}
+
+function isFailedAdminResult(result: unknown): result is { ok: false } {
+  return Boolean(result && typeof result === 'object' && (result as { ok?: unknown }).ok === false)
+}
+
+function toDatetimeLocalValue(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  const offset = date.getTimezoneOffset()
+  const local = new Date(date.getTime() - offset * 60_000)
+  return local.toISOString().slice(0, 16)
+}
+
+function minutesBeforeEventStart(startsAt: string, closingTime?: string) {
+  if (!closingTime) return undefined
+  const delta = Date.parse(startsAt) - Date.parse(closingTime)
+  if (!Number.isFinite(delta)) return undefined
+  return Math.max(0, Math.round(delta / 60_000))
+}
+
+function signupCloseTimeFromMinutes(startsAt: string, minutesBefore: string) {
+  const startsAtMs = Date.parse(startsAt)
+  const minutes = Number(minutesBefore)
+  if (!Number.isFinite(startsAtMs) || !Number.isFinite(minutes) || minutes < 0) return ''
+  return new Date(startsAtMs - Math.round(minutes) * 60_000).toISOString()
 }
 
 function parseRealtimeAdminUpdate(eventMessage: MessageEvent): RealtimeAdminUpdate | null {

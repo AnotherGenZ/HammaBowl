@@ -13,15 +13,163 @@ export const Route = createFileRoute('/api/admin/event')({
         const url = new URL(request.url)
         const eventId = url.searchParams.get('eventId')?.trim()
         const event = eventId ? await getDbEvent(eventId) : await getCurrentEvent()
+        const eventOps = event?.source === 'native'
+          ? await import('../lib/eventSignups.server')
+            .then((module) => module.getNativeEventDetails(event.id))
+            .catch(() => null)
+          : null
+        const discordOptions = await import('../lib/discordGuildOptions.server')
+          .then((module) => module.getCachedDiscordGuildOptions())
+          .catch((error) => ({
+            channels: [],
+            roles: [],
+            emojis: [],
+            error: error instanceof Error ? error.message : 'Unable to load Discord options.',
+          }))
 
         return Response.json({
           event,
+          eventOps,
+          discordOptions,
           currentEvents: await getCurrentEvents(),
         })
       },
       POST: async ({ request }) => {
-        await requireAdminSession()
+        const admin = await requireAdminSession()
         const body = await request.json()
+
+        if (body.action === 'discord-options.refresh') {
+          const discordOptions = await import('../lib/discordGuildOptions.server')
+            .then((module) => module.getCachedDiscordGuildOptions({ force: true }))
+          return Response.json({
+            ok: true,
+            message: `Discord cache refreshed: ${discordOptions.channels.length} channels, ${discordOptions.roles.length} roles, ${discordOptions.emojis.length} custom emojis.`,
+            discordOptions,
+          })
+        }
+
+        if (typeof body.action === 'string' && body.action.startsWith('native-event.')) {
+          const {
+            createNativeEvent,
+            duplicateNativeEvent,
+            getNativeEventDetails,
+            reopenNativeEvent,
+            removeNativeSignup,
+            setNativeEventPhase,
+            updateNativeEvent,
+            upsertNativeSignup,
+          } = await import('../lib/eventSignups.server')
+          const {
+            publishNativeEventSignupMessage,
+            syncDiscordScheduledEvent,
+            sendNativeEventTargetedMessage,
+            updateExistingNativeEventSignupMessage,
+            updateNativeEventSignupMessageSoon,
+          } = await import('../lib/eventDiscord.server')
+          const actorDiscordId = admin.id
+
+          try {
+            if (body.action === 'native-event.create') {
+              const event = await createNativeEvent(body, actorDiscordId)
+              clearCurrentEventCache()
+              publishEventUpdate(event.id, 'native-event.created')
+              return Response.json({ ok: true, message: 'Native event created.', event, eventOps: await getNativeEventDetails(event.id) })
+            }
+            if (body.action === 'native-event.update') {
+              const event = await updateNativeEvent(body, actorDiscordId)
+              clearCurrentEventCache()
+              await updateExistingNativeEventSignupMessage(event.id)
+              publishEventUpdate(event.id, 'native-event.updated')
+              return Response.json({ ok: true, message: 'Native event updated.', event, eventOps: await getNativeEventDetails(event.id) })
+            }
+            if (body.action === 'native-event.duplicate') {
+              const event = await duplicateNativeEvent(String(body.eventId ?? ''), {
+                startsAt: String(body.startsAt ?? ''),
+                copySignups: Boolean(body.copySignups),
+              }, actorDiscordId)
+              clearCurrentEventCache()
+              publishEventUpdate(event.id, 'native-event.duplicated')
+              return Response.json({ ok: true, message: 'Native event duplicated.', event, eventOps: await getNativeEventDetails(event.id) })
+            }
+            if (body.action === 'native-event.signup') {
+              const eventId = String(body.eventId ?? '')
+              const eventOps = await upsertNativeSignup({
+                eventId,
+                discordId: String(body.discordId ?? ''),
+                name: String(body.name ?? ''),
+                status: String(body.status ?? 'accepted'),
+                specs: body.specs,
+                note: String(body.note ?? ''),
+                actorDiscordId,
+                actorIsAdmin: true,
+              })
+              clearCurrentEventCache()
+              publishEventUpdate(eventId, 'native-event.signup.updated')
+              updateNativeEventSignupMessageSoon(eventId)
+              return Response.json({ ok: true, message: 'Signup saved.', event: eventOps.event, eventOps })
+            }
+            if (body.action === 'native-event.signup.remove') {
+              const eventId = String(body.eventId ?? '')
+              const eventOps = await removeNativeSignup(eventId, String(body.discordId ?? ''), actorDiscordId)
+              clearCurrentEventCache()
+              publishEventUpdate(eventId, 'native-event.signup.removed')
+              updateNativeEventSignupMessageSoon(eventId)
+              return Response.json({ ok: true, message: 'Signup removed.', event: eventOps.event, eventOps })
+            }
+            if (body.action === 'native-event.close') {
+              const event = await setNativeEventPhase(String(body.eventId ?? ''), 'rating', actorDiscordId)
+              clearCurrentEventCache()
+              publishEventUpdate(event.id, 'native-event.closed')
+              updateNativeEventSignupMessageSoon(event.id)
+              return Response.json({ ok: true, message: 'Signups closed.', event, eventOps: await getNativeEventDetails(event.id) })
+            }
+            if (body.action === 'native-event.open') {
+              const event = await reopenNativeEvent(String(body.eventId ?? ''), actorDiscordId)
+              clearCurrentEventCache()
+              publishEventUpdate(event.id, 'native-event.opened')
+              updateNativeEventSignupMessageSoon(event.id)
+              return Response.json({ ok: true, message: 'Signups reopened.', event, eventOps: await getNativeEventDetails(event.id) })
+            }
+            if (body.action === 'native-event.archive') {
+              const event = await setNativeEventPhase(String(body.eventId ?? ''), 'locked', actorDiscordId)
+              clearCurrentEventCache()
+              publishEventUpdate(event.id, 'native-event.archived')
+              updateNativeEventSignupMessageSoon(event.id)
+              return Response.json({ ok: true, message: 'Event locked.', event, eventOps: await getNativeEventDetails(event.id) })
+            }
+            if (body.action === 'native-event.post') {
+              const eventId = String(body.eventId ?? '')
+              const result = await publishNativeEventSignupMessage(eventId)
+              return Response.json({
+                ok: true,
+                message: result.moved
+                  ? 'Event message posted in the selected channel.'
+                  : result.posted
+                    ? 'Event message posted.'
+                    : 'Event message updated.',
+                result,
+                eventOps: await getNativeEventDetails(eventId),
+              })
+            }
+            if (body.action === 'native-event.scheduled-event') {
+              const eventId = String(body.eventId ?? '')
+              const result = await syncDiscordScheduledEvent(eventId)
+              return Response.json({ ...result, eventOps: await getNativeEventDetails(eventId) })
+            }
+            if (body.action === 'native-event.message') {
+              const result = await sendNativeEventTargetedMessage(String(body.eventId ?? ''), String(body.target ?? 'signed'), String(body.message ?? ''))
+              return Response.json(result)
+            }
+            if (body.action === 'native-event.details') {
+              const eventOps = await getNativeEventDetails(String(body.eventId ?? ''))
+              return Response.json({ ok: true, event: eventOps.event, eventOps })
+            }
+          } catch (error) {
+            return adminActionError(error)
+          }
+
+          throw new Response('Unknown native event action.', { status: 400 })
+        }
 
         if ('activeEventId' in body) {
           const event = await setActiveEvent(String(body.activeEventId ?? ''))
@@ -101,3 +249,20 @@ export const Route = createFileRoute('/api/admin/event')({
   },
   component: () => null,
 })
+
+function adminActionError(error: unknown) {
+  const message = error instanceof Error ? error.message : 'Action failed.'
+  return Response.json({
+    ok: false,
+    message,
+    fieldErrors: nativeEventFieldErrors(message),
+  }, { status: 400 })
+}
+
+function nativeEventFieldErrors(message: string) {
+  if (message.includes('Event title')) return { title: message }
+  if (message.includes('Event time')) return { startsAt: message }
+  if (message.includes('Signup close time')) return { signupCloseMinutesBefore: message }
+  if (message.includes('Duration')) return { durationMinutes: message }
+  return {}
+}

@@ -28,6 +28,7 @@ import { Route as ApiGroupMembershipsRouteImport } from './routes/api.group-memb
 import { Route as ApiGroupLogosRouteImport } from './routes/api.group-logos'
 import { Route as AdminHistoryRouteImport } from './routes/admin_.history'
 import { Route as AdminGeneralRouteImport } from './routes/admin_.general'
+import { Route as AdminEventCreatorRouteImport } from './routes/admin_.event-creator'
 import { Route as HallOfLegendsEventIdArchiveRouteImport } from './routes/hall-of-legends_.$eventId_.archive'
 import { Route as ApiEventCurrentRouteImport } from './routes/api.event.current'
 import { Route as ApiDraftPickRouteImport } from './routes/api.draft.pick'
@@ -149,6 +150,11 @@ const AdminHistoryRoute = AdminHistoryRouteImport.update({
 const AdminGeneralRoute = AdminGeneralRouteImport.update({
   id: '/admin_/general',
   path: '/admin/general',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminEventCreatorRoute = AdminEventCreatorRouteImport.update({
+  id: '/admin_/event-creator',
+  path: '/admin/event-creator',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HallOfLegendsEventIdArchiveRoute =
@@ -302,6 +308,7 @@ export interface FileRoutesByFullPath {
   '/players': typeof PlayersRoute
   '/ratings': typeof RatingsRoute
   '/settings': typeof SettingsRoute
+  '/admin/event-creator': typeof AdminEventCreatorRoute
   '/admin/general': typeof AdminGeneralRoute
   '/admin/history': typeof AdminHistoryRoute
   '/api/group-logos': typeof ApiGroupLogosRoute
@@ -350,6 +357,7 @@ export interface FileRoutesByTo {
   '/players': typeof PlayersRoute
   '/ratings': typeof RatingsRoute
   '/settings': typeof SettingsRoute
+  '/admin/event-creator': typeof AdminEventCreatorRoute
   '/admin/general': typeof AdminGeneralRoute
   '/admin/history': typeof AdminHistoryRoute
   '/api/group-logos': typeof ApiGroupLogosRoute
@@ -399,6 +407,7 @@ export interface FileRoutesById {
   '/players': typeof PlayersRoute
   '/ratings': typeof RatingsRoute
   '/settings': typeof SettingsRoute
+  '/admin_/event-creator': typeof AdminEventCreatorRoute
   '/admin_/general': typeof AdminGeneralRoute
   '/admin_/history': typeof AdminHistoryRoute
   '/api/group-logos': typeof ApiGroupLogosRoute
@@ -449,6 +458,7 @@ export interface FileRouteTypes {
     | '/players'
     | '/ratings'
     | '/settings'
+    | '/admin/event-creator'
     | '/admin/general'
     | '/admin/history'
     | '/api/group-logos'
@@ -497,6 +507,7 @@ export interface FileRouteTypes {
     | '/players'
     | '/ratings'
     | '/settings'
+    | '/admin/event-creator'
     | '/admin/general'
     | '/admin/history'
     | '/api/group-logos'
@@ -545,6 +556,7 @@ export interface FileRouteTypes {
     | '/players'
     | '/ratings'
     | '/settings'
+    | '/admin_/event-creator'
     | '/admin_/general'
     | '/admin_/history'
     | '/api/group-logos'
@@ -594,6 +606,7 @@ export interface RootRouteChildren {
   PlayersRoute: typeof PlayersRoute
   RatingsRoute: typeof RatingsRoute
   SettingsRoute: typeof SettingsRoute
+  AdminEventCreatorRoute: typeof AdminEventCreatorRoute
   AdminGeneralRoute: typeof AdminGeneralRoute
   AdminHistoryRoute: typeof AdminHistoryRoute
   ApiGroupLogosRoute: typeof ApiGroupLogosRoute
@@ -763,6 +776,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/general'
       fullPath: '/admin/general'
       preLoaderRoute: typeof AdminGeneralRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin_/event-creator': {
+      id: '/admin_/event-creator'
+      path: '/admin/event-creator'
+      fullPath: '/admin/event-creator'
+      preLoaderRoute: typeof AdminEventCreatorRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/hall-of-legends_/$eventId_/archive': {
@@ -993,6 +1013,7 @@ const rootRouteChildren: RootRouteChildren = {
   PlayersRoute: PlayersRoute,
   RatingsRoute: RatingsRoute,
   SettingsRoute: SettingsRoute,
+  AdminEventCreatorRoute: AdminEventCreatorRoute,
   AdminGeneralRoute: AdminGeneralRoute,
   AdminHistoryRoute: AdminHistoryRoute,
   ApiGroupLogosRoute: ApiGroupLogosRoute,

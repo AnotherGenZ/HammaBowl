@@ -7,10 +7,11 @@ export interface AdminSidebarSection {
   label: string
   status?: 'ok' | 'warning' | 'pending'
   badge?: string
+  group?: string
 }
 
 const ADMIN_TABS = [
-  { id: '/admin', label: 'Event Config' },
+  { id: '/admin', label: 'Event Admin' },
   { id: '/admin/general', label: 'General' },
   { id: '/admin/history', label: 'History' },
 ] as const
@@ -101,24 +102,28 @@ export function AdminLayout({
         </div>
         {sections.length > 0 ? (
           <div className="admin-sidebar-sections">
-            {sections.map((s) => {
+            {sections.map((s, index) => {
               const active = activeSection === s.id
+              const previous = sections[index - 1]
+              const showGroup = Boolean(s.group && s.group !== previous?.group)
               return (
-                <button
-                  key={s.id}
-                  type="button"
-                  className={`admin-sidebar-section${active ? ' active' : ''}`}
-                  onClick={() => scrollToSection(s.id)}
-                >
-                  {s.status ? (
-                    <span
-                      className={`admin-sidebar-status admin-sidebar-status-${s.status}`}
-                      aria-hidden="true"
-                    />
-                  ) : null}
-                  <span className="admin-sidebar-section-label">{s.label}</span>
-                  {s.badge ? <span className="admin-sidebar-badge">{s.badge}</span> : null}
-                </button>
+                <div key={s.id} className="admin-sidebar-section-group">
+                  {showGroup ? <div className="admin-sidebar-group-label">{s.group}</div> : null}
+                  <button
+                    type="button"
+                    className={`admin-sidebar-section${active ? ' active' : ''}`}
+                    onClick={() => scrollToSection(s.id)}
+                  >
+                    {s.status ? (
+                      <span
+                        className={`admin-sidebar-status admin-sidebar-status-${s.status}`}
+                        aria-hidden="true"
+                      />
+                    ) : null}
+                    <span className="admin-sidebar-section-label">{s.label}</span>
+                    {s.badge ? <span className="admin-sidebar-badge">{s.badge}</span> : null}
+                  </button>
+                </div>
               )
             })}
           </div>

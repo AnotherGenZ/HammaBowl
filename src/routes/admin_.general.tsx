@@ -8,6 +8,7 @@ import { getCurrentEvent, getCurrentEvents } from '../lib/services'
 const GENERAL_SECTIONS: AdminSidebarSection[] = [
   { id: 'admin-active-event', label: 'Active Event', status: 'ok' },
   { id: 'admin-event-sync', label: 'Event Sync', status: 'ok' },
+  { id: 'admin-discord-cache', label: 'Discord Cache', status: 'ok' },
   { id: 'admin-player-names', label: 'Player Names', status: 'ok' },
   { id: 'admin-jaeger-chars', label: 'Jaeger Characters', status: 'warning' },
   { id: 'admin-badges', label: 'Badges', status: 'ok' },

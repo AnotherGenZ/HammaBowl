@@ -20,9 +20,20 @@ import {
   eventAvailableFactions,
   eventAvailableSides,
   eventAvailableSpecs,
+  eventAuditLog,
+  eventDiscordMessages,
   eventLinks,
   eventRoundScores,
   eventRounds,
+  eventRecurrences,
+  eventReminders,
+  eventRoleGates,
+  eventSignupLimits,
+  eventSignupSpecs,
+  eventSignups,
+  eventTemplateOptions,
+  eventTemplateSpecs,
+  eventTemplates,
   eventPlayerCharacters,
   eventParticipantSpecs,
   eventParticipants,
@@ -71,6 +82,7 @@ import type {
   DraftPick,
   EventPlayerCharacterAssignment,
   EventLink,
+  EventSpecOption,
   EventTrophyId,
   Faction,
   GroupDetail,
@@ -151,6 +163,7 @@ export async function upsertEventFromRaidHelper(event: HammaEvent) {
       id: event.id,
       raidHelperEventId: event.raidHelperEventId,
       raidHelperChannelId: event.raidHelperChannelId,
+      source: 'raid_helper',
       name: event.name,
       server: event.server,
       startsAt: event.startsAt,
@@ -423,6 +436,14 @@ export async function getDbEvent(eventId: string): Promise<HammaEvent | null> {
     id: event.id,
     raidHelperEventId: event.raidHelperEventId,
     raidHelperChannelId: event.raidHelperChannelId ?? undefined,
+    source: normalizeEventSource(event.source),
+    eventChannelId: event.raidHelperChannelId ?? undefined,
+    eventColor: event.eventColor ?? undefined,
+    eventImageUrl: event.eventImageUrl ?? undefined,
+    mentionRoleIds: parseStringList(event.mentionRoleIdsJson),
+    embedUseDiscordMentions: event.embedUseDiscordMentions,
+    autoCreateSignupThread: event.autoCreateSignupThread,
+    allowMultipleSignups: event.allowMultipleSignups,
     discordCheckInMessageId: event.discordCheckInMessageId ?? undefined,
     discordCheckInMessageChannelId: event.discordCheckInMessageChannelId ?? undefined,
     name: event.nameOverride || event.name,
@@ -443,6 +464,7 @@ export async function getDbEvent(eventId: string): Promise<HammaEvent | null> {
     availableFactions: getEventAvailableFactions(event.id),
     availableSides: getEventAvailableSides(event.id),
     availableSpecs: getEventAvailableSpecs(event.id),
+    availableSpecOptions: getEventAvailableSpecOptions(event.id),
     teams: eventTeams,
     players,
     ratings: eventRatings,
@@ -550,11 +572,11 @@ function getActiveEventId() {
   return getAppSetting(ACTIVE_EVENT_SETTING_KEY)
 }
 
-function getAppSetting(key: string) {
+export function getAppSetting(key: string) {
   return db.select().from(appSettings).where(eq(appSettings.key, key)).get()?.value
 }
 
-function setAppSetting(key: string, value: string) {
+export function setAppSetting(key: string, value: string) {
   const now = new Date().toISOString()
   db.insert(appSettings)
     .values({ key, value, updatedAt: now })
@@ -1337,6 +1359,7 @@ export async function createManualHistoricalEvent(values: {
     .values({
       id,
       raidHelperEventId: id,
+      source: 'manual',
       name,
       server: values.server?.trim() || 'Manual',
       startsAt: new Date(startsAt).toISOString(),
@@ -2242,13 +2265,20 @@ function getEventAvailableSides(eventId: string): StartingSide[] {
 }
 
 function getEventAvailableSpecs(eventId: string): string[] {
+  return getEventAvailableSpecOptions(eventId).map((spec) => spec.name)
+}
+
+function getEventAvailableSpecOptions(eventId: string): EventSpecOption[] {
   return db
     .select()
     .from(eventAvailableSpecs)
     .where(eq(eventAvailableSpecs.eventId, eventId))
     .all()
     .sort((a, b) => a.position - b.position || a.specName.localeCompare(b.specName))
-    .map((row) => row.specName)
+    .map((row) => ({
+      name: row.specName,
+      emoji: row.specEmoji ?? undefined,
+    }))
 }
 
 function getEventLinks(eventId: string, options: { includeGeneratedHonuReports?: boolean } = {}): EventLink[] {
@@ -2291,7 +2321,7 @@ function replaceEventAvailableSpecs(eventId: string, values: string[], updatedAt
   db.delete(eventAvailableSpecs).where(eq(eventAvailableSpecs.eventId, eventId)).run()
   normalizeStringList(values).forEach((specName, index) => {
     db.insert(eventAvailableSpecs)
-      .values({ eventId, specName, position: index + 1, updatedAt })
+      .values({ eventId, specName, specEmoji: null, position: index + 1, updatedAt })
       .run()
   })
 }
@@ -4704,6 +4734,13 @@ function bootstrap() {
       id TEXT PRIMARY KEY,
       raid_helper_event_id TEXT NOT NULL UNIQUE,
       raid_helper_channel_id TEXT,
+      source TEXT NOT NULL DEFAULT 'raid_helper',
+      event_color TEXT,
+      event_image_url TEXT,
+      mention_role_ids_json TEXT,
+      embed_use_discord_mentions INTEGER NOT NULL DEFAULT 0,
+      auto_create_signup_thread INTEGER NOT NULL DEFAULT 0,
+      allow_multiple_signups INTEGER NOT NULL DEFAULT 0,
       discord_check_in_message_id TEXT,
       discord_check_in_message_channel_id TEXT,
       name TEXT NOT NULL,
@@ -4733,6 +4770,111 @@ function bootstrap() {
       honu_alert_created_at TEXT,
       updated_at TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS event_templates (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT,
+      color TEXT,
+      default_channel_id TEXT,
+      default_duration_minutes INTEGER NOT NULL DEFAULT 120,
+      default_signup_close_minutes_before INTEGER NOT NULL DEFAULT 60,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS event_template_options (
+      template_id TEXT NOT NULL REFERENCES event_templates(id) ON DELETE CASCADE,
+      status TEXT NOT NULL,
+      label TEXT NOT NULL,
+      position INTEGER NOT NULL,
+      created_at TEXT NOT NULL,
+      PRIMARY KEY (template_id, status)
+    );
+    CREATE TABLE IF NOT EXISTS event_template_specs (
+      template_id TEXT NOT NULL REFERENCES event_templates(id) ON DELETE CASCADE,
+      spec_name TEXT NOT NULL,
+      spec_emoji TEXT,
+      position INTEGER NOT NULL,
+      default_limit INTEGER,
+      created_at TEXT NOT NULL,
+      PRIMARY KEY (template_id, spec_name)
+    );
+    CREATE TABLE IF NOT EXISTS event_signup_limits (
+      event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+      status TEXT NOT NULL DEFAULT '',
+      spec_name TEXT NOT NULL DEFAULT '',
+      limit_count INTEGER NOT NULL,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (event_id, status, spec_name)
+    );
+    CREATE INDEX IF NOT EXISTS idx_event_signup_limits_event
+      ON event_signup_limits(event_id);
+    CREATE TABLE IF NOT EXISTS event_signups (
+      event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+      discord_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      status TEXT NOT NULL,
+      late_minutes INTEGER NOT NULL DEFAULT 0,
+      note TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      created_by_discord_id TEXT,
+      PRIMARY KEY (event_id, discord_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_event_signups_event_status
+      ON event_signups(event_id, status);
+    CREATE TABLE IF NOT EXISTS event_signup_specs (
+      event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+      discord_id TEXT NOT NULL,
+      spec_name TEXT NOT NULL,
+      position INTEGER NOT NULL,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (event_id, discord_id, spec_name)
+    );
+    CREATE INDEX IF NOT EXISTS idx_event_signup_specs_event_spec
+      ON event_signup_specs(event_id, spec_name);
+    CREATE TABLE IF NOT EXISTS event_discord_messages (
+      event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+      kind TEXT NOT NULL,
+      channel_id TEXT NOT NULL,
+      message_id TEXT NOT NULL,
+      thread_id TEXT,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (event_id, kind)
+    );
+    CREATE TABLE IF NOT EXISTS event_reminders (
+      id TEXT PRIMARY KEY,
+      event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+      kind TEXT NOT NULL,
+      target TEXT NOT NULL,
+      offset_minutes INTEGER NOT NULL,
+      channel_id TEXT,
+      message TEXT,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      last_sent_at TEXT
+    );
+    CREATE TABLE IF NOT EXISTS event_recurrences (
+      id TEXT PRIMARY KEY,
+      template_event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+      interval_days INTEGER NOT NULL,
+      post_time TEXT NOT NULL,
+      next_post_at TEXT NOT NULL,
+      enabled INTEGER NOT NULL DEFAULT 1
+    );
+    CREATE TABLE IF NOT EXISTS event_audit_log (
+      id TEXT PRIMARY KEY,
+      event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+      actor_discord_id TEXT,
+      action TEXT NOT NULL,
+      payload_json TEXT,
+      created_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS event_role_gates (
+      event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+      role_id TEXT NOT NULL,
+      gate TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (event_id, role_id, gate)
+    );
     CREATE TABLE IF NOT EXISTS app_settings (
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL,
@@ -4755,6 +4897,7 @@ function bootstrap() {
     CREATE TABLE IF NOT EXISTS event_available_specs (
       event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
       spec_name TEXT NOT NULL,
+      spec_emoji TEXT,
       position INTEGER NOT NULL,
       updated_at TEXT NOT NULL,
       PRIMARY KEY (event_id, spec_name)
@@ -4999,6 +5142,13 @@ function bootstrap() {
   `)
   addColumnIfMissing('events', 'name_override', 'TEXT')
   addColumnIfMissing('events', 'raid_helper_channel_id', 'TEXT')
+  addColumnIfMissing('events', 'source', "TEXT NOT NULL DEFAULT 'raid_helper'")
+  addColumnIfMissing('events', 'event_color', 'TEXT')
+  addColumnIfMissing('events', 'event_image_url', 'TEXT')
+  addColumnIfMissing('events', 'mention_role_ids_json', 'TEXT')
+  addColumnIfMissing('events', 'embed_use_discord_mentions', 'INTEGER NOT NULL DEFAULT 0')
+  addColumnIfMissing('events', 'auto_create_signup_thread', 'INTEGER NOT NULL DEFAULT 0')
+  addColumnIfMissing('events', 'allow_multiple_signups', 'INTEGER NOT NULL DEFAULT 0')
   addColumnIfMissing('events', 'discord_check_in_message_id', 'TEXT')
   addColumnIfMissing('events', 'discord_check_in_message_channel_id', 'TEXT')
   addColumnIfMissing('events', 'ends_at', 'TEXT')
@@ -5029,6 +5179,8 @@ function bootstrap() {
   addColumnIfMissing('badge_definitions', 'source', "TEXT NOT NULL DEFAULT 'manual'")
   addColumnIfMissing('event_participants', 'winner', 'INTEGER NOT NULL DEFAULT 0')
   addColumnIfMissing('event_participants', 'checked_in_at', 'TEXT')
+  addColumnIfMissing('event_available_specs', 'spec_emoji', 'TEXT')
+  addColumnIfMissing('event_template_specs', 'spec_emoji', 'TEXT')
   addColumnIfMissing('coinflips', 'calling_team_id', 'TEXT REFERENCES teams(id) ON DELETE SET NULL')
   addColumnIfMissing('coinflips', 'caller_call', 'TEXT')
   addColumnIfMissing('coinflips', 'winner_choice_type', 'TEXT')
@@ -5043,6 +5195,7 @@ function bootstrap() {
   migrateParticipantRoleIds()
   migratePlayerBadgeDisplayPreferences()
   migrateGroupLogoDataUrls()
+  ensureDefaultEventTemplate()
   sqlite.exec(`
     INSERT INTO participants (discord_id, name, updated_at)
     SELECT discord_id, name, MAX(updated_at)
@@ -5278,6 +5431,67 @@ function migratePlayerBadgeDisplayPreferences() {
   }
 }
 
+function ensureDefaultEventTemplate() {
+  const templateId = 'hamma-bowl-standard'
+  const existing = sqlite.prepare('SELECT id FROM event_templates WHERE id = ?').get(templateId)
+  if (existing) return
+
+  const now = new Date().toISOString()
+  sqlite.prepare(`
+    INSERT INTO event_templates (
+      id,
+      name,
+      description,
+      color,
+      default_channel_id,
+      default_duration_minutes,
+      default_signup_close_minutes_before,
+      created_at,
+      updated_at
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    templateId,
+    'Hamma Bowl Standard',
+    'Default Hamma Bowl signup template.',
+    '#47bf8f',
+    env('DISCORD_EVENT_CHANNEL_ID') || env('DISCORD_CHECK_IN_CHANNEL_ID') || null,
+    120,
+    60,
+    now,
+    now,
+  )
+
+  const options = [
+    ['accepted', 'Available'],
+    ['maybe', 'Maybe'],
+    ['absent', 'Absent'],
+    ['removed', 'Remove'],
+  ] as const
+  const insertOption = sqlite.prepare(`
+    INSERT INTO event_template_options (template_id, status, label, position, created_at)
+    VALUES (?, ?, ?, ?, ?)
+  `)
+  options.forEach(([status, label], index) => {
+    insertOption.run(templateId, status, label, index + 1, now)
+  })
+
+  const defaultSpecs = [
+    { emoji: '⚔️', name: 'Infantry' },
+    { emoji: '✈️', name: 'Air' },
+    { emoji: '🛡️', name: 'Armor' },
+    { emoji: '📡', name: 'Logistics' },
+    { emoji: '🔄', name: 'Flex' },
+  ]
+  const insertSpec = sqlite.prepare(`
+    INSERT INTO event_template_specs (template_id, spec_name, spec_emoji, position, default_limit, created_at)
+    VALUES (?, ?, ?, ?, NULL, ?)
+  `)
+  defaultSpecs.forEach((spec, index) => {
+    insertSpec.run(templateId, spec.name, spec.emoji, index + 1, now)
+  })
+}
+
 function addColumnIfMissing(table: string, column: string, definition: string) {
   const columns = sqlite.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>
   if (columns.some((existing) => existing.name === column)) return
@@ -5301,6 +5515,10 @@ function normalizeFaction(value: string | null): Faction | undefined {
 function normalizeStartingSide(value: string | null): StartingSide | undefined {
   const trimmed = value?.trim()
   return trimmed ? trimmed : undefined
+}
+
+function normalizeEventSource(value: string | null | undefined): HammaEvent['source'] {
+  return value === 'native' || value === 'manual' ? value : 'raid_helper'
 }
 
 function normalizeCoinSide(value: string | null) {

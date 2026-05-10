@@ -5,6 +5,13 @@ export const events = sqliteTable('events', {
   id: text('id').primaryKey(),
   raidHelperEventId: text('raid_helper_event_id').notNull().unique(),
   raidHelperChannelId: text('raid_helper_channel_id'),
+  source: text('source').notNull().default('raid_helper'),
+  eventColor: text('event_color'),
+  eventImageUrl: text('event_image_url'),
+  mentionRoleIdsJson: text('mention_role_ids_json'),
+  embedUseDiscordMentions: integer('embed_use_discord_mentions', { mode: 'boolean' }).notNull().default(false),
+  autoCreateSignupThread: integer('auto_create_signup_thread', { mode: 'boolean' }).notNull().default(false),
+  allowMultipleSignups: integer('allow_multiple_signups', { mode: 'boolean' }).notNull().default(false),
   discordCheckInMessageId: text('discord_check_in_message_id'),
   discordCheckInMessageChannelId: text('discord_check_in_message_channel_id'),
   name: text('name').notNull(),
@@ -34,6 +41,146 @@ export const events = sqliteTable('events', {
   honuAlertCreatedAt: text('honu_alert_created_at'),
   updatedAt: text('updated_at').notNull(),
 })
+
+export const eventTemplates = sqliteTable('event_templates', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  description: text('description'),
+  color: text('color'),
+  defaultChannelId: text('default_channel_id'),
+  defaultDurationMinutes: integer('default_duration_minutes').notNull().default(120),
+  defaultSignupCloseMinutesBefore: integer('default_signup_close_minutes_before').notNull().default(60),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+})
+
+export const eventTemplateOptions = sqliteTable(
+  'event_template_options',
+  {
+    templateId: text('template_id').notNull().references(() => eventTemplates.id, { onDelete: 'cascade' }),
+    status: text('status').notNull(),
+    label: text('label').notNull(),
+    position: integer('position').notNull(),
+    createdAt: text('created_at').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.templateId, table.status] })],
+)
+
+export const eventTemplateSpecs = sqliteTable(
+  'event_template_specs',
+  {
+    templateId: text('template_id').notNull().references(() => eventTemplates.id, { onDelete: 'cascade' }),
+    specName: text('spec_name').notNull(),
+    specEmoji: text('spec_emoji'),
+    position: integer('position').notNull(),
+    defaultLimit: integer('default_limit'),
+    createdAt: text('created_at').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.templateId, table.specName] })],
+)
+
+export const eventSignupLimits = sqliteTable(
+  'event_signup_limits',
+  {
+    eventId: text('event_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
+    status: text('status'),
+    specName: text('spec_name'),
+    limit: integer('limit_count').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.eventId, table.status, table.specName] }),
+    index('idx_event_signup_limits_event').on(table.eventId),
+  ],
+)
+
+export const eventSignups = sqliteTable(
+  'event_signups',
+  {
+    eventId: text('event_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
+    discordId: text('discord_id').notNull(),
+    name: text('name').notNull(),
+    status: text('status').notNull(),
+    lateMinutes: integer('late_minutes').notNull().default(0),
+    note: text('note'),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+    createdByDiscordId: text('created_by_discord_id'),
+  },
+  (table) => [
+    primaryKey({ columns: [table.eventId, table.discordId] }),
+    index('idx_event_signups_event_status').on(table.eventId, table.status),
+  ],
+)
+
+export const eventSignupSpecs = sqliteTable(
+  'event_signup_specs',
+  {
+    eventId: text('event_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
+    discordId: text('discord_id').notNull(),
+    specName: text('spec_name').notNull(),
+    position: integer('position').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.eventId, table.discordId, table.specName] }),
+    index('idx_event_signup_specs_event_spec').on(table.eventId, table.specName),
+  ],
+)
+
+export const eventDiscordMessages = sqliteTable(
+  'event_discord_messages',
+  {
+    eventId: text('event_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
+    kind: text('kind').notNull(),
+    channelId: text('channel_id').notNull(),
+    messageId: text('message_id').notNull(),
+    threadId: text('thread_id'),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.eventId, table.kind] })],
+)
+
+export const eventReminders = sqliteTable('event_reminders', {
+  id: text('id').primaryKey(),
+  eventId: text('event_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
+  kind: text('kind').notNull(),
+  target: text('target').notNull(),
+  offsetMinutes: integer('offset_minutes').notNull(),
+  channelId: text('channel_id'),
+  message: text('message'),
+  enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
+  lastSentAt: text('last_sent_at'),
+})
+
+export const eventRecurrences = sqliteTable('event_recurrences', {
+  id: text('id').primaryKey(),
+  templateEventId: text('template_event_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
+  intervalDays: integer('interval_days').notNull(),
+  postTime: text('post_time').notNull(),
+  nextPostAt: text('next_post_at').notNull(),
+  enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
+})
+
+export const eventAuditLog = sqliteTable('event_audit_log', {
+  id: text('id').primaryKey(),
+  eventId: text('event_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
+  actorDiscordId: text('actor_discord_id'),
+  action: text('action').notNull(),
+  payloadJson: text('payload_json'),
+  createdAt: text('created_at').notNull(),
+})
+
+export const eventRoleGates = sqliteTable(
+  'event_role_gates',
+  {
+    eventId: text('event_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
+    roleId: text('role_id').notNull(),
+    gate: text('gate').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.eventId, table.roleId, table.gate] })],
+)
 
 export const appSettings = sqliteTable('app_settings', {
   key: text('key').primaryKey(),
@@ -68,6 +215,7 @@ export const eventAvailableSpecs = sqliteTable(
   {
     eventId: text('event_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
     specName: text('spec_name').notNull(),
+    specEmoji: text('spec_emoji'),
     position: integer('position').notNull(),
     updatedAt: text('updated_at').notNull(),
   },

@@ -90,12 +90,26 @@ export interface EventLink {
   icon: string
 }
 
+export interface EventSpecOption {
+  name: string
+  emoji?: string
+  limit?: number
+}
+
 export type EventTrophyId = 'hammo-bowl-cup' | 'hamma-dome-biolab'
 
 export interface HammaEvent {
   id: string
   raidHelperEventId: string
   raidHelperChannelId?: string
+  source: 'raid_helper' | 'native' | 'manual'
+  eventChannelId?: string
+  eventColor?: string
+  eventImageUrl?: string
+  mentionRoleIds?: string[]
+  embedUseDiscordMentions?: boolean
+  autoCreateSignupThread?: boolean
+  allowMultipleSignups?: boolean
   discordCheckInMessageId?: string
   discordCheckInMessageChannelId?: string
   name: string
@@ -116,6 +130,7 @@ export interface HammaEvent {
   availableFactions: Faction[]
   availableSides: StartingSide[]
   availableSpecs?: string[]
+  availableSpecOptions?: EventSpecOption[]
   teams: Team[]
   players: Player[]
   ratings: Rating[]

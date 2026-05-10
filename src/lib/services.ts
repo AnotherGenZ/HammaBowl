@@ -50,6 +50,7 @@ export async function getCurrentEvents(options: { force?: boolean } = {}): Promi
 
 const getCurrentEventServer = createServerOnlyFn(
   async (options: { force?: boolean } = {}): Promise<HammaEvent | null> => {
+    ensureNativeEventSchedulerStarted()
     ensureRaidHelperAutoRefresh()
 
     if (!options.force && eventCache && !isRaidHelperRefreshDue()) {
@@ -58,6 +59,12 @@ const getCurrentEventServer = createServerOnlyFn(
 
     const cacheGeneration = eventCacheGeneration
     const dbEvent = options.force ? null : await getCoalescedCurrentEventFromDb()
+    if (!options.force && dbEvent && isNativeEventSignupsFlagEnabled() && dbEvent.source === 'native') {
+      if (cacheGeneration === eventCacheGeneration) {
+        eventCache = dbEvent
+      }
+      return dbEvent
+    }
     if (!options.force && dbEvent && !isRaidHelperRefreshDue()) {
       if (cacheGeneration === eventCacheGeneration) {
         eventCache = dbEvent
@@ -142,8 +149,27 @@ function isRaidHelperRefreshDue() {
   return Date.now() - lastRaidHelperRefreshAt >= RAID_HELPER_REFRESH_INTERVAL_MS
 }
 
+function isNativeEventSignupsFlagEnabled() {
+  return process.env.NATIVE_EVENT_SIGNUPS_ENABLED !== 'false'
+}
+
+const ensureNativeEventSchedulerServer = createServerOnlyFn(async () => {
+  const { ensureNativeEventScheduler } = await import('./eventScheduler.server')
+  ensureNativeEventScheduler()
+})
+
+function ensureNativeEventSchedulerStarted() {
+  if (typeof window !== 'undefined' || !isNativeEventSignupsFlagEnabled()) return
+  void ensureNativeEventSchedulerServer().catch((error) => console.error(error))
+}
+
 function ensureRaidHelperAutoRefresh() {
-  if (autoRefreshTimerStarted || typeof window !== 'undefined' || !isRaidHelperConfigured()) {
+  if (
+    autoRefreshTimerStarted ||
+    typeof window !== 'undefined' ||
+    !isRaidHelperConfigured() ||
+    isNativeEventSignupsFlagEnabled()
+  ) {
     return
   }
 
@@ -188,8 +214,18 @@ function refreshCurrentEventFromRaidHelper(options: {
 }
 
 ensureRaidHelperAutoRefresh()
+ensureNativeEventSchedulerStarted()
+
+const publishTeamCompositionToDiscordServer = createServerOnlyFn(async (event: HammaEvent) => {
+  const { publishTeamCompositionToDiscord } = await import('./eventDiscord.server')
+  return publishTeamCompositionToDiscord(event)
+})
 
 export async function syncTeamCompositionToRaidHelper(event: HammaEvent) {
+  if (event.source === 'native') {
+    return publishTeamCompositionToDiscordServer(event)
+  }
+
   const undraftedPlayers = undraftedDraftEligiblePlayers(event)
   if (undraftedPlayers.length) {
     throw new Response('Cannot sync Raid Helper comp while players remain undrafted.', {
