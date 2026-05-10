@@ -4,6 +4,7 @@ import { ArrowLeft } from 'lucide-react'
 import { HistoricalEventArchive } from '../components/HistoricalEventArchive'
 import { shortDateWithTimeZone } from '../lib/format'
 import { pageMeta } from '../lib/meta'
+import { useDisplayTimeZone } from '../lib/useDisplayTimeZone'
 
 const loadHistoricalEventArchive = createServerFn({ method: 'GET' })
   .inputValidator((input: { eventId: string }) => input)
@@ -31,6 +32,7 @@ export const Route = createFileRoute('/hall-of-legends_/$eventId_/archive')({
 
 function HistoricalEventArchivePage() {
   const { event } = Route.useLoaderData()
+  const displayTimeZone = useDisplayTimeZone()
 
   if (!event) {
     return (
@@ -64,7 +66,7 @@ function HistoricalEventArchivePage() {
           <p className="eyebrow">Event archive</p>
           <h1>{event.name}</h1>
           <div className="meta-row">
-            <span>{shortDateWithTimeZone(event.date)}</span>
+            <span>{shortDateWithTimeZone(event.date, { timeZone: displayTimeZone })}</span>
             <span>{event.draftPicks.length} draft pick{event.draftPicks.length === 1 ? '' : 's'}</span>
             <span>{rateableRatingCount} rated participant{rateableRatingCount === 1 ? '' : 's'}</span>
           </div>

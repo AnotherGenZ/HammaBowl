@@ -151,6 +151,8 @@ async function materializeDueRecurrences(now: Date) {
         mentionRoleIds: details.event.mentionRoleIds,
         embedUseDiscordMentions: details.event.embedUseDiscordMentions,
         autoCreateSignupThread: details.event.autoCreateSignupThread,
+        minSignupSpecs: details.event.minSignupSpecs,
+        maxSignupSpecs: details.event.maxSignupSpecs,
         specs: details.event.availableSpecs,
         allowedRoleIds: details.roleGates.allowedRoleIds,
         bannedRoleIds: details.roleGates.bannedRoleIds,

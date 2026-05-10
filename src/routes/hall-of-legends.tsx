@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { shortDateWithTimeZone } from '../lib/format'
 import { pageMeta } from '../lib/meta'
 import type { HistoricalEvent } from '../lib/types'
+import { useDisplayTimeZone } from '../lib/useDisplayTimeZone'
 
 const loadHistoricalEvents = createServerFn({ method: 'GET' }).handler(async () => {
   const { getHistoricalEvents } = await import('../lib/db.server')
@@ -25,6 +26,7 @@ export const Route = createFileRoute('/hall-of-legends')({
 
 function HallOfLegends() {
   const { events } = Route.useLoaderData()
+  const displayTimeZone = useDisplayTimeZone()
   const [focusedIndex, setFocusedIndex] = useState(0)
   const carouselRef = useRef<HTMLDivElement | null>(null)
   const focusedIndexRef = useRef(0)
@@ -193,7 +195,9 @@ function HallOfLegends() {
               >
                 <span className="legend-card-shine" aria-hidden="true" />
                 <div className="legend-card-title">
-                  <time dateTime={event.date}>{shortDateWithTimeZone(event.date)}</time>
+                  <time dateTime={event.date}>
+                    {shortDateWithTimeZone(event.date, { timeZone: displayTimeZone })}
+                  </time>
                   <h2>{event.name}</h2>
                 </div>
                 <LegendTrophy event={event} />

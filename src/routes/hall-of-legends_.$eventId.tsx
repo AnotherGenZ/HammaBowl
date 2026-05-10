@@ -6,6 +6,7 @@ import { PlayerName } from '../components/PlayerName'
 import { shortDateWithTimeZone } from '../lib/format'
 import { pageMeta } from '../lib/meta'
 import type { HistoricalEvent } from '../lib/types'
+import { useDisplayTimeZone } from '../lib/useDisplayTimeZone'
 
 const loadHistoricalEvent = createServerFn({ method: 'GET' })
   .inputValidator((input: { eventId: string }) => input)
@@ -31,6 +32,7 @@ export const Route = createFileRoute('/hall-of-legends_/$eventId')({
 
 function HistoricalEventPage() {
   const { event } = Route.useLoaderData()
+  const displayTimeZone = useDisplayTimeZone()
 
   if (!event) {
     return (
@@ -59,7 +61,7 @@ function HistoricalEventPage() {
           </Link>
           <h1>{event.name}</h1>
           <div className="meta-row">
-            <span>{shortDateWithTimeZone(event.date)}</span>
+            <span>{shortDateWithTimeZone(event.date, { timeZone: displayTimeZone })}</span>
             {event.twitchStreamUrl ? (
               <a href={event.twitchStreamUrl} target="_blank" rel="noreferrer">
                 Stream

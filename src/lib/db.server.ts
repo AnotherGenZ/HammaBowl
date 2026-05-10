@@ -443,6 +443,8 @@ export async function getDbEvent(eventId: string): Promise<HammaEvent | null> {
     mentionRoleIds: parseStringList(event.mentionRoleIdsJson),
     embedUseDiscordMentions: event.embedUseDiscordMentions,
     autoCreateSignupThread: event.autoCreateSignupThread,
+    minSignupSpecs: event.minSignupSpecs,
+    maxSignupSpecs: event.maxSignupSpecs,
     allowMultipleSignups: event.allowMultipleSignups,
     discordCheckInMessageId: event.discordCheckInMessageId ?? undefined,
     discordCheckInMessageChannelId: event.discordCheckInMessageChannelId ?? undefined,
@@ -1039,6 +1041,7 @@ export async function updateEventAdminSettings(
   if (nextStartsAt && Number.isNaN(Date.parse(nextStartsAt))) {
     throw new Error('Event time must be a valid date.')
   }
+  const normalizedStartsAt = nextStartsAt ? new Date(nextStartsAt).toISOString() : event.startsAt
   const nextDraftStartMinutesBefore = normalizeDraftStartMinutesBefore(
     values.draftStartMinutesBefore,
     event.draftStartMinutesBefore,
@@ -1075,7 +1078,7 @@ export async function updateEventAdminSettings(
     .set({
       nameOverride:
         values.nameOverride === undefined ? event.nameOverride : values.nameOverride.trim() || null,
-      startsAt: nextStartsAt || event.startsAt,
+      startsAt: normalizedStartsAt,
       server: values.server?.trim() || event.server,
       lore: values.lore === undefined ? event.lore : values.lore.trim() || null,
       twitchStreamUrl:
@@ -4740,6 +4743,8 @@ function bootstrap() {
       mention_role_ids_json TEXT,
       embed_use_discord_mentions INTEGER NOT NULL DEFAULT 0,
       auto_create_signup_thread INTEGER NOT NULL DEFAULT 0,
+      min_signup_specs INTEGER NOT NULL DEFAULT 1,
+      max_signup_specs INTEGER NOT NULL DEFAULT 5,
       allow_multiple_signups INTEGER NOT NULL DEFAULT 0,
       discord_check_in_message_id TEXT,
       discord_check_in_message_channel_id TEXT,
@@ -5148,6 +5153,8 @@ function bootstrap() {
   addColumnIfMissing('events', 'mention_role_ids_json', 'TEXT')
   addColumnIfMissing('events', 'embed_use_discord_mentions', 'INTEGER NOT NULL DEFAULT 0')
   addColumnIfMissing('events', 'auto_create_signup_thread', 'INTEGER NOT NULL DEFAULT 0')
+  addColumnIfMissing('events', 'min_signup_specs', 'INTEGER NOT NULL DEFAULT 1')
+  addColumnIfMissing('events', 'max_signup_specs', 'INTEGER NOT NULL DEFAULT 5')
   addColumnIfMissing('events', 'allow_multiple_signups', 'INTEGER NOT NULL DEFAULT 0')
   addColumnIfMissing('events', 'discord_check_in_message_id', 'TEXT')
   addColumnIfMissing('events', 'discord_check_in_message_channel_id', 'TEXT')

@@ -32,6 +32,7 @@ import {
 } from './schema'
 import { buildTeamLedgers, undraftedDraftEligiblePlayers } from './rules'
 import {
+  getEventSpecSelectionLimits,
   getNativeEventDetails,
   upsertNativeSignup,
   type NativeSignupStatus,
@@ -77,9 +78,9 @@ export async function publishNativeEventSignupMessage(eventId: string, options: 
   if (!channelId) throw new Error('Configure an event Discord channel before posting the signup message.')
 
   const existing = details.messages.find((message) => message.kind === 'signup')
-  const body = buildNativeEventDiscordMessage(details.event, details)
   const now = new Date().toISOString()
   if (existing && existing.channelId === channelId) {
+    const body = buildNativeEventDiscordMessage(details.event, details, discordSnowflakeTimestamp(existing.messageId) ?? now)
     await editDiscordChannelMessage(existing.channelId, existing.messageId, body)
     db.insert(eventDiscordMessages)
       .values({
@@ -103,6 +104,7 @@ export async function publishNativeEventSignupMessage(eventId: string, options: 
     return { posted: false, updated: true, channelId: existing.channelId, messageId: existing.messageId }
   }
 
+  const body = buildNativeEventDiscordMessage(details.event, details, now)
   const message = await postDiscordChannelMessage(channelId, body)
   let threadId: string | undefined
   const createThread = options.createThread ?? Boolean(details.event.autoCreateSignupThread)
@@ -301,7 +303,10 @@ export async function handleNativeEventComponent(options: {
     if (parsed.kind === 'signup') {
       const details = await getNativeEventDetails(parsed.eventId)
       if (parsed.status === 'accepted' && eventHasSpecOptions(details.event)) {
-        return specSelectResponse(parsed.eventId, options.discordId)
+        const existingSignup = details.signups.find((signup) => signup.discordId === options.discordId)
+        if (!signupHasReusableSpecs(details.event, existingSignup?.specs ?? [])) {
+          return specSelectResponse(parsed.eventId, options.discordId)
+        }
       }
       const updatedDetails = await upsertNativeSignup({
         eventId: parsed.eventId,
@@ -381,16 +386,16 @@ export function parseNativeEventComponentId(customId: string): EventComponent {
   return null
 }
 
-function buildNativeEventDiscordMessage(event: HammaEvent, details: Awaited<ReturnType<typeof getNativeEventDetails>>) {
+function buildNativeEventDiscordMessage(event: HammaEvent, details: Awaited<ReturnType<typeof getNativeEventDetails>>, postedAt: string) {
   return {
     content: buildMentionContent(event),
-    embeds: [buildEventEmbed(event, details)],
+    embeds: [buildEventEmbed(event, details, postedAt)],
     components: [signupButtonRow(event.id)],
     allowed_mentions: { roles: event.mentionRoleIds ?? [] },
   }
 }
 
-function buildEventEmbed(event: HammaEvent, details: Awaited<ReturnType<typeof getNativeEventDetails>>): APIEmbed {
+function buildEventEmbed(event: HammaEvent, details: Awaited<ReturnType<typeof getNativeEventDetails>>, postedAt: string): APIEmbed {
   const signupState = getEventSignupEmbedState(event)
   const available = details.signups.filter((signup) => signup.status === 'accepted' || signup.status === 'late')
   const maybe = details.signups.filter((signup) => signup.status === 'maybe')
@@ -429,7 +434,17 @@ function buildEventEmbed(event: HammaEvent, details: Awaited<ReturnType<typeof g
     image: event.eventImageUrl ? { url: event.eventImageUrl } : undefined,
     fields,
     footer: { text: buildEventEmbedFooter(event, signupState) },
-    timestamp: new Date().toISOString(),
+    timestamp: postedAt,
+  }
+}
+
+function discordSnowflakeTimestamp(messageId: string) {
+  try {
+    const timestampMs = Number((BigInt(messageId) >> 22n) + 1_420_070_400_000n)
+    if (!Number.isFinite(timestampMs)) return undefined
+    return new Date(timestampMs).toISOString()
+  } catch {
+    return undefined
   }
 }
 
@@ -597,7 +612,6 @@ async function signupConfigResponse(eventId: string, discordId: string): Promise
   const details = await getNativeEventDetails(eventId)
   const components: Array<APIActionRowComponent<APIButtonComponent | APIStringSelectComponent>> = []
   const specRow = specSelectRow(eventId, details, discordId, {
-    minValues: 0,
     placeholder: 'Change your specs',
   })
   if (specRow) components.push(specRow)
@@ -621,7 +635,6 @@ async function signupConfigResponse(eventId: string, discordId: string): Promise
 async function specSelectResponse(eventId: string, discordId: string): Promise<APIInteractionResponse> {
   const details = await getNativeEventDetails(eventId)
   const specRow = specSelectRow(eventId, details, discordId, {
-    minValues: 1,
     placeholder: 'Choose your specs',
   })
   if (!specRow) return ephemeralResponse('No specs are configured for this event.')
@@ -639,23 +652,30 @@ function specSelectRow(
   eventId: string,
   details: Awaited<ReturnType<typeof getNativeEventDetails>>,
   discordId: string,
-  options: { minValues: number; placeholder: string },
+  options: { placeholder: string },
 ): APIActionRowComponent<APIStringSelectComponent> | undefined {
   const specs = eventSpecOptions(details.event)
   if (!specs.length) return undefined
-  const currentSpecs = new Set(details.signups.find((signup) => signup.discordId === discordId)?.specs ?? [])
+  const specLimits = getEventSpecSelectionLimits(details.event, specs.length)
+  const currentSpecNames = new Set(details.signups.find((signup) => signup.discordId === discordId)?.specs ?? [])
+  const defaultSpecNames = new Set(
+    specs
+      .filter((spec) => currentSpecNames.has(spec.name))
+      .slice(0, specLimits.maxSignupSpecs)
+      .map((spec) => spec.name),
+  )
   const selectOptions: APISelectMenuOption[] = specs.slice(0, 25).map((spec) => ({
     label: spec.name.slice(0, 100),
     value: spec.name.slice(0, 100),
     emoji: discordComponentEmoji(spec.emoji),
-    default: currentSpecs.has(spec.name),
+    default: defaultSpecNames.has(spec.name),
   }))
   const select: APIStringSelectComponent = {
     type: ComponentType.StringSelect,
     custom_id: `${EVENT_SPEC_SELECT_PREFIX}${eventId}`,
     placeholder: options.placeholder,
-    min_values: options.minValues,
-    max_values: Math.min(Math.max(selectOptions.length, 1), 5),
+    min_values: Math.min(specLimits.minSignupSpecs, selectOptions.length),
+    max_values: Math.min(Math.max(selectOptions.length, 1), specLimits.maxSignupSpecs),
     options: selectOptions,
   }
   return { type: ComponentType.ActionRow, components: [select] }
@@ -663,6 +683,15 @@ function specSelectRow(
 
 function eventHasSpecOptions(event: HammaEvent) {
   return eventSpecOptions(event).length > 0
+}
+
+function signupHasReusableSpecs(event: HammaEvent, specs: string[]) {
+  const specOptions = eventSpecOptions(event)
+  const allowedSpecs = new Set(specOptions.map((spec) => spec.name.toLowerCase()))
+  const { minSignupSpecs, maxSignupSpecs } = getEventSpecSelectionLimits(event, specOptions.length)
+  return specs.length >= minSignupSpecs &&
+    specs.length <= maxSignupSpecs &&
+    specs.every((spec) => allowedSpecs.has(spec.toLowerCase()))
 }
 
 function eventSpecOptions(event: HammaEvent): Array<{ name: string; emoji?: string }> {

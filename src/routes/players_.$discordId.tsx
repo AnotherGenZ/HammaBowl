@@ -7,6 +7,7 @@ import { PlayerName } from '../components/PlayerName'
 import { shortDate } from '../lib/format'
 import { pageMeta } from '../lib/meta'
 import type { AdminPlayerProfileEditorData, PlayerBadge } from '../lib/types'
+import { useDisplayTimeZone } from '../lib/useDisplayTimeZone'
 
 const loadPlayerProfile = createServerFn({ method: 'GET' })
   .inputValidator((input: { discordId: string }) => input)
@@ -40,6 +41,7 @@ function PlayerProfilePage() {
   const [displayName, setDisplayName] = useState(profile?.name ?? '')
   const [profileEditorOpen, setProfileEditorOpen] = useState(false)
   const [chartExpanded, setChartExpanded] = useState(false)
+  const displayTimeZone = useDisplayTimeZone()
 
   useEffect(() => {
     setBadges(profile?.badges ?? [])
@@ -66,7 +68,7 @@ function PlayerProfilePage() {
 
   const ratingHistory = profile.stats.ratingHistory.map((item) => ({
     ...item,
-    dateLabel: shortDate(item.startsAt),
+    dateLabel: shortDate(item.startsAt, { timeZone: displayTimeZone }),
   }))
 
   return (
@@ -221,7 +223,9 @@ function PlayerProfilePage() {
                         <Link to="/hall-of-legends/$eventId" params={{ eventId: event.id }}>
                           {event.name}
                         </Link>
-                        <span className="profile-event-date">{shortDate(event.startsAt)}</span>
+                        <span className="profile-event-date">
+                          {shortDate(event.startsAt, { timeZone: displayTimeZone })}
+                        </span>
                       </td>
                       <td>{event.teamName ?? 'Unassigned'}</td>
                       <td>{eventRoleLabel(event.role)}</td>

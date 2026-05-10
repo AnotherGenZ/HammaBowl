@@ -58,6 +58,9 @@ const DEFAULT_EVENT_SPECS: EventSpecOption[] = [
 ]
 const DEFAULT_EVENT_DURATION_MINUTES = 120
 const DEFAULT_SIGNUP_CLOSE_MINUTES_BEFORE = 60
+const DEFAULT_MIN_SIGNUP_SPECS = 1
+const DEFAULT_MAX_SIGNUP_SPECS = 5
+const MAX_SIGNUP_SPEC_SELECTIONS = 25
 
 export interface NativeEventDetails {
   event: HammaEvent
@@ -133,6 +136,22 @@ export function isNativeEventSignupsEnabled() {
   return env(NATIVE_EVENT_FEATURE_FLAG, 'true') !== 'false'
 }
 
+export function getEventSpecSelectionLimits(event: HammaEvent, availableSpecCount = event.availableSpecs?.length ?? 0) {
+  const configuredMin = Number.isInteger(event.minSignupSpecs)
+    ? Math.max(0, Math.min(event.minSignupSpecs ?? DEFAULT_MIN_SIGNUP_SPECS, MAX_SIGNUP_SPEC_SELECTIONS))
+    : DEFAULT_MIN_SIGNUP_SPECS
+  const configuredMax = Number.isInteger(event.maxSignupSpecs)
+    ? Math.max(1, Math.min(event.maxSignupSpecs ?? DEFAULT_MAX_SIGNUP_SPECS, MAX_SIGNUP_SPEC_SELECTIONS))
+    : DEFAULT_MAX_SIGNUP_SPECS
+  const maxSignupSpecs = availableSpecCount > 0
+    ? Math.min(configuredMax, availableSpecCount)
+    : configuredMax
+  return {
+    minSignupSpecs: Math.min(configuredMin, maxSignupSpecs),
+    maxSignupSpecs,
+  }
+}
+
 export async function createNativeEvent(values: {
   name: string
   startsAt: string
@@ -146,6 +165,8 @@ export async function createNativeEvent(values: {
   mentionRoleIds?: string[] | string
   embedUseDiscordMentions?: boolean
   autoCreateSignupThread?: boolean
+  minSignupSpecs?: string | number
+  maxSignupSpecs?: string | number
   allowedRoleIds?: string[] | string
   bannedRoleIds?: string[] | string
   specs?: Array<string | Partial<EventSpecOption>> | string
@@ -178,6 +199,7 @@ export async function createNativeEvent(values: {
     : getDefaultTemplateSpecs(template?.id)
   const channelId = String(values.channelId ?? template?.defaultChannelId ?? '').trim()
   const mentionRoleIds = normalizeStringList(values.mentionRoleIds)
+  const specSelectionLimits = normalizeSpecSelectionLimits(values)
 
   db.insert(events)
     .values({
@@ -202,6 +224,8 @@ export async function createNativeEvent(values: {
       mentionRoleIdsJson: JSON.stringify(mentionRoleIds),
       embedUseDiscordMentions: Boolean(values.embedUseDiscordMentions),
       autoCreateSignupThread: Boolean(values.autoCreateSignupThread),
+      minSignupSpecs: specSelectionLimits.minSignupSpecs,
+      maxSignupSpecs: specSelectionLimits.maxSignupSpecs,
       trophyId: 'hammo-bowl-cup',
       honuZoneId: HONU_DEFAULT_ZONE_ID,
       updatedAt: now,
@@ -248,6 +272,8 @@ export async function updateNativeEvent(values: {
   mentionRoleIds?: string[] | string
   embedUseDiscordMentions?: boolean
   autoCreateSignupThread?: boolean
+  minSignupSpecs?: string | number
+  maxSignupSpecs?: string | number
   allowedRoleIds?: string[] | string
   bannedRoleIds?: string[] | string
   specs?: Array<string | Partial<EventSpecOption>> | string
@@ -271,6 +297,10 @@ export async function updateNativeEvent(values: {
   const channelId = values.channelId === undefined
     ? existing.raidHelperChannelId
     : String(values.channelId ?? '').trim() || null
+  const specSelectionLimits = normalizeSpecSelectionLimits(values, {
+    minSignupSpecs: existing.minSignupSpecs,
+    maxSignupSpecs: existing.maxSignupSpecs,
+  })
 
   db.update(events)
     .set({
@@ -298,6 +328,8 @@ export async function updateNativeEvent(values: {
       autoCreateSignupThread: values.autoCreateSignupThread === undefined
         ? existing.autoCreateSignupThread
         : Boolean(values.autoCreateSignupThread),
+      minSignupSpecs: specSelectionLimits.minSignupSpecs,
+      maxSignupSpecs: specSelectionLimits.maxSignupSpecs,
       updatedAt: now,
     })
     .where(eq(events.id, existing.id))
@@ -351,6 +383,8 @@ export async function duplicateNativeEvent(eventId: string, options: {
     mentionRoleIds: details.event.mentionRoleIds,
     embedUseDiscordMentions: details.event.embedUseDiscordMentions,
     autoCreateSignupThread: details.event.autoCreateSignupThread,
+    minSignupSpecs: details.event.minSignupSpecs,
+    maxSignupSpecs: details.event.maxSignupSpecs,
     specs: details.event.availableSpecOptions ?? details.event.availableSpecs,
     allowedRoleIds: details.roleGates.allowedRoleIds,
     bannedRoleIds: details.roleGates.bannedRoleIds,
@@ -377,7 +411,16 @@ export async function upsertNativeSignup(values: {
   const status = normalizeSignupStatus(values.status)
   const discordId = requireTrimmed(values.discordId, 'Discord ID is required.')
   const name = String(values.name ?? discordId).trim() || discordId
-  const specs = normalizeStringList(values.specs)
+  const existing = db
+    .select()
+    .from(eventSignups)
+    .where(and(eq(eventSignups.eventId, event.id), eq(eventSignups.discordId, discordId)))
+    .get()
+  const specs = status === 'removed'
+    ? []
+    : values.specs === undefined
+      ? existing ? getSignupSpecs(event.id, discordId) : []
+      : normalizeStringList(values.specs)
   const roleIds = values.memberRoleIds ?? getParticipantDiscordRoleIds(discordId)
   validateSignup(event, { discordId, status, specs, roleIds, actorIsAdmin: values.actorIsAdmin })
 
@@ -392,11 +435,6 @@ export async function upsertNativeSignup(values: {
       .where(and(eq(eventSignupSpecs.eventId, event.id), eq(eventSignupSpecs.discordId, discordId)))
       .run()
   } else {
-    const existing = db
-      .select()
-      .from(eventSignups)
-      .where(and(eq(eventSignups.eventId, event.id), eq(eventSignups.discordId, discordId)))
-      .get()
     db.insert(eventSignups)
       .values({
         eventId: event.id,
@@ -652,8 +690,14 @@ function validateSignup(
     const invalid = values.specs.find((spec) => !allowed.has(spec.toLowerCase()))
     if (invalid) throw new Error(`${invalid} is not available for this event.`)
   }
-  if (PROJECTED_SIGNUP_STATUSES.has(values.status) && availableSpecs.length && !values.specs.length) {
-    throw new Error('Choose at least one spec.')
+  if (PROJECTED_SIGNUP_STATUSES.has(values.status) && availableSpecs.length) {
+    const { minSignupSpecs, maxSignupSpecs } = getEventSpecSelectionLimits(event, availableSpecs.length)
+    if (values.specs.length < minSignupSpecs) {
+      throw new Error(`Choose at least ${minSignupSpecs} ${minSignupSpecs === 1 ? 'spec' : 'specs'}.`)
+    }
+    if (values.specs.length > maxSignupSpecs) {
+      throw new Error(`Choose no more than ${maxSignupSpecs} ${maxSignupSpecs === 1 ? 'spec' : 'specs'}.`)
+    }
   }
   assertSignupLimits(event.id, values)
 }
@@ -745,6 +789,15 @@ function groupSignupSpecs(eventId: string) {
     discordId,
     rows.sort((a, b) => a.position - b.position).map((row) => row.specName),
   ]))
+}
+
+function getSignupSpecs(eventId: string, discordId: string) {
+  return db.select()
+    .from(eventSignupSpecs)
+    .where(and(eq(eventSignupSpecs.eventId, eventId), eq(eventSignupSpecs.discordId, discordId)))
+    .all()
+    .sort((a, b) => a.position - b.position)
+    .map((spec) => spec.specName)
 }
 
 function replaceSignupLimits(eventId: string, limits: NativeSignupLimit[], updatedAt: string) {
@@ -970,6 +1023,31 @@ function normalizeDateTime(value: string, message: string) {
 function normalizeOptionalInteger(value: string | number | undefined, label: string, options: { min: number; max: number }) {
   if (value === undefined || value === null || value === '') return undefined
   return normalizeInteger(value, 0, label, options)
+}
+
+function normalizeSpecSelectionLimits(
+  values: { minSignupSpecs?: string | number; maxSignupSpecs?: string | number },
+  fallback: { minSignupSpecs: number; maxSignupSpecs: number } = {
+    minSignupSpecs: DEFAULT_MIN_SIGNUP_SPECS,
+    maxSignupSpecs: DEFAULT_MAX_SIGNUP_SPECS,
+  },
+) {
+  const minSignupSpecs = values.minSignupSpecs === undefined
+    ? fallback.minSignupSpecs
+    : normalizeInteger(values.minSignupSpecs, fallback.minSignupSpecs, 'Minimum signup specs', {
+      min: 0,
+      max: MAX_SIGNUP_SPEC_SELECTIONS,
+    })
+  const maxSignupSpecs = values.maxSignupSpecs === undefined
+    ? fallback.maxSignupSpecs
+    : normalizeInteger(values.maxSignupSpecs, fallback.maxSignupSpecs, 'Maximum signup specs', {
+      min: 1,
+      max: MAX_SIGNUP_SPEC_SELECTIONS,
+    })
+  if (minSignupSpecs > maxSignupSpecs) {
+    throw new Error('Minimum signup specs cannot be greater than maximum signup specs.')
+  }
+  return { minSignupSpecs, maxSignupSpecs }
 }
 
 function normalizeInteger(value: string | number | undefined, fallback: number, label: string, options: { min: number; max: number }) {

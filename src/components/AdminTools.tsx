@@ -16,9 +16,11 @@ import type {
   RegisteredParticipant,
   StartingSide,
 } from '../lib/types'
-import { shortDate } from '../lib/format'
+import { localDatetimeToIso, shortDate, toDatetimeLocalValue } from '../lib/format'
+import { useDisplayTimeZone } from '../lib/useDisplayTimeZone'
 import { HONU_ALERT_ZONE_OPTIONS } from '../lib/honu'
 import { undraftedDraftEligiblePlayers } from '../lib/rules'
+import { DateTimeLocalInput } from './DateTimeLocalInput'
 import { EVENT_LINK_ICON_OPTIONS, EventLinkIcon } from './EventLinkIcons'
 import { PlayerName } from './PlayerName'
 
@@ -60,6 +62,7 @@ export function AdminTools({
   const [realtimeRefreshKey, setRealtimeRefreshKey] = useState(0)
   const [message, setMessage] = useState<string>()
   const [busy, setBusy] = useState<string>()
+  const displayTimeZone = useDisplayTimeZone()
   const undraftedPlayers = currentEvent ? undraftedDraftEligiblePlayers(currentEvent) : []
   const canSyncTeams = undraftedPlayers.length === 0
   const draftLocked = Boolean(currentEvent?.rounds.length)
@@ -168,6 +171,7 @@ export function AdminTools({
           event={currentEvent}
           currentEvents={currentEventOptions}
           creating={creatingEvent}
+          timeZone={displayTimeZone}
           onEvent={setConfiguredEvent}
           onNew={beginCreateEvent}
           onCancel={cancelCreateEvent}
@@ -262,6 +266,7 @@ function EventTargetControls({
   event,
   currentEvents,
   creating,
+  timeZone,
   onEvent,
   onNew,
   onCancel,
@@ -269,6 +274,7 @@ function EventTargetControls({
   event: HammaEvent | null
   currentEvents: HammaEvent[]
   creating: boolean
+  timeZone: string
   onEvent: (event: HammaEvent) => void
   onNew: () => void
   onCancel: () => void
@@ -294,7 +300,7 @@ function EventTargetControls({
               {options.length ? null : <option value="">No events available</option>}
               {options.map((option) => (
                 <option key={option.id} value={option.id}>
-                  {option.name} - {shortDate(option.startsAt)}
+                  {option.name} - {shortDate(option.startsAt, { timeZone })}
                 </option>
               ))}
             </select>
@@ -340,6 +346,7 @@ function ActiveEventControls({
   onEvent: (event: HammaEvent) => void
 }) {
   const [activeEventId, setActiveEventId] = useState(event.id)
+  const displayTimeZone = useDisplayTimeZone()
   const options = mergeEventOptions(currentEvents, event)
 
   useEffect(() => {
@@ -359,7 +366,7 @@ function ActiveEventControls({
             >
               {options.map((option) => (
                 <option key={option.id} value={option.id}>
-                  {option.name} - {shortDate(option.startsAt)}
+                  {option.name} - {shortDate(option.startsAt, { timeZone: displayTimeZone })}
                 </option>
               ))}
             </select>
@@ -607,6 +614,8 @@ function NativeEventOps({
   const [embedUseDiscordMentions, setEmbedUseDiscordMentions] = useState(false)
   const [autoCreateSignupThread, setAutoCreateSignupThread] = useState(false)
   const [specOptions, setSpecOptions] = useState<EventSpecOption[]>(DEFAULT_SPEC_OPTIONS)
+  const [minSignupSpecs, setMinSignupSpecs] = useState('1')
+  const [maxSignupSpecs, setMaxSignupSpecs] = useState('5')
   const [signupLimit, setSignupLimit] = useState('')
   const [allowedRoleIds, setAllowedRoleIds] = useState<string[]>([])
   const [bannedRoleIds, setBannedRoleIds] = useState<string[]>([])
@@ -675,6 +684,8 @@ function NativeEventOps({
     setEmbedUseDiscordMentions(false)
     setAutoCreateSignupThread(false)
     setSpecOptions(DEFAULT_SPEC_OPTIONS)
+    setMinSignupSpecs('1')
+    setMaxSignupSpecs('5')
     setSignupLimit('')
     setAllowedRoleIds([])
     setBannedRoleIds([])
@@ -726,6 +737,8 @@ function NativeEventOps({
     setImageUrl(event.eventImageUrl ?? '')
     setEmbedUseDiscordMentions(Boolean(event.embedUseDiscordMentions))
     setAutoCreateSignupThread(Boolean(event.autoCreateSignupThread))
+    setMinSignupSpecs(String(event.minSignupSpecs ?? 1))
+    setMaxSignupSpecs(String(event.maxSignupSpecs ?? 5))
     const eventSpecs = event.availableSpecOptions?.length
       ? event.availableSpecOptions
       : specOptionsFromNames(event.availableSpecs ?? [])
@@ -769,11 +782,12 @@ function NativeEventOps({
     setEventSetupErrors(errors)
     if (Object.keys(errors).length) return { ok: false, message: 'Fix the highlighted event setup fields.' }
 
+    const startsAtIso = localDatetimeToIso(startsAt)
     try {
       const result = await postAdminJson('/api/admin/event', {
         action: 'native-event.create',
         name: title,
-        startsAt,
+        startsAt: startsAtIso,
         durationMinutes,
         closingTime: signupCloseTimeFromMinutes(startsAt, signupCloseMinutesBefore),
         channelId,
@@ -781,6 +795,8 @@ function NativeEventOps({
         imageUrl,
         embedUseDiscordMentions,
         autoCreateSignupThread,
+        minSignupSpecs,
+        maxSignupSpecs,
         specs: specOptions,
         signupLimit,
         allowedRoleIds,
@@ -803,12 +819,13 @@ function NativeEventOps({
     setEventSetupErrors(errors)
     if (Object.keys(errors).length) return { ok: false, message: 'Fix the highlighted event setup fields.' }
 
+    const startsAtIso = localDatetimeToIso(startsAt)
     try {
       const result = await postAdminJson('/api/admin/event', {
         action: 'native-event.update',
         eventId: event.id,
         name: title,
-        startsAt,
+        startsAt: startsAtIso,
         durationMinutes,
         closingTime: signupCloseTimeFromMinutes(startsAt, signupCloseMinutesBefore),
         channelId,
@@ -816,6 +833,8 @@ function NativeEventOps({
         imageUrl,
         embedUseDiscordMentions,
         autoCreateSignupThread,
+        minSignupSpecs,
+        maxSignupSpecs,
         specs: specOptions,
         signupLimit,
         allowedRoleIds,
@@ -934,8 +953,7 @@ function NativeEventOps({
             </label>
             <label>
               Start time
-              <input
-                type="datetime-local"
+              <DateTimeLocalInput
                 value={startsAt}
                 aria-invalid={Boolean(eventSetupErrors.startsAt)}
                 onChange={(event) => {
@@ -1047,6 +1065,26 @@ function NativeEventOps({
             <label>
               Total accepted limit
               <input type="number" min="1" value={signupLimit} onChange={(event) => setSignupLimit(event.currentTarget.value)} />
+            </label>
+            <label>
+              Minimum specs per signup
+              <input
+                type="number"
+                min="0"
+                max="25"
+                value={minSignupSpecs}
+                onChange={(event) => setMinSignupSpecs(event.currentTarget.value)}
+              />
+            </label>
+            <label>
+              Maximum specs per signup
+              <input
+                type="number"
+                min="1"
+                max="25"
+                value={maxSignupSpecs}
+                onChange={(event) => setMaxSignupSpecs(event.currentTarget.value)}
+              />
             </label>
           </div>
           <div className="event-result-card">
@@ -4071,14 +4109,6 @@ function isNativeEventOpsResult(result: unknown): result is { eventOps: NativeEv
 
 function isFailedAdminResult(result: unknown): result is { ok: false } {
   return Boolean(result && typeof result === 'object' && (result as { ok?: unknown }).ok === false)
-}
-
-function toDatetimeLocalValue(value: string) {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return ''
-  const offset = date.getTimezoneOffset()
-  const local = new Date(date.getTime() - offset * 60_000)
-  return local.toISOString().slice(0, 16)
 }
 
 function minutesBeforeEventStart(startsAt: string, closingTime?: string) {

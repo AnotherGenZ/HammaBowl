@@ -202,7 +202,7 @@ export async function listDiscordBotGuildEmojis(): Promise<DiscordGuildEmojiOpti
         guildId: guild.id,
         guildName: guild.name,
         mention: `<${emoji.animated ? 'a' : ''}:${emoji.name}:${emoji.id}>`,
-        url: discordCdn.emoji(emoji.id, emoji.animated ? 'gif' : 'png'),
+        url: discordCdn.emoji(emoji.id, { extension: emoji.animated ? 'gif' : 'png' }),
       })
     }
   }))

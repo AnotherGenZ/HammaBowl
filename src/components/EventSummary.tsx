@@ -3,11 +3,13 @@ import { CalendarClock, Swords, UserCheck, type LucideIcon } from 'lucide-react'
 import { money, shortDateWithTimeZone } from '../lib/format'
 import { buildTeamLedgers } from '../lib/rules'
 import type { HammaEvent } from '../lib/types'
+import { useDisplayTimeZone } from '../lib/useDisplayTimeZone'
 import { Countdown } from './Countdown'
 import { EventLinkIcon } from './EventLinkIcons'
 import { PlayerName } from './PlayerName'
 
 export function EventSummary({ event, initialNow }: { event: HammaEvent; initialNow?: number }) {
+  const displayTimeZone = useDisplayTimeZone()
   const ledgers = buildTeamLedgers(event)
   const drafted = ledgers.reduce((sum, ledger) => sum + ledger.picks.length, 0)
   const latestRound = [...event.rounds].sort((a, b) => b.roundNumber - a.roundNumber)[0]
@@ -52,7 +54,7 @@ export function EventSummary({ event, initialNow }: { event: HammaEvent; initial
         <div className="event-link-badges" aria-label="Event details and links">
           {visibleEventTimes.map((item) => {
             const Icon = item.icon
-            const formattedTime = shortDateWithTimeZone(item.time)
+            const formattedTime = shortDateWithTimeZone(item.time, { timeZone: displayTimeZone })
 
             return (
               <span

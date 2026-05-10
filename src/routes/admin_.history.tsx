@@ -2,9 +2,11 @@ import { Link, createFileRoute } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { useEffect, useMemo, useState } from 'react'
 import { AdminLayout, type AdminSidebarSection } from '../components/AdminSidebar'
-import { shortDate } from '../lib/format'
+import { DateTimeLocalInput } from '../components/DateTimeLocalInput'
+import { localDatetimeToIso, nowDatetimeLocalValue, shortDate, toDatetimeLocalValue } from '../lib/format'
 import { pageMeta } from '../lib/meta'
 import type { EventTrophyId, HistoricalEvent, RegisteredParticipant } from '../lib/types'
+import { useDisplayTimeZone } from '../lib/useDisplayTimeZone'
 
 const EVENT_TROPHY_OPTIONS: Array<{ id: EventTrophyId; label: string }> = [
   { id: 'hammo-bowl-cup', label: 'HammaBowl Cup' },
@@ -51,9 +53,10 @@ function HistoricalAdmin() {
   const [participants, setParticipants] = useState(initial.participants)
   const [message, setMessage] = useState<string>()
   const [busy, setBusy] = useState(false)
+  const displayTimeZone = useDisplayTimeZone()
   const [newEvent, setNewEvent] = useState({
     name: '',
-    startsAt: new Date().toISOString().slice(0, 16),
+    startsAt: nowDatetimeLocalValue(),
     server: 'Manual',
   })
   const historySections = useMemo<AdminSidebarSection[]>(
@@ -63,10 +66,10 @@ function HistoricalAdmin() {
         id: historyEventSectionId(event.id),
         label: event.nameOverride ?? event.name,
         status: 'ok' as const,
-        badge: shortDate(event.date),
+        badge: shortDate(event.date, { timeZone: displayTimeZone }),
       })),
     ],
-    [events],
+    [events, displayTimeZone],
   )
 
   useEffect(() => {
@@ -103,7 +106,7 @@ function HistoricalAdmin() {
 
       setMessage(actions.length > 1 ? `${actions.length} changes saved.` : payload?.message ?? 'Saved.')
       if (actions.some((action) => action.action === 'create-event')) {
-        setNewEvent({ name: '', startsAt: new Date().toISOString().slice(0, 16), server: 'Manual' })
+        setNewEvent({ name: '', startsAt: nowDatetimeLocalValue(), server: 'Manual' })
       }
       return true
     } catch (error) {
@@ -151,8 +154,7 @@ function HistoricalAdmin() {
               </label>
               <label>
                 Time
-                <input
-                  type="datetime-local"
+                <DateTimeLocalInput
                   value={newEvent.startsAt}
                   onChange={(event) => {
                     const startsAt = event.currentTarget.value
@@ -173,7 +175,13 @@ function HistoricalAdmin() {
               <button
                 type="button"
                 disabled={busy || !newEvent.name}
-                onClick={() => void run({ action: 'create-event', ...newEvent })}
+                onClick={() =>
+                  void run({
+                    action: 'create-event',
+                    ...newEvent,
+                    startsAt: localDatetimeToIso(newEvent.startsAt),
+                  })
+                }
               >
                 Create event
               </button>
@@ -212,8 +220,9 @@ function HistoricalEventEditor({
   onRun: (body: HistoricalAdminAction | HistoricalAdminAction[]) => Promise<boolean>
 }) {
   const [nameOverride, setNameOverride] = useState(event.nameOverride ?? event.name)
-  const [startsAt, setStartsAt] = useState(toLocalDateTimeValue(event.date))
+  const [startsAt, setStartsAt] = useState(toDatetimeLocalValue(event.date))
   const [server, setServer] = useState(event.server)
+  const displayTimeZone = useDisplayTimeZone()
   const [trophyId, setTrophyId] = useState<EventTrophyId>(event.trophyId)
   const [streamUrl, setStreamUrl] = useState(event.twitchStreamUrl ?? '')
   const [vodUrl, setVodUrl] = useState(event.twitchVodUrl ?? '')
@@ -231,7 +240,7 @@ function HistoricalEventEditor({
   )
   const eventDetailsChanged =
     nameOverride !== (event.nameOverride ?? event.name) ||
-    startsAt !== toLocalDateTimeValue(event.date) ||
+    startsAt !== toDatetimeLocalValue(event.date) ||
     server !== event.server ||
     trophyId !== event.trophyId ||
     streamUrl !== (event.twitchStreamUrl ?? '') ||
@@ -242,7 +251,7 @@ function HistoricalEventEditor({
 
   useEffect(() => {
     setNameOverride(event.nameOverride ?? event.name)
-    setStartsAt(toLocalDateTimeValue(event.date))
+    setStartsAt(toDatetimeLocalValue(event.date))
     setServer(event.server)
     setTrophyId(event.trophyId)
     setStreamUrl(event.twitchStreamUrl ?? '')
@@ -271,7 +280,7 @@ function HistoricalEventEditor({
         action: 'update-event',
         eventId: event.id,
         nameOverride,
-        startsAt,
+        startsAt: localDatetimeToIso(startsAt),
         server,
         trophyId,
         twitchStreamUrl: streamUrl,
@@ -302,7 +311,7 @@ function HistoricalEventEditor({
       <div className="admin-section-header no-toggle">
         <div>
           <h2>{event.name}</h2>
-          <p>{shortDate(event.date)}</p>
+          <p>{shortDate(event.date, { timeZone: displayTimeZone })}</p>
         </div>
         <div className="button-row">
           <Link to="/hall-of-legends/$eventId" params={{ eventId: event.id }}>
@@ -318,7 +327,7 @@ function HistoricalEventEditor({
           </label>
           <label>
             Time
-            <input type="datetime-local" value={startsAt} onChange={(event) => setStartsAt(event.currentTarget.value)} />
+            <DateTimeLocalInput value={startsAt} onChange={(event) => setStartsAt(event.currentTarget.value)} />
           </label>
           <label>
             Server
@@ -702,12 +711,6 @@ function ParticipantPicker({
       </datalist>
     </label>
   )
-}
-
-function toLocalDateTimeValue(value: string) {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return ''
-  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16)
 }
 
 function honuAlertUrl(value: string) {

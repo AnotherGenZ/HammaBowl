@@ -109,6 +109,8 @@ export interface HammaEvent {
   mentionRoleIds?: string[]
   embedUseDiscordMentions?: boolean
   autoCreateSignupThread?: boolean
+  minSignupSpecs?: number
+  maxSignupSpecs?: number
   allowMultipleSignups?: boolean
   discordCheckInMessageId?: string
   discordCheckInMessageChannelId?: string

@@ -11,6 +11,8 @@ export const events = sqliteTable('events', {
   mentionRoleIdsJson: text('mention_role_ids_json'),
   embedUseDiscordMentions: integer('embed_use_discord_mentions', { mode: 'boolean' }).notNull().default(false),
   autoCreateSignupThread: integer('auto_create_signup_thread', { mode: 'boolean' }).notNull().default(false),
+  minSignupSpecs: integer('min_signup_specs').notNull().default(1),
+  maxSignupSpecs: integer('max_signup_specs').notNull().default(5),
   allowMultipleSignups: integer('allow_multiple_signups', { mode: 'boolean' }).notNull().default(false),
   discordCheckInMessageId: text('discord_check_in_message_id'),
   discordCheckInMessageChannelId: text('discord_check_in_message_channel_id'),

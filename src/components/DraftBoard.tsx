@@ -19,6 +19,7 @@ import {
 } from '../lib/rules'
 import type { HammaEvent } from '../lib/types'
 import { useRealtimeCurrentEvent } from '../lib/useRealtimeCurrentEvent'
+import { useDisplayTimeZone } from '../lib/useDisplayTimeZone'
 import { PlayerName } from './PlayerName'
 
 export function DraftBoard({
@@ -43,6 +44,7 @@ export function DraftBoard({
   const [selectedSpecs, setSelectedSpecs] = useState<string[]>([])
   const [bidMessage, setBidMessage] = useState<{ text: string; tone: 'neutral' | 'success' | 'error' }>()
   const [now, setNow] = useState(initialNow ?? Date.now())
+  const displayTimeZone = useDisplayTimeZone()
   const pickListRefs = useRef<Array<HTMLUListElement | null>>([])
   const syncingPickScroll = useRef(false)
   const prevPickTurnRef = useRef<string | undefined>(undefined)
@@ -400,8 +402,16 @@ export function DraftBoard({
               {checkInWindow.hasClosed
                 ? `${uncheckedPlayerCount} no-show ${uncheckedPlayerCount === 1 ? 'player' : 'players'} removed from eligibility.`
                 : checkInWindow.isOpen
-                  ? `Open until ${checkInWindow.closesAt ? shortDate(checkInWindow.closesAt) : 'event start'}.`
-                  : `Opens ${checkInWindow.opensAt ? shortDate(checkInWindow.opensAt) : 'before draft'}.`}
+                  ? `Open until ${
+                    checkInWindow.closesAt
+                      ? shortDate(checkInWindow.closesAt, { timeZone: displayTimeZone })
+                      : 'event start'
+                  }.`
+                  : `Opens ${
+                    checkInWindow.opensAt
+                      ? shortDate(checkInWindow.opensAt, { timeZone: displayTimeZone })
+                      : 'before draft'
+                  }.`}
             </small>
           </div>
           {currentUserPlayer ? (
