@@ -1066,6 +1066,7 @@ export async function updateEventAdminSettings(
     throw new Error('Event time must be a valid date.')
   }
   const normalizedStartsAt = nextStartsAt ? new Date(nextStartsAt).toISOString() : event.startsAt
+  const normalizedClosingTime = nextEventAdminClosingTime(event, normalizedStartsAt, Boolean(nextStartsAt))
   const nextDraftStartMinutesBefore = normalizeDraftStartMinutesBefore(
     values.draftStartMinutesBefore,
     event.draftStartMinutesBefore,
@@ -1103,6 +1104,7 @@ export async function updateEventAdminSettings(
       nameOverride:
         values.nameOverride === undefined ? event.nameOverride : values.nameOverride.trim() || null,
       startsAt: normalizedStartsAt,
+      closingTime: normalizedClosingTime,
       server: values.server?.trim() || event.server,
       lore: values.lore === undefined ? event.lore : values.lore.trim() || null,
       twitchStreamUrl:
@@ -1241,6 +1243,34 @@ export async function updateRoundResult(
   db.update(events).set({ updatedAt: now }).where(eq(events.id, eventId)).run()
 
   return { ok: true, message: `Round ${roundNumber} result saved.` }
+}
+
+function nextEventAdminClosingTime(
+  event: { startsAt: string; closingTime: string | null },
+  normalizedStartsAt: string,
+  startsAtChanged: boolean,
+) {
+  if (!startsAtChanged || !event.closingTime) return event.closingTime
+
+  const previousStart = Date.parse(event.startsAt)
+  const previousClose = Date.parse(event.closingTime)
+  const nextStart = Date.parse(normalizedStartsAt)
+  const previousOffsetMs = previousStart - previousClose
+
+  if (
+    Number.isFinite(previousStart) &&
+    Number.isFinite(previousClose) &&
+    Number.isFinite(nextStart) &&
+    previousOffsetMs >= 0
+  ) {
+    return new Date(nextStart - previousOffsetMs).toISOString()
+  }
+
+  if (Number.isFinite(nextStart) && Number.isFinite(previousClose) && previousClose > nextStart) {
+    throw new Error('Signup close time cannot be after event start.')
+  }
+
+  return event.closingTime
 }
 
 function normalizeEvenPool(value: string | undefined, current: number, label: string) {

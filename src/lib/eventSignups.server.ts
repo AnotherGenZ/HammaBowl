@@ -192,6 +192,7 @@ export async function createNativeEvent(values: {
       Date.parse(startsAt) -
       (template?.defaultSignupCloseMinutesBefore ?? DEFAULT_SIGNUP_CLOSE_MINUTES_BEFORE) * 60_000,
     ).toISOString()
+  assertSignupCloseNotAfterStart(startsAt, closingTime)
   const id = `native-${crypto.randomUUID()}`
   const now = new Date().toISOString()
   const specs = normalizeSpecOptions(values.specs).length
@@ -292,6 +293,8 @@ export async function updateNativeEvent(values: {
   const durationMinutes = values.durationMinutes === undefined
     ? Math.max(1, Math.round((Date.parse(existing.endsAt ?? startsAt) - Date.parse(startsAt)) / 60_000) || DEFAULT_EVENT_DURATION_MINUTES)
     : normalizeInteger(values.durationMinutes, DEFAULT_EVENT_DURATION_MINUTES, 'Duration', { min: 1, max: 24 * 60 })
+  const closingTime = nextClosingTime(existing, startsAt, values)
+  assertSignupCloseNotAfterStart(startsAt, closingTime)
   const now = new Date().toISOString()
   const nextName = values.name === undefined ? existing.name : requireTrimmed(values.name, 'Event title is required.')
   const channelId = values.channelId === undefined
@@ -309,11 +312,7 @@ export async function updateNativeEvent(values: {
       server: values.server?.trim() || existing.server,
       startsAt,
       endsAt: new Date(Date.parse(startsAt) + durationMinutes * 60_000).toISOString(),
-      closingTime: values.closingTime === undefined
-        ? existing.closingTime
-        : values.closingTime
-          ? normalizeDateTime(values.closingTime, 'Signup close time must be a valid date.')
-          : null,
+      closingTime,
       eventDescription: values.description === undefined
         ? existing.eventDescription
         : values.description.trim() || null,
@@ -857,11 +856,16 @@ function getRoleGates(eventId: string): NativeRoleGates {
 }
 
 function replaceEventReminders(eventId: string, reminders: Array<Partial<NativeEventReminder>>, updatedAt: string) {
+  const previousLastSentAt = new Map(
+    db.select().from(eventReminders).where(eq(eventReminders.eventId, eventId)).all()
+      .map((reminder) => [reminder.id, reminder.lastSentAt]),
+  )
   db.delete(eventReminders).where(eq(eventReminders.eventId, eventId)).run()
   for (const reminder of reminders) {
+    const id = reminder.id || crypto.randomUUID()
     db.insert(eventReminders)
       .values({
-        id: reminder.id || crypto.randomUUID(),
+        id,
         eventId,
         kind: String(reminder.kind ?? 'event_start'),
         target: String(reminder.target ?? 'signed'),
@@ -869,6 +873,7 @@ function replaceEventReminders(eventId: string, reminders: Array<Partial<NativeE
         channelId: reminder.channelId || null,
         message: reminder.message || null,
         enabled: reminder.enabled ?? true,
+        lastSentAt: reminder.lastSentAt ?? previousLastSentAt.get(id) ?? null,
       })
       .run()
   }
@@ -1018,6 +1023,44 @@ function normalizeDateTime(value: string, message: string) {
   const timestamp = Date.parse(trimmed)
   if (!trimmed || Number.isNaN(timestamp)) throw new Error(message)
   return new Date(timestamp).toISOString()
+}
+
+function nextClosingTime(
+  existing: { startsAt: string; closingTime: string | null },
+  startsAt: string,
+  values: { startsAt?: string; closingTime?: string },
+) {
+  if (values.closingTime !== undefined) {
+    return values.closingTime
+      ? normalizeDateTime(values.closingTime, 'Signup close time must be a valid date.')
+      : null
+  }
+
+  if (values.startsAt === undefined || !existing.closingTime) return existing.closingTime
+
+  const previousStart = Date.parse(existing.startsAt)
+  const previousClose = Date.parse(existing.closingTime)
+  const nextStart = Date.parse(startsAt)
+  const previousOffsetMs = previousStart - previousClose
+  if (
+    Number.isFinite(previousStart) &&
+    Number.isFinite(previousClose) &&
+    Number.isFinite(nextStart) &&
+    previousOffsetMs >= 0
+  ) {
+    return new Date(nextStart - previousOffsetMs).toISOString()
+  }
+
+  return existing.closingTime
+}
+
+function assertSignupCloseNotAfterStart(startsAt: string, closingTime: string | null) {
+  if (!closingTime) return
+  const startMs = Date.parse(startsAt)
+  const closeMs = Date.parse(closingTime)
+  if (Number.isFinite(startMs) && Number.isFinite(closeMs) && closeMs > startMs) {
+    throw new Error('Signup close time cannot be after event start.')
+  }
 }
 
 function normalizeOptionalInteger(value: string | number | undefined, label: string, options: { min: number; max: number }) {

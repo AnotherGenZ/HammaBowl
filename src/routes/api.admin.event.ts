@@ -63,6 +63,7 @@ export const Route = createFileRoute('/api/admin/event')({
             publishNativeEventSignupMessage,
             syncDiscordScheduledEvent,
             sendNativeEventTargetedMessage,
+            updateExistingDiscordScheduledEvent,
             updateExistingNativeEventSignupMessage,
             updateNativeEventSignupMessageSoon,
           } = await import('../lib/eventDiscord.server')
@@ -79,6 +80,7 @@ export const Route = createFileRoute('/api/admin/event')({
               const event = await updateNativeEvent(body, actorDiscordId)
               clearCurrentEventCache()
               await updateExistingNativeEventSignupMessage(event.id)
+              await updateExistingDiscordScheduledEvent(event.id)
               publishEventUpdate(event.id, 'native-event.updated')
               return Response.json({ ok: true, message: 'Native event updated.', event, eventOps: await getNativeEventDetails(event.id) })
             }

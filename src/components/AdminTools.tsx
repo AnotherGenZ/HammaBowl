@@ -4465,7 +4465,7 @@ function minutesBeforeEventStart(startsAt: string, closingTime?: string) {
   if (!closingTime) return undefined
   const delta = Date.parse(startsAt) - Date.parse(closingTime)
   if (!Number.isFinite(delta)) return undefined
-  return Math.max(0, Math.round(delta / 60_000))
+  return Math.round(delta / 60_000)
 }
 
 function signupCloseTimeFromMinutes(startsAt: string, minutesBefore: string) {

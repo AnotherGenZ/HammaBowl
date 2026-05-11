@@ -179,6 +179,32 @@ export async function syncDiscordScheduledEvent(eventId: string) {
   return { ok: true, message: existing ? 'Discord Scheduled Event updated.' : 'Discord Scheduled Event created.', scheduledEventId: scheduledEvent.id }
 }
 
+export async function updateExistingDiscordScheduledEvent(eventId: string) {
+  const details = await getNativeEventDetails(eventId)
+  const existing = details.messages.find((message) => message.kind === 'scheduled_event')
+  if (!existing) return { updated: false, skipped: true }
+
+  const body = {
+    name: details.event.name.slice(0, 100),
+    description: details.event.eventDescription?.slice(0, 1000),
+    scheduled_start_time: details.event.startsAt,
+    scheduled_end_time: details.event.endsAt,
+    privacy_level: GuildScheduledEventPrivacyLevel.GuildOnly,
+    entity_type: GuildScheduledEventEntityType.External,
+    entity_metadata: { location: 'Hamma Bowl Discord' },
+  }
+  const scheduledEvent = await editDiscordScheduledEvent(existing.messageId, body)
+  const now = new Date().toISOString()
+  db.update(eventDiscordMessages)
+    .set({
+      channelId: details.event.eventChannelId ?? 'guild',
+      updatedAt: now,
+    })
+    .where(and(eq(eventDiscordMessages.eventId, eventId), eq(eventDiscordMessages.kind, 'scheduled_event')))
+    .run()
+  return { updated: true, skipped: false, scheduledEventId: scheduledEvent.id }
+}
+
 export async function deleteEventDiscordArtifacts(eventId: string) {
   const messages = db.select().from(eventDiscordMessages).where(eq(eventDiscordMessages.eventId, eventId)).all()
   const event = db.select().from(events).where(eq(events.id, eventId)).get()
