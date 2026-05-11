@@ -227,6 +227,14 @@ export async function editDiscordChannelMessage(
   return discordBotRest().patch(Routes.channelMessage(channelId, messageId), { body }) as Promise<APIMessage>
 }
 
+export async function deleteDiscordChannelMessage(channelId: string, messageId: string) {
+  await discordBotRest().delete(Routes.channelMessage(channelId, messageId))
+}
+
+export async function deleteDiscordChannel(channelId: string) {
+  await discordBotRest().delete(Routes.channel(channelId))
+}
+
 export async function createDiscordMessageThread(
   channelId: string,
   messageId: string,
@@ -247,6 +255,10 @@ export async function editDiscordScheduledEvent(scheduledEventId: string, body: 
     Routes.guildScheduledEvent(requireEnv('DISCORD_GUILD_ID'), scheduledEventId),
     { body },
   ) as Promise<APIGuildScheduledEvent>
+}
+
+export async function deleteDiscordScheduledEvent(scheduledEventId: string) {
+  await discordBotRest().delete(Routes.guildScheduledEvent(requireEnv('DISCORD_GUILD_ID'), scheduledEventId))
 }
 
 export function mapDiscordRoles(discordId: string, roleIds: string[]): Role[] {

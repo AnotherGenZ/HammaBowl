@@ -46,8 +46,8 @@ function Home() {
     return (
       <main>
         <section className="panel empty-state">
-          <h1>No current event</h1>
-          <p>Raid Helper does not currently have an event available for HammaBowl.</p>
+          <h1>No active event</h1>
+          <p>There is not currently an event selected for the HammaBowl homepage.</p>
         </section>
       </main>
     )

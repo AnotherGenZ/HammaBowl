@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { requireAdminSession } from '../lib/discord.server'
-import { getDbEvent, resetHonuReportState, setActiveEvent, updateEventAdminSettings } from '../lib/db.server'
+import { deleteEvent, getDbEvent, resetHonuReportState, setActiveEvent, updateEventAdminSettings } from '../lib/db.server'
 import { generateHonuLinksForEvent } from '../lib/honu.server'
 import { publishEventUpdate } from '../lib/realtime.server'
 import { clearCurrentEventCache, getCurrentEvent, getCurrentEvents, requireCurrentEvent } from '../lib/services'
@@ -172,13 +172,38 @@ export const Route = createFileRoute('/api/admin/event')({
         }
 
         if ('activeEventId' in body) {
+          const previousEvent = await getCurrentEvent().catch(() => null)
           const event = await setActiveEvent(String(body.activeEventId ?? ''))
           clearCurrentEventCache()
-          publishEventUpdate(event.id, 'event.active.updated')
+          if (previousEvent?.id && previousEvent.id !== event?.id) {
+            publishEventUpdate(previousEvent.id, 'event.active.updated')
+          }
+          publishEventUpdate(event?.id ?? previousEvent?.id ?? 'active-event', 'event.active.updated')
           return Response.json({
             ok: true,
-            message: 'Active event updated.',
+            message: event ? 'Active event updated.' : 'No active event selected.',
             event,
+            currentEvents: await getCurrentEvents(),
+          })
+        }
+
+        if (body.action === 'event.delete') {
+          const eventId = String(body.eventId ?? '')
+          const activeEvent = await getCurrentEvent().catch(() => null)
+          if (activeEvent?.id === eventId) {
+            throw new Response('Cannot delete the active event. Set another active event or choose no active event first.', { status: 400 })
+          }
+          await import('../lib/eventDiscord.server')
+            .then((module) => module.deleteEventDiscordArtifacts(eventId))
+          const result = await deleteEvent(eventId)
+          clearCurrentEventCache()
+          publishEventUpdate(eventId, 'event.deleted', { message: `${result.deletedEventName} deleted.` })
+          return Response.json({
+            ok: true,
+            message: `${result.deletedEventName} deleted.`,
+            deletedEventId: result.deletedEventId,
+            event: await getCurrentEvent(),
+            currentEvents: await getCurrentEvents(),
           })
         }
 

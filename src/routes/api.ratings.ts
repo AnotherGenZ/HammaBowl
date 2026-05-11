@@ -73,7 +73,7 @@ export const Route = createFileRoute('/api/ratings')({
 
 async function requireCurrentRatingsEvent() {
   const event = await getCurrentEvent()
-  if (!event) throw new Response('No current Raid Helper event found.', { status: 404 })
+  if (!event) throw new Response('No active HammaBowl event selected.', { status: 404 })
   return event
 }
 

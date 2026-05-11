@@ -9,21 +9,21 @@ export const Route = createFileRoute('/api/admin/signups')({
     handlers: {
       GET: async ({ request }) => {
         await requireAdminSession()
-        const currentEvent = await requireCurrentEvent()
         const url = new URL(request.url)
-        const eventId = url.searchParams.get('eventId')?.trim() || currentEvent.id
+        const requestedEventId = url.searchParams.get('eventId')?.trim()
+        const eventId = requestedEventId || (await requireCurrentEvent()).id
 
         return Response.json(getAdminSignupManagerData(eventId))
       },
       POST: async ({ request }) => {
         await requireAdminSession()
-        const currentEvent = await requireCurrentEvent()
         const body = await request.json() as {
           action?: string
           eventId?: string
           discordId?: string
         }
-        const eventId = String(body.eventId || currentEvent.id)
+        const requestedEventId = String(body.eventId ?? '').trim()
+        const eventId = requestedEventId || (await requireCurrentEvent()).id
         const discordId = String(body.discordId ?? '')
         const action = String(body.action ?? '')
 

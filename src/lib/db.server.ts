@@ -104,6 +104,7 @@ import type {
 
 const dbPath = env('DATABASE_URL', path.join(process.cwd(), 'data', 'hammabowl.sqlite'))
 const ACTIVE_EVENT_SETTING_KEY = 'active_event_id'
+const NO_ACTIVE_EVENT_SETTING_VALUE = '__none__'
 const DISCORD_ROLE_REFRESHED_AT_SETTING_KEY = 'discord_role_refreshed_at'
 const ADMIN_BADGE_ID = 'system-admin'
 const MOD_BADGE_ID = 'system-mod'
@@ -541,6 +542,7 @@ async function getCurrentDbEventRow() {
 
   const currentRows = selectCurrentDbEventRows(eventRows)
   const activeEventId = getActiveEventId()
+  if (activeEventId === NO_ACTIVE_EVENT_SETTING_VALUE) return null
   const activeEvent = activeEventId
     ? eventRows.find((event) => event.id === activeEventId)
     : undefined
@@ -574,6 +576,10 @@ function getActiveEventId() {
   return getAppSetting(ACTIVE_EVENT_SETTING_KEY)
 }
 
+export function isNoActiveEventSelected() {
+  return getActiveEventId() === NO_ACTIVE_EVENT_SETTING_VALUE
+}
+
 export function getAppSetting(key: string) {
   return db.select().from(appSettings).where(eq(appSettings.key, key)).get()?.value
 }
@@ -593,7 +599,12 @@ function setActiveEventId(eventId: string) {
   setAppSetting(ACTIVE_EVENT_SETTING_KEY, eventId)
 }
 
-export async function setActiveEvent(eventId: string): Promise<HammaEvent> {
+export async function setActiveEvent(eventId: string): Promise<HammaEvent | null> {
+  if (!eventId.trim()) {
+    setActiveEventId(NO_ACTIVE_EVENT_SETTING_VALUE)
+    return null
+  }
+
   const currentRows = selectCurrentDbEventRows(db.select().from(events).all())
   const event = currentRows.find((row) => row.id === eventId)
   if (!event) throw new Error('Active event must be one of the current events.')
@@ -603,6 +614,19 @@ export async function setActiveEvent(eventId: string): Promise<HammaEvent> {
   const hydrated = await getDbEvent(event.id)
   if (!hydrated) throw new Error('Event not found.')
   return hydrated
+}
+
+export async function deleteEvent(eventId: string) {
+  const event = db.select().from(events).where(eq(events.id, eventId)).get()
+  if (!event) throw new Error('Event not found.')
+
+  const activeEvent = await getCurrentDbEventRow()
+  if (activeEvent?.id === event.id) {
+    throw new Error('Cannot delete the active event. Set another active event or choose no active event first.')
+  }
+
+  db.delete(events).where(eq(events.id, event.id)).run()
+  return { deletedEventId: event.id, deletedEventName: event.name }
 }
 
 export async function setEventDiscordCheckInMessage(

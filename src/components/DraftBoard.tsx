@@ -53,7 +53,7 @@ export function DraftBoard({
     return (
       <section className="panel empty-state">
         <h1>No current event</h1>
-        <p>The draft will be available once Raid Helper has a current HammaBowl event.</p>
+        <p>The draft will be available once an active HammaBowl event is selected.</p>
       </section>
     )
   }

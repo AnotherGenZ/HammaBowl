@@ -20,6 +20,9 @@ import { db } from './db.server'
 import {
   createDiscordMessageThread,
   createDiscordScheduledEvent,
+  deleteDiscordChannel,
+  deleteDiscordChannelMessage,
+  deleteDiscordScheduledEvent,
   editDiscordScheduledEvent,
   editDiscordChannelMessage,
   postDiscordChannelMessage,
@@ -28,6 +31,7 @@ import { discordTimestamp } from './discordFormatting'
 import { appBaseUrl, envList } from './env'
 import {
   eventDiscordMessages,
+  events,
   participants,
 } from './schema'
 import { buildTeamLedgers, undraftedDraftEligiblePlayers } from './rules'
@@ -173,6 +177,36 @@ export async function syncDiscordScheduledEvent(eventId: string) {
     })
     .run()
   return { ok: true, message: existing ? 'Discord Scheduled Event updated.' : 'Discord Scheduled Event created.', scheduledEventId: scheduledEvent.id }
+}
+
+export async function deleteEventDiscordArtifacts(eventId: string) {
+  const messages = db.select().from(eventDiscordMessages).where(eq(eventDiscordMessages.eventId, eventId)).all()
+  const event = db.select().from(events).where(eq(events.id, eventId)).get()
+
+  for (const message of messages) {
+    if (message.threadId) {
+      await deleteDiscordChannel(message.threadId).catch((error) => {
+        console.warn(`Unable to delete Discord thread ${message.threadId}`, error)
+      })
+    }
+
+    if (message.kind === 'scheduled_event') {
+      await deleteDiscordScheduledEvent(message.messageId).catch((error) => {
+        console.warn(`Unable to delete Discord scheduled event ${message.messageId}`, error)
+      })
+      continue
+    }
+
+    await deleteDiscordChannelMessage(message.channelId, message.messageId).catch((error) => {
+      console.warn(`Unable to delete Discord message ${message.messageId}`, error)
+    })
+  }
+
+  if (event?.discordCheckInMessageChannelId && event.discordCheckInMessageId) {
+    await deleteDiscordChannelMessage(event.discordCheckInMessageChannelId, event.discordCheckInMessageId).catch((error) => {
+      console.warn(`Unable to delete Discord check-in message ${event.discordCheckInMessageId}`, error)
+    })
+  }
 }
 
 export function updateNativeEventSignupMessageSoon(eventId: string) {

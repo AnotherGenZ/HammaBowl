@@ -47,18 +47,27 @@ interface RealtimeAdminUpdate {
 export function AdminTools({
   event,
   currentEvents,
+  creating,
+  onEditEventIdChange,
+  onCreateEventChange,
+  onClearEditEventChange,
   onEventJaegerWarningCount,
   onCreationModeChange,
 }: {
   event: HammaEvent | null
   currentEvents: HammaEvent[]
+  creating: boolean
+  onEditEventIdChange?: (eventId: string) => void
+  onCreateEventChange?: () => void
+  onClearEditEventChange?: () => void
   onEventJaegerWarningCount?: (count: number) => void
   onCreationModeChange?: (creating: boolean) => void
 }) {
   const [currentEvent, setCurrentEvent] = useState<HammaEvent | null>(event)
   const [currentEventOptions, setCurrentEventOptions] = useState(currentEvents)
-  const [creatingEvent, setCreatingEvent] = useState(!event)
+  const [creatingEvent, setCreatingEvent] = useState(creating)
   const [lastEditingEvent, setLastEditingEvent] = useState<HammaEvent | null>(event)
+  const [pendingEditEventId, setPendingEditEventId] = useState<string>()
   const [realtimeRefreshKey, setRealtimeRefreshKey] = useState(0)
   const [message, setMessage] = useState<string>()
   const [busy, setBusy] = useState<string>()
@@ -72,7 +81,14 @@ export function AdminTools({
     setLastEditingEvent(event)
     setCurrentEvent(event)
     setCurrentEventOptions((options) => mergeEventOptions(options, event))
+    setPendingEditEventId(event.id)
+    onEditEventIdChange?.(event.id)
   }
+
+  useEffect(() => {
+    setCreatingEvent(creating)
+    if (creating) setCurrentEvent(null)
+  }, [creating])
 
   useEffect(() => {
     if (creatingEvent) {
@@ -81,12 +97,26 @@ export function AdminTools({
     }
 
     setCurrentEvent((current) => {
-      if (current) return currentEvents.find((option) => option.id === current.id) ?? event
+      if (pendingEditEventId && current?.id === pendingEditEventId) {
+        return currentEvents.find((option) => option.id === pendingEditEventId) ?? current
+      }
       return event
     })
-    setCurrentEventOptions(currentEvents)
     if (event) setLastEditingEvent(event)
-  }, [creatingEvent, event, currentEvents])
+  }, [creatingEvent, event, currentEvents, pendingEditEventId])
+
+  useEffect(() => {
+    if (pendingEditEventId && event?.id === pendingEditEventId) setPendingEditEventId(undefined)
+  }, [event?.id, pendingEditEventId])
+
+  useEffect(() => {
+    if (creatingEvent || !currentEvent) {
+      setCurrentEventOptions(currentEvents)
+      return
+    }
+
+    setCurrentEventOptions(mergeEventOptions(currentEvents, currentEvent))
+  }, [creatingEvent, currentEvent, currentEvents])
 
   useEffect(() => {
     onCreationModeChange?.(creatingEvent)
@@ -132,11 +162,10 @@ export function AdminTools({
       const result = await action()
       const summary = summarizeResult(result)
       setMessage(summary)
-      if (isEventResult(result)) {
-        setCurrentEventOptions((options) => mergeEventOptions(options, result.event))
-      }
       if (isCurrentEventsResult(result)) {
-        setCurrentEventOptions(result.currentEvents)
+        setCurrentEventOptions(isEventResult(result) ? mergeEventOptions(result.currentEvents, result.event) : result.currentEvents)
+      } else if (isEventResult(result)) {
+        setCurrentEventOptions((options) => mergeEventOptions(options, result.event))
       }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Action failed.')
@@ -150,6 +179,7 @@ export function AdminTools({
     setCurrentEvent(null)
     setCreatingEvent(true)
     setMessage(undefined)
+    onCreateEventChange?.()
   }
 
   function cancelCreateEvent() {
@@ -158,7 +188,17 @@ export function AdminTools({
       setConfiguredEvent(fallback)
     } else {
       setCreatingEvent(false)
+      onClearEditEventChange?.()
     }
+  }
+
+  function handleEventDeleted(eventId: string) {
+    setCurrentEventOptions((options) => options.filter((option) => option.id !== eventId))
+    setCurrentEvent(null)
+    setLastEditingEvent((current) => (current?.id === eventId ? null : current))
+    setCreatingEvent(false)
+    setRealtimeRefreshKey((key) => key + 1)
+    onClearEditEventChange?.()
   }
 
   return (
@@ -187,6 +227,7 @@ export function AdminTools({
           busy={busy}
           onRun={run}
           onEvent={setConfiguredEvent}
+          onDeleted={handleEventDeleted}
           refreshKey={realtimeRefreshKey}
         />
 
@@ -297,7 +338,9 @@ function EventTargetControls({
                 if (nextEvent) onEvent(nextEvent)
               }}
             >
-              {options.length ? null : <option value="">No events available</option>}
+              {options.length
+                ? event ? null : <option value="">Choose event</option>
+                : <option value="">No events available</option>}
               {options.map((option) => (
                 <option key={option.id} value={option.id}>
                   {option.name} - {shortDate(option.startsAt, { timeZone })}
@@ -339,19 +382,19 @@ function ActiveEventControls({
   onRun,
   onEvent,
 }: {
-  event: HammaEvent
+  event: HammaEvent | null
   currentEvents: HammaEvent[]
   busy?: string
   onRun: (label: string, action: () => Promise<unknown>) => Promise<void>
-  onEvent: (event: HammaEvent) => void
+  onEvent: (event: HammaEvent | null) => void
 }) {
-  const [activeEventId, setActiveEventId] = useState(event.id)
+  const [activeEventId, setActiveEventId] = useState(event?.id ?? '')
   const displayTimeZone = useDisplayTimeZone()
-  const options = mergeEventOptions(currentEvents, event)
+  const options = event ? mergeEventOptions(currentEvents, event) : currentEvents
 
   useEffect(() => {
-    setActiveEventId(event.id)
-  }, [event.id])
+    setActiveEventId(event?.id ?? '')
+  }, [event?.id])
 
   return (
     <AdminSection id="admin-active-event" title="Active event">
@@ -364,6 +407,7 @@ function ActiveEventControls({
               value={activeEventId}
               onChange={(event) => setActiveEventId(event.currentTarget.value)}
             >
+              <option value="">No active event</option>
               {options.map((option) => (
                 <option key={option.id} value={option.id}>
                   {option.name} - {shortDate(option.startsAt, { timeZone: displayTimeZone })}
@@ -373,18 +417,22 @@ function ActiveEventControls({
           </label>
           <button
             type="button"
-            disabled={busy === 'active-event' || activeEventId === event.id}
+            disabled={busy === 'active-event' || activeEventId === (event?.id ?? '')}
             onClick={() =>
               void onRun('active-event', async () => {
                 const result = await postAdminJson('/api/admin/event', { activeEventId })
-                if (isEventResult(result) && result.event) onEvent(result.event)
+                if (isEventResult(result)) onEvent(result.event)
+                else if (isNullEventResult(result)) onEvent(null)
                 return result
               })
             }
           >
             Set active event
           </button>
-          <small>{options.length} current event{options.length === 1 ? '' : 's'} available</small>
+          <small>
+            {event ? `${event.name} is visible on the homepage.` : 'The homepage has no active event.'}{' '}
+            {options.length} current event{options.length === 1 ? '' : 's'} available.
+          </small>
         </div>
       </div>
     </AdminSection>
@@ -409,9 +457,9 @@ export function GeneralAdminTools({
     setCurrentEventOptions(currentEvents)
   }, [event, currentEvents])
 
-  function setActiveEventSelection(event: HammaEvent) {
+  function setActiveEventSelection(event: HammaEvent | null) {
     setActiveEvent(event)
-    setCurrentEventOptions((options) => mergeEventOptions(options, event))
+    if (event) setCurrentEventOptions((options) => mergeEventOptions(options, event))
   }
 
   useEffect(() => {
@@ -455,6 +503,8 @@ export function GeneralAdminTools({
       if (isEventResult(result)) {
         setActiveEvent(result.event)
         setCurrentEventOptions((options) => mergeEventOptions(options, result.event))
+      } else if (isNullEventResult(result)) {
+        setActiveEvent(null)
       }
       if (isCurrentEventsResult(result)) {
         setCurrentEventOptions(result.currentEvents)
@@ -477,15 +527,13 @@ export function GeneralAdminTools({
       {message ? <div className="admin-result">{message}</div> : null}
 
       <div className="admin-stack">
-        {activeEvent ? (
-          <ActiveEventControls
-            event={activeEvent}
-            currentEvents={currentEventOptions}
-            busy={busy}
-            onRun={run}
-            onEvent={setActiveEventSelection}
-          />
-        ) : null}
+        <ActiveEventControls
+          event={activeEvent}
+          currentEvents={currentEventOptions}
+          busy={busy}
+          onRun={run}
+          onEvent={setActiveEventSelection}
+        />
 
         {activeEvent?.source === 'native' ? null : (
           <AdminSection
@@ -595,6 +643,7 @@ function NativeEventOps({
   busy,
   onRun,
   onEvent,
+  onDeleted,
   refreshKey,
 }: {
   event: HammaEvent | null
@@ -602,6 +651,7 @@ function NativeEventOps({
   busy?: string
   onRun: (label: string, action: () => Promise<unknown>) => Promise<void>
   onEvent: (event: HammaEvent) => void
+  onDeleted: (eventId: string) => void
   refreshKey: number
 }) {
   const [title, setTitle] = useState('')
@@ -625,6 +675,7 @@ function NativeEventOps({
   const [signupStatus, setSignupStatus] = useState('accepted')
   const [signupSpecs, setSignupSpecs] = useState<string[]>([])
   const [signupNote, setSignupNote] = useState('')
+  const [deleteConfirm, setDeleteConfirm] = useState('')
   const [signupPlayers, setSignupPlayers] = useState<AdminSignupManagerData>({
     players: [],
     signedUpPlayers: [],
@@ -695,6 +746,7 @@ function NativeEventOps({
     setSignupStatus('accepted')
     setSignupSpecs([])
     setSignupNote('')
+    setDeleteConfirm('')
     setEventSetupErrors({})
     setEventOps(null)
   }, [creating])
@@ -728,6 +780,7 @@ function NativeEventOps({
 
   useEffect(() => {
     if (creating || !event) return
+    setDeleteConfirm('')
     setTitle(event.name)
     setStartsAt(toDatetimeLocalValue(event.startsAt))
     setDurationMinutes(event.endsAt ? String(Math.max(1, Math.round((Date.parse(event.endsAt) - Date.parse(event.startsAt)) / 60000))) : '120')
@@ -906,6 +959,25 @@ function NativeEventOps({
     })
   }
 
+  async function deleteSelectedEvent() {
+    if (!event) return { ok: true, message: 'No event selected.' }
+    if (deleteConfirm !== event.name) {
+      return { ok: false, message: 'Type the event name exactly before deleting.' }
+    }
+
+    const result = await postAdminJson('/api/admin/event', {
+      action: 'event.delete',
+      eventId: event.id,
+    })
+    const deletedEventId = typeof result === 'object' && result && 'deletedEventId' in result
+      ? String((result as { deletedEventId?: unknown }).deletedEventId ?? '')
+      : event.id
+    onDeleted(deletedEventId)
+    setEventOps(null)
+    setDeleteConfirm('')
+    return result
+  }
+
   const nativeSelected = event?.source === 'native'
   const signupPlayerOptions = combinedSignupPlayers(signupPlayers)
   const selectedSignup = eventOps?.signups.find((signup) => signup.discordId === signupDiscordId)
@@ -917,6 +989,7 @@ function NativeEventOps({
       : 'Create native event'
   const eventSetupBusyLabel = creating || !editingNativeEvent ? 'native-event-create' : 'native-event-update'
   const eventSetupAction = creating || !editingNativeEvent ? createEvent : updateEvent
+  const deleteReady = Boolean(event && deleteConfirm === event.name)
 
   return (
     <>
@@ -1124,81 +1197,87 @@ function NativeEventOps({
           <div className="event-result-grid">
             <div className="event-result-card">
               <strong>Signup editor</strong>
-              {!editingNativeEvent ? (
-                <small>Create a native event before managing signup specs, notes, and removals.</small>
-              ) : null}
-              <label>
-                Player
-                <select
-                  value={signupDiscordId}
-                  disabled={!editingNativeEvent || !ready || !signupPlayerOptions.length}
-                  onChange={(event) => setSignupDiscordId(event.currentTarget.value)}
-                >
-                  <option value="">
-                    {signupPlayersLoaded
-                      ? signupPlayerOptions.length
-                        ? 'Choose player'
-                        : 'No players available'
-                      : 'Loading players'}
-                  </option>
-                  {signupPlayerOptions.map((player) => (
-                    <option key={player.discordId} value={player.discordId}>
-                      {formatParticipantLabel(player)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Status
-                <select
-                  value={signupStatus}
-                  disabled={!editingNativeEvent}
-                  onChange={(event) => setSignupStatus(event.currentTarget.value)}
-                >
-                  {[
-                    { value: 'accepted', label: 'available' },
-                    { value: 'maybe', label: 'maybe' },
-                    { value: 'absent', label: 'absent' },
-                  ].map((status) => (
-                    <option key={status.value} value={status.value}>{status.label}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Specs
-                <SpecCheckboxes
-                  options={specOptions}
-                  value={signupSpecs}
-                  disabled={!editingNativeEvent}
-                  onChange={setSignupSpecs}
-                />
-              </label>
-              <label>
-                Note
-                <textarea
-                  rows={2}
-                  value={signupNote}
-                  disabled={!editingNativeEvent}
-                  onChange={(event) => setSignupNote(event.currentTarget.value)}
-                />
-              </label>
-              <div className="button-row left">
-                <button
-                  type="button"
-                  disabled={!editingNativeEvent || !signupDiscordId || busy === 'native-event-signup'}
-                  onClick={() => void onRun('native-event-signup', saveSignup)}
-                >
-                  Save signup
-                </button>
-                <button
-                  type="button"
-                  className="danger-button"
-                  disabled={!editingNativeEvent || !selectedSignup || busy === 'native-event-signup-remove'}
-                  onClick={() => void onRun('native-event-signup-remove', removeSignup)}
-                >
-                  Remove signup
-                </button>
-              </div>
+              {!ready ? (
+                <small>Loading signup editor.</small>
+              ) : (
+                <>
+                  {!editingNativeEvent ? (
+                    <small>Create a native event before managing signup specs, notes, and removals.</small>
+                  ) : null}
+                  <label>
+                    Player
+                    <select
+                      value={signupDiscordId}
+                      disabled={!editingNativeEvent || !signupPlayersLoaded || !signupPlayerOptions.length}
+                      onChange={(event) => setSignupDiscordId(event.currentTarget.value)}
+                    >
+                      <option value="">
+                        {signupPlayersLoaded
+                          ? signupPlayerOptions.length
+                            ? 'Choose player'
+                            : 'No players available'
+                          : 'Loading players'}
+                      </option>
+                      {signupPlayerOptions.map((player) => (
+                        <option key={player.discordId} value={player.discordId}>
+                          {formatParticipantLabel(player)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Status
+                    <select
+                      value={signupStatus}
+                      disabled={!editingNativeEvent}
+                      onChange={(event) => setSignupStatus(event.currentTarget.value)}
+                    >
+                      {[
+                        { value: 'accepted', label: 'available' },
+                        { value: 'maybe', label: 'maybe' },
+                        { value: 'absent', label: 'absent' },
+                      ].map((status) => (
+                        <option key={status.value} value={status.value}>{status.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Specs
+                    <SpecCheckboxes
+                      options={specOptions}
+                      value={signupSpecs}
+                      disabled={!editingNativeEvent}
+                      onChange={setSignupSpecs}
+                    />
+                  </label>
+                  <label>
+                    Note
+                    <textarea
+                      rows={2}
+                      value={signupNote}
+                      disabled={!editingNativeEvent}
+                      onChange={(event) => setSignupNote(event.currentTarget.value)}
+                    />
+                  </label>
+                  <div className="button-row left">
+                    <button
+                      type="button"
+                      disabled={!editingNativeEvent || !signupDiscordId || busy === 'native-event-signup'}
+                      onClick={() => void onRun('native-event-signup', saveSignup)}
+                    >
+                      Save signup
+                    </button>
+                    <button
+                      type="button"
+                      className="danger-button"
+                      disabled={!editingNativeEvent || !selectedSignup || busy === 'native-event-signup-remove'}
+                      onClick={() => void onRun('native-event-signup-remove', removeSignup)}
+                    >
+                      Remove signup
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </AdminSection>
@@ -1255,6 +1334,41 @@ function NativeEventOps({
                   Send message
                 </button>
               </div>
+            </div>
+          </div>
+        </AdminSection>
+      )}
+
+      {creating || !event ? null : (
+        <AdminSection
+          id="admin-event-danger"
+          title="Danger Zone"
+          actions={
+            <button
+              type="button"
+              className="danger-button"
+              disabled={busy === 'event-delete' || !deleteReady}
+              onClick={() => void onRun('event-delete', deleteSelectedEvent)}
+            >
+              Delete event
+            </button>
+          }
+        >
+          <div className="event-result-grid">
+            <div className="event-result-card danger-card">
+              <strong>Delete this event</strong>
+              <p>
+                Deletes this event and its related signups, teams, draft data, ratings, Discord message records,
+                and generated event data. Active events cannot be deleted.
+              </p>
+              <label>
+                Type event name to confirm
+                <input
+                  value={deleteConfirm}
+                  placeholder={event.name}
+                  onChange={(event) => setDeleteConfirm(event.currentTarget.value)}
+                />
+              </label>
             </div>
           </div>
         </AdminSection>
@@ -4091,7 +4205,11 @@ function errorsFromAdminError(error: unknown): EventSetupErrors {
 }
 
 function isEventResult(result: unknown): result is { event: HammaEvent } {
-  return Boolean(result && typeof result === 'object' && 'event' in result)
+  return Boolean(result && typeof result === 'object' && 'event' in result && (result as { event?: unknown }).event)
+}
+
+function isNullEventResult(result: unknown): result is { event: null } {
+  return Boolean(result && typeof result === 'object' && 'event' in result && (result as { event?: unknown }).event === null)
 }
 
 function isCurrentEventsResult(result: unknown): result is { currentEvents: HammaEvent[] } {

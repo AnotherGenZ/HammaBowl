@@ -59,6 +59,10 @@ const getCurrentEventServer = createServerOnlyFn(
 
     const cacheGeneration = eventCacheGeneration
     const dbEvent = options.force ? null : await getCoalescedCurrentEventFromDb()
+    if (!options.force && !dbEvent && await isNoActiveEventSelectedFromDb()) {
+      eventCache = null
+      return null
+    }
     if (!options.force && dbEvent && isNativeEventSignupsFlagEnabled() && dbEvent.source === 'native') {
       if (cacheGeneration === eventCacheGeneration) {
         eventCache = dbEvent
@@ -89,7 +93,7 @@ export function clearCurrentEventCache() {
 
 export async function requireCurrentEvent(): Promise<HammaEvent> {
   const event = await getCurrentEvent()
-  if (!event) throw new Response('No current Raid Helper event found.', { status: 404 })
+  if (!event) throw new Response('No active HammaBowl event selected.', { status: 404 })
   return event
 }
 
@@ -135,6 +139,11 @@ function getCoalescedCurrentEventFromDb() {
 const getCurrentEventsFromDb = createServerOnlyFn(async () => {
   const { getCurrentDbEvents } = await import('./db.server')
   return getCurrentDbEvents()
+})
+
+const isNoActiveEventSelectedFromDb = createServerOnlyFn(async () => {
+  const { isNoActiveEventSelected } = await import('./db.server')
+  return isNoActiveEventSelected()
 })
 
 const upsertRaidHelperEvents = createServerOnlyFn(async (events: HammaEvent[]) => {

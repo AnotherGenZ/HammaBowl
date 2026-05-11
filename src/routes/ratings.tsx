@@ -399,7 +399,7 @@ function Ratings() {
         </div>
         {!event ? (
           <div className="empty-inline">
-            Ratings will be available once Raid Helper has a current HammaBowl event.
+            Ratings will be available once an active HammaBowl event is selected.
           </div>
         ) : null}
         {message ? (
