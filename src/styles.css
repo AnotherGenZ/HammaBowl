@@ -4398,6 +4398,40 @@ img.group-logo {
   align-items: center;
 }
 
+.reminder-editor {
+  display: grid;
+  gap: 10px;
+}
+
+.reminder-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(120px, 1fr));
+  gap: 10px;
+  align-items: end;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 10px;
+}
+
+.reminder-message-field {
+  grid-column: span 3;
+}
+
+.reminder-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.reminder-row-actions small {
+  color: #a8b2ae;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
 .spec-emoji-picker {
   position: relative;
 }
@@ -6738,6 +6772,14 @@ img.group-logo {
   .event-link-editor-row {
     grid-template-columns: 1fr;
     align-items: stretch;
+  }
+
+  .reminder-row {
+    grid-template-columns: 1fr;
+  }
+
+  .reminder-message-field {
+    grid-column: auto;
   }
 
   .coinflip-flow-panel,

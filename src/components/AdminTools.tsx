@@ -615,14 +615,28 @@ interface NativeEventOpsData {
   }
   limits: Array<{ status?: string; specName?: string; limit: number }>
   reminders: Array<{
+    id?: string
     kind: string
     target: string
     offsetMinutes: number
     channelId?: string
     message?: string
     enabled: boolean
+    lastSentAt?: string
   }>
   recurrences: Array<{ intervalDays: number; nextPostAt: string; enabled: boolean }>
+}
+
+interface NativeReminderFormRow {
+  clientId: string
+  id?: string
+  kind: string
+  target: string
+  offsetMinutes: string
+  channelId: string
+  message: string
+  enabled: boolean
+  lastSentAt?: string
 }
 
 interface DiscordGuildOptionsData {
@@ -670,6 +684,7 @@ function NativeEventOps({
   const [allowedRoleIds, setAllowedRoleIds] = useState<string[]>([])
   const [bannedRoleIds, setBannedRoleIds] = useState<string[]>([])
   const [mentionRoleIds, setMentionRoleIds] = useState<string[]>([])
+  const [reminders, setReminders] = useState<NativeReminderFormRow[]>(defaultReminderFormRows)
   const [signupDiscordId, setSignupDiscordId] = useState('')
   const [signupName, setSignupName] = useState('')
   const [signupStatus, setSignupStatus] = useState('accepted')
@@ -741,6 +756,7 @@ function NativeEventOps({
     setAllowedRoleIds([])
     setBannedRoleIds([])
     setMentionRoleIds([])
+    setReminders(defaultReminderFormRows())
     setSignupDiscordId('')
     setSignupName('')
     setSignupStatus('accepted')
@@ -801,10 +817,12 @@ function NativeEventOps({
       setAllowedRoleIds(eventOps.roleGates.allowedRoleIds)
       setBannedRoleIds(eventOps.roleGates.bannedRoleIds)
       setSignupLimit(String(eventOps.limits.find((limit) => !limit.status && !limit.specName)?.limit ?? ''))
+      setReminders(reminderRowsFromEventOps(eventOps.reminders))
     } else if (event.source !== 'native') {
       setAllowedRoleIds([])
       setBannedRoleIds([])
       setSignupLimit('')
+      setReminders(defaultReminderFormRows())
     }
   }, [creating, event, eventOps])
 
@@ -855,6 +873,7 @@ function NativeEventOps({
         allowedRoleIds,
         bannedRoleIds,
         mentionRoleIds,
+        reminders: reminderPayload(reminders),
       })
       setEventSetupErrors({})
       if (isEventResult(result)) onEvent(result.event)
@@ -893,6 +912,7 @@ function NativeEventOps({
         allowedRoleIds,
         bannedRoleIds,
         mentionRoleIds,
+        reminders: reminderPayload(reminders),
       })
       setEventSetupErrors({})
       if (isEventResult(result)) onEvent(result.event)
@@ -1120,7 +1140,19 @@ function NativeEventOps({
         </div>
       </AdminSection>
 
-      <AdminSection id="admin-event-signup-options" title="Signup Options">
+      <AdminSection
+        id="admin-event-signup-options"
+        title="Signup Options"
+        actions={
+          <button
+            type="button"
+            disabled={busy === eventSetupBusyLabel}
+            onClick={() => void onRun(eventSetupBusyLabel, eventSetupAction)}
+          >
+            {eventSetupActionLabel}
+          </button>
+        }
+      >
         <div className="event-result-grid">
           <div className="event-result-card">
             <strong>Spec definitions</strong>
@@ -1188,6 +1220,36 @@ function NativeEventOps({
             </label>
             {discordOptions.error ? <small>{discordOptions.error}</small> : null}
             {discordOptions.stale ? <small>Showing cached Discord options.</small> : null}
+          </div>
+        </div>
+      </AdminSection>
+
+      <AdminSection
+        id="admin-event-reminders"
+        title="Reminders"
+        actions={
+          <button
+            type="button"
+            disabled={busy === eventSetupBusyLabel}
+            onClick={() => void onRun(eventSetupBusyLabel, eventSetupAction)}
+          >
+            {eventSetupActionLabel}
+          </button>
+        }
+      >
+        <div className="event-result-grid">
+          <div className="event-result-card">
+            <div className="event-link-editor-heading">
+              <strong>Reminder schedule</strong>
+              <button type="button" className="secondary" onClick={() => setReminders((current) => [...current, createReminderFormRow()])}>
+                Add reminder
+              </button>
+            </div>
+            <ReminderEditor
+              value={reminders}
+              channels={discordOptions.channels}
+              onChange={setReminders}
+            />
           </div>
         </div>
       </AdminSection>
@@ -1524,6 +1586,114 @@ function FieldError({ message }: { message?: string }) {
   return message ? <span className="field-error">{message}</span> : null
 }
 
+const REMINDER_KIND_OPTIONS = [
+  { value: 'signup_close', label: 'Signup close' },
+  { value: 'event_start', label: 'Event start' },
+]
+
+const REMINDER_TARGET_OPTIONS = [
+  { value: 'signed', label: 'Signed' },
+  { value: 'maybe', label: 'Maybe' },
+  { value: 'bench', label: 'Bench' },
+  { value: 'maybe_bench', label: 'Maybe + bench' },
+  { value: 'unsigned', label: 'Unsigned' },
+  { value: 'admins', label: 'Admins' },
+  { value: 'event_channel', label: 'Event channel' },
+]
+
+function ReminderEditor({
+  value,
+  channels,
+  onChange,
+}: {
+  value: NativeReminderFormRow[]
+  channels: DiscordGuildOptionsData['channels']
+  onChange: (value: NativeReminderFormRow[]) => void
+}) {
+  function updateReminder(clientId: string, patch: Partial<NativeReminderFormRow>) {
+    onChange(value.map((reminder) => reminder.clientId === clientId ? { ...reminder, ...patch } : reminder))
+  }
+
+  function removeReminder(clientId: string) {
+    onChange(value.filter((reminder) => reminder.clientId !== clientId))
+  }
+
+  if (!value.length) {
+    return <div className="empty-inline">No reminders configured</div>
+  }
+
+  return (
+    <div className="reminder-editor">
+      {value.map((reminder) => (
+        <div className="reminder-row" key={reminder.clientId}>
+          <label>
+            Trigger
+            <select value={reminder.kind} onChange={(event) => updateReminder(reminder.clientId, { kind: event.currentTarget.value })}>
+              {REMINDER_KIND_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Target
+            <select value={reminder.target} onChange={(event) => updateReminder(reminder.clientId, { target: event.currentTarget.value })}>
+              {REMINDER_TARGET_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Minutes before
+            <input
+              type="number"
+              min="0"
+              max="43200"
+              value={reminder.offsetMinutes}
+              onChange={(event) => updateReminder(reminder.clientId, { offsetMinutes: event.currentTarget.value })}
+            />
+          </label>
+          <label>
+            Channel
+            <select value={reminder.channelId} onChange={(event) => updateReminder(reminder.clientId, { channelId: event.currentTarget.value })}>
+              <option value="">Event channel</option>
+              {selectedMissingFromOptions(reminder.channelId, channels) ? (
+                <option value={reminder.channelId}>{reminder.channelId}</option>
+              ) : null}
+              {channels.map((channel) => (
+                <option key={channel.id} value={channel.id}>
+                  #{channel.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="reminder-message-field">
+            Message
+            <textarea
+              rows={2}
+              value={reminder.message}
+              onChange={(event) => updateReminder(reminder.clientId, { message: event.currentTarget.value })}
+            />
+          </label>
+          <div className="reminder-row-actions">
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={reminder.enabled}
+                onChange={(event) => updateReminder(reminder.clientId, { enabled: event.currentTarget.checked })}
+              />
+              Enabled
+            </label>
+            {reminder.lastSentAt ? <small>Sent {shortDate(reminder.lastSentAt)}</small> : null}
+            <button type="button" className="secondary" onClick={() => removeReminder(reminder.clientId)}>
+              Remove
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function SpecOptionEditor({
   value,
   emojiOptions,
@@ -1756,6 +1926,68 @@ function applySpecLimits(specs: EventSpecOption[], limits: NativeEventOpsData['l
     ...spec,
     limit: limitsBySpec.get(spec.name) ?? spec.limit,
   }))
+}
+
+function defaultReminderFormRows() {
+  return [
+    createReminderFormRow({
+      kind: 'signup_close',
+      target: 'unsigned',
+      offsetMinutes: 120,
+      message: 'Signups close soon.',
+      enabled: true,
+    }),
+    createReminderFormRow({
+      kind: 'event_start',
+      target: 'signed',
+      offsetMinutes: 60,
+      message: 'Hamma Bowl starts soon.',
+      enabled: true,
+    }),
+    createReminderFormRow({
+      kind: 'event_start',
+      target: 'admins',
+      offsetMinutes: 30,
+      message: 'Review signups before event start.',
+      enabled: true,
+    }),
+  ]
+}
+
+function reminderRowsFromEventOps(reminders: NativeEventOpsData['reminders']) {
+  return reminders.length
+    ? reminders.map((reminder) => createReminderFormRow(reminder))
+    : defaultReminderFormRows()
+}
+
+function createReminderFormRow(reminder: Partial<NativeEventOpsData['reminders'][number]> = {}): NativeReminderFormRow {
+  return {
+    clientId: newClientId('reminder'),
+    id: reminder.id,
+    kind: reminder.kind ?? 'event_start',
+    target: reminder.target ?? 'signed',
+    offsetMinutes: String(reminder.offsetMinutes ?? 60),
+    channelId: reminder.channelId ?? '',
+    message: reminder.message ?? '',
+    enabled: reminder.enabled ?? true,
+    lastSentAt: reminder.lastSentAt,
+  }
+}
+
+function reminderPayload(reminders: NativeReminderFormRow[]) {
+  return reminders.map((reminder) => ({
+    id: reminder.id,
+    kind: reminder.kind,
+    target: reminder.target,
+    offsetMinutes: reminder.offsetMinutes,
+    channelId: reminder.channelId,
+    message: reminder.message,
+    enabled: reminder.enabled,
+  }))
+}
+
+function newClientId(prefix: string) {
+  return `${prefix}-${globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2)}`
 }
 
 function specOptionsFromNames(names: string[]) {

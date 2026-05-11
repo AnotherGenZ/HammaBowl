@@ -10,12 +10,13 @@ import type { HammaEvent } from '../lib/types'
 const EVENT_SETUP_SECTIONS: AdminSidebarSection[] = [
   { id: 'admin-event-overview', label: 'Overview', status: 'ok', group: 'Event Setup' },
   { id: 'admin-event-signup-options', label: 'Signup Options', status: 'ok', group: 'Event Setup' },
+  { id: 'admin-event-reminders', label: 'Reminders', status: 'ok', group: 'Event Setup' },
   { id: 'admin-signups', label: 'Signup Management', status: 'ok', group: 'Event Setup' },
   { id: 'admin-event-discord', label: 'Discord Publishing', status: 'ok', group: 'Event Setup' },
   { id: 'admin-event-danger', label: 'Danger Zone', status: 'warning', group: 'Event Setup' },
 ]
 
-const CREATE_EVENT_SECTIONS: AdminSidebarSection[] = EVENT_SETUP_SECTIONS.slice(0, 2)
+const CREATE_EVENT_SECTIONS: AdminSidebarSection[] = EVENT_SETUP_SECTIONS.slice(0, 3)
 
 const MATCH_SETUP_SECTIONS: AdminSidebarSection[] = [
   { id: 'admin-event-details', label: 'Match Details', status: 'ok', group: 'Match Setup' },
