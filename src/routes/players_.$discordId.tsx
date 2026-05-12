@@ -7,6 +7,32 @@ import { PlayerName } from '../components/PlayerName'
 import { shortDate } from '../lib/format'
 import { pageMeta } from '../lib/meta'
 import type { AdminPlayerProfileEditorData, PlayerBadge } from '../lib/types'
+import {
+  adminBadgeEditorClass,
+  adminProfileModalClass,
+  badgeSettingsListClass,
+  badgeSettingsRowClass,
+  breadcrumbNavClass,
+  eyebrowClass,
+  infoListClass,
+  modalBackdropClass,
+  modalCloseClass,
+  profileEventDateClass,
+  profileEventResultClass,
+  profileEventsTableClass,
+  profileEventsTableWrapClass,
+  ratingChartClass,
+  playerGroupTagClass,
+  playerNameWithGroupClass,
+  profileCatchphraseClass,
+  profileEditIconClass,
+  profileGroupTagLinkClass,
+  profileHeroBadgesClass,
+  profileHeroClass,
+  profileIdentityClass,
+  profileMetricClass,
+  profileStatsGridClass,
+} from '../lib/ui'
 import { useDisplayTimeZone } from '../lib/useDisplayTimeZone'
 
 const loadPlayerProfile = createServerFn({ method: 'GET' })
@@ -51,15 +77,15 @@ function PlayerProfilePage() {
 
   if (!profile) {
     return (
-      <main className="min-w-0">
-        <nav className="breadcrumb-nav" aria-label="Breadcrumb">
+      <main className="min-w-0 mx-auto w-[min(1180px,calc(100%_-_32px))] py-7 pb-[54px] max-[1023px]:w-[min(100%_-_24px,1180px)] max-[1023px]:py-[18px] max-[1023px]:pb-[42px] max-[480px]:w-[min(100%_-_18px,1180px)]">
+        <nav className={breadcrumbNavClass} aria-label="Breadcrumb">
           <Link to="/players" activeOptions={{ exact: true }}>
             Players
           </Link>
           <span aria-hidden="true">/</span>
           <span aria-current="page">Player not found</span>
         </nav>
-        <section className="panel empty-state">
+        <section className="panel rounded-lg border border-white/[0.10] bg-white/[0.055] p-[clamp(18px,3vw,28px)] mt-[18px] first:mt-0 max-[720px]:px-[clamp(14px,4vw,18px)]  empty-state min-h-[320px] grid content-center justify-items-center text-center gap-2.5 [&_p]:text-[#c0c8c6]">
           <h1>Player not found</h1>
         </section>
       </main>
@@ -72,8 +98,8 @@ function PlayerProfilePage() {
   }))
 
   return (
-    <main className="min-w-0">
-      <nav className="breadcrumb-nav" aria-label="Breadcrumb">
+    <main className="min-w-0 mx-auto w-[min(1180px,calc(100%_-_32px))] py-7 pb-[54px] max-[1023px]:w-[min(100%_-_24px,1180px)] max-[1023px]:py-[18px] max-[1023px]:pb-[42px] max-[480px]:w-[min(100%_-_18px,1180px)]">
+      <nav className={breadcrumbNavClass} aria-label="Breadcrumb">
         <Link to="/players" activeOptions={{ exact: true }}>
           Players
         </Link>
@@ -83,12 +109,12 @@ function PlayerProfilePage() {
         </span>
       </nav>
       <section
-        className="profile-hero"
+        className={profileHeroClass}
         style={profile.bannerUrl ? { backgroundImage: `url(${profile.bannerUrl})` } : undefined}
       >
         {isAdmin || isOwner ? (
           <button
-            className="profile-edit-icon"
+            className={profileEditIconClass}
             type="button"
             aria-label="Edit profile"
             title="Edit profile"
@@ -106,33 +132,33 @@ function PlayerProfilePage() {
             </svg>
           </button>
         ) : null}
-        <div className="profile-identity">
+        <div className={profileIdentityClass}>
           {profile.avatarUrl ? <img src={profile.avatarUrl} alt="" /> : <span>{displayName.slice(0, 1)}</span>}
           <div>
             {/*<p className="eyebrow">Player profile</p>*/}
             <h1>
-              <span className="player-name-with-group">
+              <span className={playerNameWithGroupClass}>
                 {profile.groupId && profile.groupTag ? (
                   <Link
                     to="/groups/$groupId"
                     params={{ groupId: profile.groupId }}
-                    className="player-group-tag profile-group-tag-link"
+                    className={profileGroupTagLinkClass}
                     style={groupTagStyle(profile.groupTagColor)}
                     title={profile.groupName ? `View ${profile.groupName}` : 'View group'}
                   >
                     {profile.groupTag}
                   </Link>
                 ) : profile.groupTag ? (
-                  <span className="player-group-tag" style={groupTagStyle(profile.groupTagColor)}>
+                  <span className={playerGroupTagClass} style={groupTagStyle(profile.groupTagColor)}>
                     {profile.groupTag}
                   </span>
                 ) : null}
                 <span>{displayName}</span>
               </span>
             </h1>
-            {catchphrase ? <p className="profile-catchphrase">{catchphrase}</p> : null}
+            {catchphrase ? <p className={profileCatchphraseClass}>{catchphrase}</p> : null}
             {badges.length ? (
-              <div className="profile-hero-badges">
+              <div className={profileHeroBadgesClass}>
                 {badges.map((badge) => (
                   <span key={badge.id} title={badge.description} style={badgeStyle(badge.color)}>
                     {badge.name}
@@ -157,12 +183,12 @@ function PlayerProfilePage() {
         />
       ) : null}
 
-      <section className="profile-grid">
-        <article className="panel">
-          <div className="section-heading">
+      <section className="profile-grid grid min-w-0 grid-cols-2 gap-[18px] max-[720px]:grid-cols-1 [&>.panel]:mt-0">
+        <article className="panel rounded-lg border border-white/[0.10] bg-white/[0.055] p-[clamp(18px,3vw,28px)] mt-[18px] first:mt-0 max-[720px]:px-[clamp(14px,4vw,18px)] ">
+          <div className="section-heading mb-5 flex items-center justify-between gap-3 max-[720px]:grid max-[720px]:grid-cols-1 max-[720px]:items-start [&>*]:min-w-0">
             <h2>Stats</h2>
           </div>
-          <dl>
+          <dl className={profileStatsGridClass}>
             <Metric label="Events" value={profile.stats.events.toString()} />
             <Metric label="Wins" value={profile.stats.wins.toString()} />
             <Metric
@@ -178,16 +204,16 @@ function PlayerProfilePage() {
           </dl>
         </article>
 
-        <article className="panel">
-          <div className="section-heading">
+        <article className="panel rounded-lg border border-white/[0.10] bg-white/[0.055] p-[clamp(18px,3vw,28px)] mt-[18px] first:mt-0 max-[720px]:px-[clamp(14px,4vw,18px)] ">
+          <div className="section-heading mb-5 flex items-center justify-between gap-3 max-[720px]:grid max-[720px]:grid-cols-1 max-[720px]:items-start [&>*]:min-w-0">
             <h2>Characters</h2>
             {isOwner ? (
-              <Link to="/settings" className="pill">
+              <Link to="/settings" className="inline-flex min-h-9 w-fit max-w-full items-center rounded-full border border-white/[0.08] bg-white/[0.08] px-3 text-[#cbd5d3] transition-colors hover:bg-white/[0.12] hover:text-[#fff7e6]">
                 Edit
               </Link>
             ) : null}
           </div>
-          <div className="character-list">
+          <div className={infoListClass}>
             {profile.characters.length ? (
               profile.characters.map((character) => (
                 <span key={character.faction}>
@@ -196,18 +222,18 @@ function PlayerProfilePage() {
                 </span>
               ))
             ) : (
-              <div className="empty-inline">No linked characters.</div>
+              <div className="empty-inline flex min-h-11 w-full items-center gap-2 rounded-lg border border-dashed border-white/[0.12] bg-white/[0.04] px-3.5 py-3 font-bold text-[#b4bcbb]">No linked characters.</div>
             )}
           </div>
         </article>
 
-        <article className="panel profile-wide">
-          <div className="section-heading">
+        <article className="panel rounded-lg border border-white/[0.10] bg-white/[0.055] p-[clamp(18px,3vw,28px)] mt-[18px] first:mt-0 max-[720px]:px-[clamp(14px,4vw,18px)]  col-span-full">
+          <div className="section-heading mb-5 flex items-center justify-between gap-3 max-[720px]:grid max-[720px]:grid-cols-1 max-[720px]:items-start [&>*]:min-w-0">
             <h2>Events</h2>
           </div>
           {profile.events.length ? (
-            <div className="profile-events-table-wrap">
-              <table className="profile-events-table">
+            <div className={profileEventsTableWrapClass}>
+              <table className={profileEventsTableClass}>
                 <thead>
                   <tr>
                     <th>Event</th>
@@ -223,14 +249,14 @@ function PlayerProfilePage() {
                         <Link to="/hall-of-legends/$eventId" params={{ eventId: event.id }}>
                           {event.name}
                         </Link>
-                        <span className="profile-event-date">
+                        <span className={profileEventDateClass}>
                           {shortDate(event.startsAt, { timeZone: displayTimeZone })}
                         </span>
                       </td>
                       <td>{event.teamName ?? 'Unassigned'}</td>
                       <td>{eventRoleLabel(event.role)}</td>
                       <td>
-                        <span className={`profile-event-result ${event.winner ? 'win' : 'loss'}`}>
+                        <span className={profileEventResultClass(event.winner)}>
                           {event.winner ? 'Win' : 'Loss'}
                         </span>
                       </td>
@@ -240,17 +266,17 @@ function PlayerProfilePage() {
               </table>
             </div>
           ) : (
-            <div className="empty-inline">No completed event participation yet.</div>
+            <div className="empty-inline flex min-h-11 w-full items-center gap-2 rounded-lg border border-dashed border-white/[0.12] bg-white/[0.04] px-3.5 py-3 font-bold text-[#b4bcbb]">No completed event participation yet.</div>
           )}
         </article>
 
-        <article className="panel profile-wide">
-          <div className="section-heading">
+        <article className="panel rounded-lg border border-white/[0.10] bg-white/[0.055] p-[clamp(18px,3vw,28px)] mt-[18px] first:mt-0 max-[720px]:px-[clamp(14px,4vw,18px)]  col-span-full">
+          <div className="section-heading mb-5 flex items-center justify-between gap-3 max-[720px]:grid max-[720px]:grid-cols-1 max-[720px]:items-start [&>*]:min-w-0">
             <h2>Rating history</h2>
             {ratingHistory.length > 1 ? (
               <button
                 type="button"
-                className="text-button"
+                className="inline-flex min-h-[30px] cursor-pointer items-center justify-center gap-1.5 rounded-md border border-white/[0.14] bg-white/[0.07] px-2.5 font-extrabold text-[#f4f0e8] transition-colors hover:border-white/[0.22] hover:bg-white/[0.14] disabled:cursor-not-allowed disabled:opacity-55"
                 onClick={() => setChartExpanded((v) => !v)}
               >
                 {chartExpanded ? 'Collapse' : 'Expand'}
@@ -258,7 +284,7 @@ function PlayerProfilePage() {
             ) : null}
           </div>
           {ratingHistory.length ? (
-            <div className={`rating-chart${chartExpanded ? ' rating-chart-expanded' : ''}`}>
+            <div className={ratingChartClass(chartExpanded)}>
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={ratingHistory} margin={{ top: 12, right: 18, bottom: 8, left: 0 }}>
                   <CartesianGrid stroke="rgba(255, 255, 255, 0.08)" vertical={false} />
@@ -307,7 +333,7 @@ function PlayerProfilePage() {
               </ResponsiveContainer>
             </div>
           ) : (
-            <div className="empty-inline">No rating history yet.</div>
+            <div className="empty-inline flex min-h-11 w-full items-center gap-2 rounded-lg border border-dashed border-white/[0.12] bg-white/[0.04] px-3.5 py-3 font-bold text-[#b4bcbb]">No rating history yet.</div>
           )}
         </article>
       </section>
@@ -335,22 +361,22 @@ function AdminProfileEditorModal({
   onNameChanged: (name: string) => void
 }) {
   return (
-    <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
+    <div className={modalBackdropClass} role="presentation" onMouseDown={onClose}>
       <section
-        className="modal-panel admin-profile-modal"
+        className={adminProfileModalClass}
         role="dialog"
         aria-modal="true"
         aria-labelledby="admin-profile-editor-title"
         onMouseDown={(event) => event.stopPropagation()}
       >
-        <div className="section-heading">
+        <div className="section-heading mb-5 flex items-center justify-between gap-3 max-[720px]:grid max-[720px]:grid-cols-1 max-[720px]:items-start [&>*]:min-w-0">
           <div>
-            <p className="eyebrow">Admin profile editor</p>
+            <p className={eyebrowClass}>Admin profile editor</p>
             <h2 id="admin-profile-editor-title">
               <PlayerName name={playerName} groupTag={groupTag} groupTagColor={groupTagColor} />
             </h2>
           </div>
-          <button type="button" className="modal-close" aria-label="Close profile editor" onClick={onClose}>
+          <button type="button" className={modalCloseClass} aria-label="Close profile editor" onClick={onClose}>
             ×
           </button>
         </div>
@@ -476,24 +502,24 @@ function PlayerBadgeEditor({
 
   if (!data) {
     return (
-      <section className="admin-badge-editor">
-        <div className="section-heading">
+      <section className={adminBadgeEditorClass}>
+        <div className="section-heading mb-5 flex items-center justify-between gap-3 max-[720px]:grid max-[720px]:grid-cols-1 max-[720px]:items-start [&>*]:min-w-0">
           <h2>Badges</h2>
         </div>
-        <div className="empty-inline"><span className="spinner" aria-label="Loading" /> Loading badges.</div>
+        <div className="empty-inline flex min-h-11 w-full items-center gap-2 rounded-lg border border-dashed border-white/[0.12] bg-white/[0.04] px-3.5 py-3 font-bold text-[#b4bcbb]"><span className="spinner" aria-label="Loading" /> Loading badges.</div>
       </section>
     )
   }
 
   return (
-    <section className="admin-badge-editor">
-      <div className="section-heading">
+    <section className={adminBadgeEditorClass}>
+      <div className="section-heading mb-5 flex items-center justify-between gap-3 max-[720px]:grid max-[720px]:grid-cols-1 max-[720px]:items-start [&>*]:min-w-0">
         <h2>Profile controls</h2>
       </div>
-      {message ? <div className="admin-result">{message}</div> : null}
-      <div className="badge-settings-list">
-        <article className="badge-settings-row" data-selected={name.trim() !== data.player.name}>
-          <label className="profile-name-field">
+      {message ? <div className="mb-4 rounded-lg border border-white/[0.10] bg-white/[0.06] px-3.5 py-3 text-[#d8dedc]">{message}</div> : null}
+      <div className={badgeSettingsListClass}>
+        <article className={badgeSettingsRowClass} data-selected={name.trim() !== data.player.name}>
+          <label className="profile-name-field grid gap-2 [&_input]:min-h-10 [&_input]:w-full [&_input]:min-w-0 [&_input]:rounded-md [&_input]:border [&_input]:border-white/[0.18] [&_input]:bg-[#121417] [&_input]:px-2.5 [&_input]:font-bold [&_input]:text-[#f4f0e8] [&+button]:self-end">
             <span>
               <strong>Display name</strong>
               <small>Shown across player profiles, events, and admin tools.</small>
@@ -505,7 +531,7 @@ function PlayerBadgeEditor({
               onChange={(event) => setName(event.currentTarget.value)}
             />
           </label>
-          <button
+          <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55"
             type="button"
             disabled={busy === 'name' || !name.trim() || name.trim() === data.player.name}
             onClick={() => void renamePlayer()}
@@ -515,15 +541,15 @@ function PlayerBadgeEditor({
           </button>
         </article>
       </div>
-      <div className="badge-settings-list">
-        <article className="badge-settings-row" data-selected={Boolean(data.catchphrase)}>
+      <div className={badgeSettingsListClass}>
+        <article className={badgeSettingsRowClass} data-selected={Boolean(data.catchphrase)}>
           <span>
             <strong>Catchphrase</strong>
             <small>{data.catchphrase || 'No catchphrase set.'}</small>
           </span>
           <button
             type="button"
-            className="danger-button"
+            className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#d94f3d]/90 bg-[#b94135] px-3.5 font-extrabold text-[#fff6f3] transition-colors hover:bg-[#c94e41] disabled:cursor-not-allowed disabled:bg-[#b94135]/34 disabled:text-[#ffd9d1] disabled:opacity-75"
             disabled={busy === 'catchphrase' || !data.catchphrase}
             onClick={() => void resetCatchphrase()}
           >
@@ -532,15 +558,15 @@ function PlayerBadgeEditor({
           </button>
         </article>
       </div>
-      <div className="section-heading">
+      <div className="section-heading mb-5 flex items-center justify-between gap-3 max-[720px]:grid max-[720px]:grid-cols-1 max-[720px]:items-start [&>*]:min-w-0">
         <h2>Badges</h2>
       </div>
-      <div className="badge-settings-list">
+      <div className={badgeSettingsListClass}>
         {data.badges.length ? (
           data.badges.map((badge) => {
             const checked = data.assignedBadgeIds.includes(badge.id)
             return (
-              <article className="badge-settings-row" key={badge.id} data-selected={checked}>
+              <article className={badgeSettingsRowClass} key={badge.id} data-selected={checked}>
                 <label className="checkbox-field">
                   <input
                     type="checkbox"
@@ -560,7 +586,7 @@ function PlayerBadgeEditor({
             )
           })
         ) : (
-          <div className="empty-inline">No badges have been created yet.</div>
+          <div className="empty-inline flex min-h-11 w-full items-center gap-2 rounded-lg border border-dashed border-white/[0.12] bg-white/[0.04] px-3.5 py-3 font-bold text-[#b4bcbb]">No badges have been created yet.</div>
         )}
       </div>
     </section>
@@ -583,7 +609,7 @@ function eventRoleLabel(role?: 'captain' | 'player') {
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="metric">
+    <div className={profileMetricClass}>
       <dt>{label}</dt>
       <dd>{value}</dd>
     </div>

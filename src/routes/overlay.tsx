@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { pageMeta } from '../lib/meta'
 import { getCurrentEvent } from '../lib/services'
+import { overlayPageClass, overlayPanelClass, overlayScoreClass } from '../lib/ui'
 import { useRealtimeCurrentEvent } from '../lib/useRealtimeCurrentEvent'
 
 export const Route = createFileRoute('/overlay')({
@@ -22,13 +23,13 @@ function Overlay() {
   const [event] = useRealtimeCurrentEvent(initialEvent)
 
   return (
-    <main className="overlay-page min-w-0">
-      <section className="overlay">
+    <main className={overlayPageClass}>
+      <section className={overlayPanelClass}>
         <div>
           <p>{event?.name ?? 'No current event'}</p>
           <h1>HammaBowl</h1>
         </div>
-        <div className="overlay-score">
+        <div className={overlayScoreClass}>
           {(event?.teams ?? []).map((captain) => (
             <article key={captain.id}>
               <span>{captain.teamName}</span>

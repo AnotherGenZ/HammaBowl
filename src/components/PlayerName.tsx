@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react'
+import { playerGroupTagClass, playerNameWithGroupClass } from '../lib/ui'
 
 interface PlayerNameProps {
   name: string
@@ -11,9 +12,9 @@ export function PlayerName({ name, groupTag, groupTagColor, className }: PlayerN
   const tagStyle = groupTagColor ? ({ '--group-tag-color': groupTagColor } as CSSProperties) : undefined
 
   return (
-    <span className={className ? `player-name-with-group ${className}` : 'player-name-with-group'}>
+    <span className={className ? `${playerNameWithGroupClass} ${className}` : playerNameWithGroupClass}>
       {groupTag ? (
-        <span className="player-group-tag" style={tagStyle}>
+        <span className={playerGroupTagClass} style={tagStyle}>
           {groupTag}
         </span>
       ) : null}

@@ -20,6 +20,90 @@ import { localDatetimeToIso, shortDate, toDatetimeLocalValue } from '../lib/form
 import { useDisplayTimeZone } from '../lib/useDisplayTimeZone'
 import { HONU_ALERT_ZONE_OPTIONS } from '../lib/honu'
 import { undraftedDraftEligiblePlayers } from '../lib/rules'
+import {
+  adminFormCardClass,
+  adminAssignmentInfoListClass,
+  adminHeadingActionsClass,
+  adminHeadingControlClass,
+  adminHeadingEventSelectClass,
+  adminSectionActionsClass,
+  adminSectionBodyClass,
+  adminSectionClass,
+  adminSectionFooterClass,
+  adminSectionHeaderClass,
+  adminStackClass,
+  assignmentCardClass,
+  assignmentGridClass,
+  assignmentHeadingClass,
+  assignmentPanelClass,
+  badgeAdminGridClass,
+  badgeDefinitionActionsClass,
+  badgeDefinitionCardClass,
+  badgeDefinitionCardsClass,
+  badgeDefinitionFieldsClass,
+  badgeDefinitionGroupClass,
+  badgeDefinitionListClass,
+  checkRowClass,
+  chipInputClass,
+  coinflipCardClass,
+  coinflipCallControlClass,
+  coinflipFieldClass,
+  coinflipGridClass,
+  coinflipSettingsHeadingClass,
+  collapseToggleClass,
+  dangerZoneCardClass,
+  dangerZoneGridClass,
+  eventResultCardClass,
+  eventResultGridClass,
+  eventModeChipClass,
+  eventLinkEditorClass,
+  eventLinkEditorHeadingClass,
+  eventLinkEditorRowClass,
+  eventIconPickerButtonClass,
+  eventIconPickerClass,
+  eventIconPickerPopupClass,
+  eventIconPickerTriggerClass,
+  embedColorIndicatorClass,
+  embedColorIndicatorOptionsClass,
+  fieldErrorClass,
+  fieldRowClass,
+  flowActionsClass,
+  flowPanelClass,
+  inlineColorFieldClass,
+  psbAccountEmptyClass,
+  psbAccountResultButtonClass,
+  psbAccountResultsClass,
+  ratingAdjustmentGridClass,
+  roundAdminGridClass,
+  roundListCardClass,
+  roundResultListClass,
+  roundResultRowClass,
+  roundScoreInputsClass,
+  roleChipClass,
+  roleChipRemoveButtonClass,
+  roleComboboxClass,
+  roleComboboxControlClass,
+  roleComboboxMenuClass,
+  roleComboboxOptionClass,
+  segmentedControlButtonClass,
+  segmentedControlClass,
+  reminderEditorClass,
+  reminderMessageFieldClass,
+  reminderRowActionsClass,
+  reminderRowClass,
+  specOptionEditorClass,
+  specOptionRowClass,
+  specCheckboxGridClass,
+  specLabelClass,
+  emojiPreviewClass,
+  specEmojiPickerClass,
+  specEmojiPopoverClass,
+  specEmojiTriggerClass,
+  sideChipClass,
+  sideChipRemoveButtonClass,
+  teamAdminGridClass,
+  teamReportLinkClass,
+} from '../lib/ui'
 import { DateTimeLocalInput } from './DateTimeLocalInput'
 import { EVENT_LINK_ICON_OPTIONS, EventLinkIcon } from './EventLinkIcons'
 import { PlayerName } from './PlayerName'
@@ -202,8 +286,8 @@ export function AdminTools({
   }
 
   return (
-    <section className="panel">
-      <div className="section-heading">
+    <section className="panel rounded-lg border border-white/[0.10] bg-white/[0.055] p-[clamp(18px,3vw,28px)] mt-[18px] first:mt-0 max-[720px]:px-[clamp(14px,4vw,18px)] ">
+      <div className="section-heading mb-5 flex items-center justify-between gap-3 max-[720px]:grid max-[720px]:grid-cols-1 max-[720px]:items-start [&>*]:min-w-0">
         <div>
           <h1>Event Admin</h1>
         </div>
@@ -218,9 +302,9 @@ export function AdminTools({
         />
       </div>
 
-      {message ? <div className="admin-result">{message}</div> : null}
+      {message ? <div className="mb-4 rounded-lg border border-white/[0.10] bg-white/[0.06] px-3.5 py-3 text-[#d8dedc]">{message}</div> : null}
 
-      <div className="admin-stack">
+      <div className={adminStackClass}>
         <NativeEventOps
           event={currentEvent}
           creating={creatingEvent}
@@ -268,7 +352,7 @@ export function AdminTools({
               id="admin-composition"
               title="Team composition"
               actions={
-                <button
+                <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55"
                   type="button"
                   disabled={busy === 'post' || !canSyncTeams}
                   title={
@@ -323,12 +407,12 @@ function EventTargetControls({
   const options = event ? mergeEventOptions(currentEvents, event) : currentEvents
 
   return (
-    <div className="admin-heading-actions">
+    <div className={adminHeadingActionsClass}>
       {creating ? (
-        <div className="event-mode-chip">Creating new event</div>
+        <div className={eventModeChipClass}>Creating new event</div>
       ) : (
-        <div className="admin-heading-event-select">
-          <label className="admin-heading-control">
+        <div className={adminHeadingEventSelectClass}>
+          <label className={adminHeadingControlClass}>
             Editing event
             <select
               value={event?.id ?? ''}
@@ -348,16 +432,16 @@ function EventTargetControls({
               ))}
             </select>
           </label>
-          {event ? <div className="event-mode-chip">{formatEventModeChip(event)}</div> : null}
+          {event ? <div className={eventModeChipClass}>{formatEventModeChip(event)}</div> : null}
         </div>
       )}
-      <div className="button-row">
+      <div className="flex flex-wrap justify-end gap-2">
         {creating && options.length ? (
-          <button type="button" className="secondary" onClick={onCancel}>
+          <button type="button" className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e]/40 bg-[#e4b45e]/[0.10] px-3.5 font-extrabold text-[#f3d99d] transition-colors hover:border-[#f0c878]/70 hover:bg-[#e4b45e]/[0.20] disabled:cursor-not-allowed disabled:opacity-55" onClick={onCancel}>
             Cancel
           </button>
         ) : creating ? null : (
-          <button type="button" className="secondary" onClick={onNew}>
+          <button type="button" className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e]/40 bg-[#e4b45e]/[0.10] px-3.5 font-extrabold text-[#f3d99d] transition-colors hover:border-[#f0c878]/70 hover:bg-[#e4b45e]/[0.20] disabled:cursor-not-allowed disabled:opacity-55" onClick={onNew}>
             New event
           </button>
         )}
@@ -398,8 +482,8 @@ function ActiveEventControls({
 
   return (
     <AdminSection id="admin-active-event" title="Active event">
-      <div className="event-result-grid">
-        <div className="event-result-card">
+      <div className={eventResultGridClass}>
+        <div className={eventResultCardClass}>
           <strong>Admin target</strong>
           <label>
             Active event
@@ -415,7 +499,7 @@ function ActiveEventControls({
               ))}
             </select>
           </label>
-          <button
+          <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55"
             type="button"
             disabled={busy === 'active-event' || activeEventId === (event?.id ?? '')}
             onClick={() =>
@@ -517,16 +601,16 @@ export function GeneralAdminTools({
   }
 
   return (
-    <section className="panel">
-      <div className="section-heading">
+    <section className="panel rounded-lg border border-white/[0.10] bg-white/[0.055] p-[clamp(18px,3vw,28px)] mt-[18px] first:mt-0 max-[720px]:px-[clamp(14px,4vw,18px)] ">
+      <div className="section-heading mb-5 flex items-center justify-between gap-3 max-[720px]:grid max-[720px]:grid-cols-1 max-[720px]:items-start [&>*]:min-w-0">
         <div>
           <h1>General controls</h1>
         </div>
       </div>
 
-      {message ? <div className="admin-result">{message}</div> : null}
+      {message ? <div className="mb-4 rounded-lg border border-white/[0.10] bg-white/[0.06] px-3.5 py-3 text-[#d8dedc]">{message}</div> : null}
 
-      <div className="admin-stack">
+      <div className={adminStackClass}>
         <ActiveEventControls
           event={activeEvent}
           currentEvents={currentEventOptions}
@@ -540,7 +624,7 @@ export function GeneralAdminTools({
             id="admin-event-sync"
             title="Event sync"
             actions={
-              <button
+              <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55"
                 type="button"
                 disabled={busy === 'refresh'}
                 onClick={() =>
@@ -562,7 +646,7 @@ export function GeneralAdminTools({
           id="admin-discord-cache"
           title="Discord cache"
           actions={
-            <button
+            <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55"
               type="button"
               disabled={busy === 'discord-options-refresh'}
               onClick={() =>
@@ -1017,7 +1101,7 @@ function NativeEventOps({
         id="admin-event-overview"
         title="Overview"
         actions={
-          <button
+          <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55"
             type="button"
             disabled={busy === eventSetupBusyLabel}
             onClick={() => void onRun(eventSetupBusyLabel, eventSetupAction)}
@@ -1026,8 +1110,8 @@ function NativeEventOps({
           </button>
         }
       >
-        <div className="event-result-grid">
-          <div className="event-result-card">
+        <div className={eventResultGridClass}>
+          <div className={eventResultCardClass}>
             <strong>{creating ? 'New native event' : nativeSelected ? 'Native event' : 'Native event copy'}</strong>
             {!creating && !nativeSelected ? (
               <small>Match settings below apply to the selected event. Event setup changes here create a new native event.</small>
@@ -1100,9 +1184,9 @@ function NativeEventOps({
                 ))}
               </select>
             </label>
-            <div className="embed-color-indicator">
+            <div className={embedColorIndicatorClass}>
               <span>Embed color</span>
-              <div className="embed-color-indicator-options">
+              <div className={embedColorIndicatorOptionsClass}>
                 <span><i data-state="open" /> Green: signups open</span>
                 <span><i data-state="closing" /> Yellow: under 1 hour left</span>
                 <span><i data-state="closed" /> Red: signups closed</span>
@@ -1130,7 +1214,7 @@ function NativeEventOps({
             </label>
           </div>
 
-          <div className="event-result-card">
+          <div className={eventResultCardClass}>
             <strong>Description</strong>
             <label>
               Event description
@@ -1144,7 +1228,7 @@ function NativeEventOps({
         id="admin-event-signup-options"
         title="Signup Options"
         actions={
-          <button
+          <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55"
             type="button"
             disabled={busy === eventSetupBusyLabel}
             onClick={() => void onRun(eventSetupBusyLabel, eventSetupAction)}
@@ -1153,8 +1237,8 @@ function NativeEventOps({
           </button>
         }
       >
-        <div className="event-result-grid">
-          <div className="event-result-card">
+        <div className={eventResultGridClass}>
+          <div className={eventResultCardClass}>
             <strong>Spec definitions</strong>
             <label>
               Specs
@@ -1165,7 +1249,7 @@ function NativeEventOps({
               />
             </label>
           </div>
-          <div className="event-result-card">
+          <div className={eventResultCardClass}>
             <strong>Signup limits</strong>
             <label>
               Total accepted limit
@@ -1192,7 +1276,7 @@ function NativeEventOps({
               />
             </label>
           </div>
-          <div className="event-result-card">
+          <div className={eventResultCardClass}>
             <strong>Discord gates</strong>
             <label>
               Mention roles
@@ -1228,7 +1312,7 @@ function NativeEventOps({
         id="admin-event-reminders"
         title="Reminders"
         actions={
-          <button
+          <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55"
             type="button"
             disabled={busy === eventSetupBusyLabel}
             onClick={() => void onRun(eventSetupBusyLabel, eventSetupAction)}
@@ -1237,11 +1321,11 @@ function NativeEventOps({
           </button>
         }
       >
-        <div className="event-result-grid">
-          <div className="event-result-card">
-            <div className="event-link-editor-heading">
+        <div className={eventResultGridClass}>
+          <div className={eventResultCardClass}>
+            <div className={eventLinkEditorHeadingClass}>
               <strong>Reminder schedule</strong>
-              <button type="button" className="secondary" onClick={() => setReminders((current) => [...current, createReminderFormRow()])}>
+              <button type="button" className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e]/40 bg-[#e4b45e]/[0.10] px-3.5 font-extrabold text-[#f3d99d] transition-colors hover:border-[#f0c878]/70 hover:bg-[#e4b45e]/[0.20] disabled:cursor-not-allowed disabled:opacity-55" onClick={() => setReminders((current) => [...current, createReminderFormRow()])}>
                 Add reminder
               </button>
             </div>
@@ -1256,8 +1340,8 @@ function NativeEventOps({
 
       {creating ? null : (
         <AdminSection id="admin-signups" title="Signup Management">
-          <div className="event-result-grid">
-            <div className="event-result-card">
+          <div className={eventResultGridClass}>
+            <div className={eventResultCardClass}>
               <strong>Signup editor</strong>
               {!ready ? (
                 <small>Loading signup editor.</small>
@@ -1321,8 +1405,8 @@ function NativeEventOps({
                       onChange={(event) => setSignupNote(event.currentTarget.value)}
                     />
                   </label>
-                  <div className="button-row left">
-                    <button
+                  <div className="flex flex-wrap justify-start gap-2">
+                    <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55"
                       type="button"
                       disabled={!editingNativeEvent || !signupDiscordId || busy === 'native-event-signup'}
                       onClick={() => void onRun('native-event-signup', saveSignup)}
@@ -1331,7 +1415,7 @@ function NativeEventOps({
                     </button>
                     <button
                       type="button"
-                      className="danger-button"
+                      className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#d94f3d]/90 bg-[#b94135] px-3.5 font-extrabold text-[#fff6f3] transition-colors hover:bg-[#c94e41] disabled:cursor-not-allowed disabled:bg-[#b94135]/34 disabled:text-[#ffd9d1] disabled:opacity-75"
                       disabled={!editingNativeEvent || !selectedSignup || busy === 'native-event-signup-remove'}
                       onClick={() => void onRun('native-event-signup-remove', removeSignup)}
                     >
@@ -1351,23 +1435,23 @@ function NativeEventOps({
           title="Discord Publishing"
           actions={
             <>
-              <button type="button" disabled={!editingNativeEvent || busy === 'native-event-post'} onClick={() => void onRun('native-event-post', saveEventAndPostSignupMessage)}>
+              <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55" type="button" disabled={!editingNativeEvent || busy === 'native-event-post'} onClick={() => void onRun('native-event-post', saveEventAndPostSignupMessage)}>
                 Post signup message
               </button>
-              <button type="button" disabled={!editingNativeEvent || busy === 'native-event-scheduled'} onClick={() => void onRun('native-event-scheduled', saveEventAndSyncScheduledEvent)}>
+              <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55" type="button" disabled={!editingNativeEvent || busy === 'native-event-scheduled'} onClick={() => void onRun('native-event-scheduled', saveEventAndSyncScheduledEvent)}>
                 Sync Scheduled Event
               </button>
-              <button type="button" disabled={!editingNativeEvent || busy === 'native-event-close'} onClick={() => void onRun('native-event-close', () => postAdminJson('/api/admin/event', { action: 'native-event.close', eventId: event?.id }))}>
+              <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55" type="button" disabled={!editingNativeEvent || busy === 'native-event-close'} onClick={() => void onRun('native-event-close', () => postAdminJson('/api/admin/event', { action: 'native-event.close', eventId: event?.id }))}>
                 Close signups
               </button>
-              <button type="button" disabled={!editingNativeEvent || busy === 'native-event-open'} onClick={() => void onRun('native-event-open', () => postAdminJson('/api/admin/event', { action: 'native-event.open', eventId: event?.id }))}>
+              <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55" type="button" disabled={!editingNativeEvent || busy === 'native-event-open'} onClick={() => void onRun('native-event-open', () => postAdminJson('/api/admin/event', { action: 'native-event.open', eventId: event?.id }))}>
                 Reopen
               </button>
             </>
           }
         >
-          <div className="event-result-grid">
-            <div className="event-result-card">
+          <div className={eventResultGridClass}>
+            <div className={eventResultCardClass}>
               <strong>Targeted message</strong>
               {!editingNativeEvent ? <small>Discord publishing controls require a native event.</small> : null}
               <label>
@@ -1391,8 +1475,8 @@ function NativeEventOps({
                   onChange={(event) => setTargetMessage(event.currentTarget.value)}
                 />
               </label>
-              <div className="button-row left">
-                <button type="button" disabled={!editingNativeEvent || busy === 'native-event-message'} onClick={() => void onRun('native-event-message', () => postAdminJson('/api/admin/event', { action: 'native-event.message', eventId: event?.id, target: targetGroup, message: targetMessage }))}>
+              <div className="flex flex-wrap justify-start gap-2">
+                <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55" type="button" disabled={!editingNativeEvent || busy === 'native-event-message'} onClick={() => void onRun('native-event-message', () => postAdminJson('/api/admin/event', { action: 'native-event.message', eventId: event?.id, target: targetGroup, message: targetMessage }))}>
                   Send message
                 </button>
               </div>
@@ -1408,7 +1492,7 @@ function NativeEventOps({
           actions={
             <button
               type="button"
-              className="danger-button"
+              className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#d94f3d]/90 bg-[#b94135] px-3.5 font-extrabold text-[#fff6f3] transition-colors hover:bg-[#c94e41] disabled:cursor-not-allowed disabled:bg-[#b94135]/34 disabled:text-[#ffd9d1] disabled:opacity-75"
               disabled={busy === 'event-delete' || !deleteReady}
               onClick={() => void onRun('event-delete', deleteSelectedEvent)}
             >
@@ -1416,8 +1500,8 @@ function NativeEventOps({
             </button>
           }
         >
-          <div className="event-result-grid">
-            <div className="event-result-card danger-card">
+          <div className={dangerZoneGridClass}>
+            <div className={dangerZoneCardClass}>
               <strong>Delete this event</strong>
               <p>
                 Deletes this event and its related signups, teams, draft data, ratings, Discord message records,
@@ -1495,17 +1579,17 @@ function RoleMultiSelect({
   }
 
   return (
-    <div className="role-combobox" ref={rootRef}>
+    <div className={roleComboboxClass} ref={rootRef}>
       <div
-        className="role-combobox-control"
+        className={roleComboboxControlClass}
         onMouseDown={(event) => {
           if (event.target === event.currentTarget) inputRef.current?.focus()
         }}
       >
         {selectedRoles.map((role) => (
-            <span className="role-chip" key={role.id}>
+            <span className={roleChipClass} key={role.id}>
               @{role.name}
-              <button
+              <button className={roleChipRemoveButtonClass}
                 type="button"
                 aria-label={`Remove ${role.name}`}
                 onClick={() => removeRole(role.id)}
@@ -1557,10 +1641,10 @@ function RoleMultiSelect({
         />
       </div>
       {open ? (
-        <div className="role-combobox-menu" id={listboxId} role="listbox" aria-multiselectable="true">
+        <div className={roleComboboxMenuClass} id={listboxId} role="listbox" aria-multiselectable="true">
           {filteredOptions.length ? (
             filteredOptions.map((role, index) => (
-              <button
+              <button className={roleComboboxOptionClass(index === activeIndex)}
                 key={role.id}
                 id={`${listboxId}-${role.id}`}
                 type="button"
@@ -1574,7 +1658,7 @@ function RoleMultiSelect({
               </button>
             ))
           ) : (
-            <div className="empty-inline">No matching roles</div>
+            <div className="empty-inline flex min-h-11 w-full items-center gap-2 rounded-lg border border-dashed border-white/[0.12] bg-white/[0.04] px-3.5 py-3 font-bold text-[#b4bcbb]">No matching roles</div>
           )}
         </div>
       ) : null}
@@ -1583,7 +1667,7 @@ function RoleMultiSelect({
 }
 
 function FieldError({ message }: { message?: string }) {
-  return message ? <span className="field-error">{message}</span> : null
+  return message ? <span className={fieldErrorClass}>{message}</span> : null
 }
 
 const REMINDER_KIND_OPTIONS = [
@@ -1619,13 +1703,13 @@ function ReminderEditor({
   }
 
   if (!value.length) {
-    return <div className="empty-inline">No reminders configured</div>
+    return <div className="empty-inline flex min-h-11 w-full items-center gap-2 rounded-lg border border-dashed border-white/[0.12] bg-white/[0.04] px-3.5 py-3 font-bold text-[#b4bcbb]">No reminders configured</div>
   }
 
   return (
-    <div className="reminder-editor">
+    <div className={reminderEditorClass}>
       {value.map((reminder) => (
-        <div className="reminder-row" key={reminder.clientId}>
+        <div className={reminderRowClass} key={reminder.clientId}>
           <label>
             Trigger
             <select value={reminder.kind} onChange={(event) => updateReminder(reminder.clientId, { kind: event.currentTarget.value })}>
@@ -1666,7 +1750,7 @@ function ReminderEditor({
               ))}
             </select>
           </label>
-          <label className="reminder-message-field">
+          <label className={reminderMessageFieldClass}>
             Message
             <textarea
               rows={2}
@@ -1674,7 +1758,7 @@ function ReminderEditor({
               onChange={(event) => updateReminder(reminder.clientId, { message: event.currentTarget.value })}
             />
           </label>
-          <div className="reminder-row-actions">
+          <div className={reminderRowActionsClass}>
             <label className="checkbox-label">
               <input
                 type="checkbox"
@@ -1684,7 +1768,7 @@ function ReminderEditor({
               Enabled
             </label>
             {reminder.lastSentAt ? <small>Sent {shortDate(reminder.lastSentAt)}</small> : null}
-            <button type="button" className="secondary" onClick={() => removeReminder(reminder.clientId)}>
+            <button type="button" className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e]/40 bg-[#e4b45e]/[0.10] px-3.5 font-extrabold text-[#f3d99d] transition-colors hover:border-[#f0c878]/70 hover:bg-[#e4b45e]/[0.20] disabled:cursor-not-allowed disabled:opacity-55" onClick={() => removeReminder(reminder.clientId)}>
               Remove
             </button>
           </div>
@@ -1712,9 +1796,9 @@ function SpecOptionEditor({
   }
 
   return (
-    <div className="spec-option-editor">
+    <div className={specOptionEditorClass}>
       {value.map((spec, index) => (
-        <div className="spec-option-row" key={index}>
+        <div className={specOptionRowClass} key={index}>
           <SpecEmojiPicker
             value={spec.emoji ?? ''}
             options={emojiOptions}
@@ -1735,14 +1819,14 @@ function SpecOptionEditor({
             placeholder="Limit"
             onChange={(event) => updateSpec(index, { limit: event.currentTarget.value ? Number(event.currentTarget.value) : undefined })}
           />
-          <button type="button" className="secondary" onClick={() => removeSpec(index)}>
+          <button type="button" className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e]/40 bg-[#e4b45e]/[0.10] px-3.5 font-extrabold text-[#f3d99d] transition-colors hover:border-[#f0c878]/70 hover:bg-[#e4b45e]/[0.20] disabled:cursor-not-allowed disabled:opacity-55" onClick={() => removeSpec(index)}>
             Remove
           </button>
         </div>
       ))}
       <button
         type="button"
-        className="secondary"
+        className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e]/40 bg-[#e4b45e]/[0.10] px-3.5 font-extrabold text-[#f3d99d] transition-colors hover:border-[#f0c878]/70 hover:bg-[#e4b45e]/[0.20] disabled:cursor-not-allowed disabled:opacity-55"
         onClick={() => onChange([...value, { emoji: '', name: '' }])}
       >
         Add spec
@@ -1794,10 +1878,10 @@ function SpecEmojiPicker({
   }
 
   return (
-    <div className="spec-emoji-picker" ref={rootRef}>
+    <div className={specEmojiPickerClass} ref={rootRef}>
       <button
         type="button"
-        className="spec-emoji-trigger"
+        className={specEmojiTriggerClass}
         aria-label="Choose spec emoji"
         aria-expanded={open}
         aria-controls={open ? popoverId : undefined}
@@ -1806,7 +1890,7 @@ function SpecEmojiPicker({
         {value ? <EmojiPreview value={value} /> : <span className="spec-emoji-placeholder">Emoji</span>}
       </button>
       {open ? (
-        <div className="spec-emoji-popover" id={popoverId}>
+        <div className={specEmojiPopoverClass} id={popoverId}>
           {ready ? (
             <EmojiPicker
               autoFocusSearch
@@ -1823,7 +1907,7 @@ function SpecEmojiPicker({
               width="100%"
             />
           ) : (
-            <div className="empty-inline">Loading emojis...</div>
+            <div className="empty-inline flex min-h-11 w-full items-center gap-2 rounded-lg border border-dashed border-white/[0.12] bg-white/[0.04] px-3.5 py-3 font-bold text-[#b4bcbb]">Loading emojis...</div>
           )}
           <label>
             Custom value
@@ -1853,10 +1937,10 @@ function SpecCheckboxes({
   const selected = new Set(value)
   const usableOptions = options.filter((spec) => spec.name.trim())
 
-  if (!usableOptions.length) return <div className="empty-inline">No specs configured</div>
+  if (!usableOptions.length) return <div className="empty-inline flex min-h-11 w-full items-center gap-2 rounded-lg border border-dashed border-white/[0.12] bg-white/[0.04] px-3.5 py-3 font-bold text-[#b4bcbb]">No specs configured</div>
 
   return (
-    <div className="spec-checkbox-grid">
+    <div className={specCheckboxGridClass}>
       {usableOptions.map((spec) => (
         <label className="checkbox-field" key={spec.name}>
           <input
@@ -1997,7 +2081,7 @@ function specOptionsFromNames(names: string[]) {
 
 function SpecLabel({ spec }: { spec: EventSpecOption }) {
   return (
-    <span className="spec-label">
+    <span className={specLabelClass}>
       {spec.emoji ? <EmojiPreview value={spec.emoji} /> : null}
       <span>{spec.name}</span>
     </span>
@@ -2009,7 +2093,7 @@ function EmojiPreview({ value }: { value: string }) {
   if (customEmoji) {
     return (
       <img
-        className="emoji-preview"
+        className={emojiPreviewClass}
         src={`https://cdn.discordapp.com/emojis/${customEmoji.id}.${customEmoji.animated ? 'gif' : 'png'}`}
         alt={`:${customEmoji.name}:`}
         loading="lazy"
@@ -2018,7 +2102,7 @@ function EmojiPreview({ value }: { value: string }) {
   }
   return (
     <img
-      className="emoji-preview"
+      className={emojiPreviewClass}
       src={twemojiUrl(nativeEmojiToUnified(value))}
       alt={value}
       loading="lazy"
@@ -2184,8 +2268,8 @@ function EventIdentityControls({
 
   return (
     <AdminSection id="admin-event-details" title="Event Details">
-      <div className="event-result-grid">
-        <div className="event-result-card">
+      <div className={eventResultGridClass}>
+        <div className={eventResultCardClass}>
           <strong>Name override</strong>
           <label>
             Display name
@@ -2210,7 +2294,7 @@ function EventIdentityControls({
           </label>
         </div>
 
-        <div className="event-result-card event-details-card">
+        <div className={` col-span-full`}>
           <strong>Event page details</strong>
           <label>
             Description
@@ -2220,16 +2304,16 @@ function EventIdentityControls({
               onChange={(event) => setEventDescription(event.currentTarget.value)}
             />
           </label>
-          <div className="event-link-editor">
-            <div className="event-link-editor-heading">
+          <div className={eventLinkEditorClass}>
+            <div className={eventLinkEditorHeadingClass}>
               <span>Links</span>
-              <button type="button" onClick={addEventLink}>
+              <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55" type="button" onClick={addEventLink}>
                 Add link
               </button>
             </div>
             {eventLinks.length ? (
               eventLinks.map((link, index) => (
-                <div className="event-link-editor-row" key={index}>
+                <div className={eventLinkEditorRowClass} key={index}>
                   <label>
                     Name
                     <input
@@ -2246,10 +2330,10 @@ function EventIdentityControls({
                       onChange={(event) => updateEventLink(index, { url: event.currentTarget.value })}
                     />
                   </label>
-                  <div className="event-icon-picker">
+                  <div className={eventIconPickerClass}>
                     <button
                       type="button"
-                      className="event-icon-picker-trigger"
+                      className={eventIconPickerTriggerClass}
                       aria-haspopup="dialog"
                       aria-expanded={openIconPicker === index}
                       onClick={() => setOpenIconPicker((current) => (current === index ? null : index))}
@@ -2258,12 +2342,12 @@ function EventIdentityControls({
                       <span>{EVENT_LINK_ICON_OPTIONS.find((option) => option.name === link.icon)?.label ?? 'Icon'}</span>
                     </button>
                     {openIconPicker === index ? (
-                      <div className="event-icon-picker-popup" role="dialog" aria-label={`Icon for ${link.name || 'event link'}`}>
+                      <div className={eventIconPickerPopupClass} role="dialog" aria-label={`Icon for ${link.name || 'event link'}`}>
                         {EVENT_LINK_ICON_OPTIONS.map((option) => (
                           <button
                             key={option.name}
                             type="button"
-                            className={link.icon === option.name ? 'active' : ''}
+                            className={eventIconPickerButtonClass(link.icon === option.name)}
                             title={option.label}
                             aria-label={option.label}
                             onClick={() => {
@@ -2277,7 +2361,7 @@ function EventIdentityControls({
                       </div>
                     ) : null}
                   </div>
-                  <button type="button" className="text-button danger" onClick={() => removeEventLink(index)}>
+                  <button type="button" className="inline-flex min-h-[30px] cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#d94f3d]/55 bg-white/[0.07] px-2.5 font-extrabold text-[#f2b4ab] transition-colors hover:border-[#d94f3d]/70 hover:bg-[#d94f3d]/[0.20] disabled:cursor-not-allowed disabled:opacity-55" onClick={() => removeEventLink(index)}>
                     Remove
                   </button>
                 </div>
@@ -2288,7 +2372,7 @@ function EventIdentityControls({
           </div>
         </div>
 
-        <div className="event-result-card">
+        <div className={eventResultCardClass}>
           <strong>Twitch links</strong>
           <label>
             Live stream
@@ -2310,7 +2394,7 @@ function EventIdentityControls({
           </label>
         </div>
 
-        <div className="event-result-card">
+        <div className={eventResultCardClass}>
           <strong>Honu alert</strong>
           <label>
             Zone
@@ -2331,15 +2415,15 @@ function EventIdentityControls({
               'A Honu alert is created after the final round ends.'
             )}
           </small>
-          <div className="button-row left">
-            <button
+          <div className="flex flex-wrap justify-start gap-2">
+            <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55"
               type="button"
               disabled={busy === 'honu-generate'}
               onClick={() => void onRun('honu-generate', generateHonuReports)}
             >
               Generate Honu links
             </button>
-            <button
+            <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55"
               type="button"
               disabled={busy === 'honu-reset'}
               onClick={() => void onRun('honu-reset', resetHonuReports)}
@@ -2349,8 +2433,8 @@ function EventIdentityControls({
           </div>
         </div>
       </div>
-      <div className="admin-section-footer">
-        <button
+      <div className={adminSectionFooterClass}>
+        <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55"
           type="button"
           disabled={busy === 'event-details'}
           onClick={() => void onRun('event-details', saveEventDetails)}
@@ -2404,8 +2488,8 @@ function DraftControls({
 
   return (
     <AdminSection id="admin-draft" title="Draft">
-      <div className="event-result-grid">
-        <div className="event-result-card">
+      <div className={eventResultGridClass}>
+        <div className={eventResultCardClass}>
           <strong>Budgets</strong>
           <label>
             Total salary pool
@@ -2441,7 +2525,7 @@ function DraftControls({
           </label>
         </div>
 
-        <div className="event-result-card">
+        <div className={eventResultCardClass}>
           <strong>Timing</strong>
           <label>
             Minutes before event start
@@ -2458,8 +2542,8 @@ function DraftControls({
           <small>Leave blank to count down to the event start after signups close.</small>
         </div>
       </div>
-      <div className="admin-section-footer">
-        <button
+      <div className={adminSectionFooterClass}>
+        <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55"
           type="button"
           disabled={busy === 'draft-settings'}
           onClick={() => void onRun('draft-settings', saveDraftSettings)}
@@ -2487,21 +2571,24 @@ function AdminSection({
   const [open, setOpen] = useState(defaultOpen)
 
   return (
-    <section id={id} className={`admin-section${open ? '' : ' is-collapsed'}`}>
-      <div className="admin-section-header">
+    <section id={id} className={adminSectionClass}>
+      <div className={adminSectionHeaderClass}>
         <button
           type="button"
-          className="collapse-toggle"
+          className={collapseToggleClass}
           aria-label={`${open ? 'Collapse' : 'Expand'} ${title}`}
           aria-expanded={open}
           onClick={() => setOpen((current) => !current)}
         >
-          <span className="collapse-caret" aria-hidden="true" />
+          <span
+            className={`h-0 w-0 border-y-[5px] border-l-[7px] border-y-transparent border-l-current transition-transform ${open ? 'rotate-90' : 'rotate-0'}`}
+            aria-hidden="true"
+          />
         </button>
         <h2>{title}</h2>
-        {actions ? <div className="admin-section-actions">{actions}</div> : null}
+        {actions ? <div className={adminSectionActionsClass}>{actions}</div> : null}
       </div>
-      {open ? <div className="admin-section-body">{children}</div> : null}
+      {open ? <div className={adminSectionBodyClass}>{children}</div> : null}
     </section>
   )
 }
@@ -2572,7 +2659,7 @@ function TeamEditor({
       id="admin-teams"
       title="Captains and team setup"
       actions={
-        <button
+        <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55"
           type="button"
           disabled={busy === 'teams' || locked}
           onClick={() =>
@@ -2591,7 +2678,7 @@ function TeamEditor({
       {locked ? <p>The draft is locked because the first round has started.</p> : null}
 
       {event.teams.length ? (
-        <div className="team-admin-grid">
+        <div className={teamAdminGridClass}>
           {event.teams.map((team) => (
             <TeamForm
               key={team.id}
@@ -2606,8 +2693,8 @@ function TeamEditor({
       ) : (
         <p>Create teams, then assign teams and names here.</p>
       )}
-      <div className="admin-section-footer">
-        <button
+      <div className={adminSectionFooterClass}>
+        <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55"
           type="button"
           disabled={busy === 'team-settings' || Boolean(locked) || !changedTeams.length}
           onClick={() => void onRun('team-settings', saveTeams)}
@@ -2733,7 +2820,7 @@ function EventJaegerAssignments({
         <>
           <button
             type="button"
-            className="secondary"
+            className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e]/40 bg-[#e4b45e]/[0.10] px-3.5 font-extrabold text-[#f3d99d] transition-colors hover:border-[#f0c878]/70 hover:bg-[#e4b45e]/[0.20] disabled:cursor-not-allowed disabled:opacity-55"
             disabled={
               busy === 'event-jaeger-copy' ||
               !ready ||
@@ -2748,7 +2835,7 @@ function EventJaegerAssignments({
             event.teams.map((team) => (
               <a
                 key={team.id}
-                className="button-link secondary"
+                className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e]/40 bg-[#e4b45e]/[0.10] px-3.5 font-extrabold text-[#f3d99d] transition-colors hover:border-[#f0c878]/70 hover:bg-[#e4b45e]/[0.20] disabled:cursor-not-allowed disabled:opacity-55"
                 href={eventJaegerCsvUrl(event.id, team.id)}
                 download
               >
@@ -2756,11 +2843,11 @@ function EventJaegerAssignments({
               </a>
             ))
           ) : (
-            <a className="button-link secondary" href={eventJaegerCsvUrl(event.id)} download>
+            <a className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e]/40 bg-[#e4b45e]/[0.10] px-3.5 font-extrabold text-[#f3d99d] transition-colors hover:border-[#f0c878]/70 hover:bg-[#e4b45e]/[0.20] disabled:cursor-not-allowed disabled:opacity-55" href={eventJaegerCsvUrl(event.id)} download>
               Export CSV
             </a>
           )}
-          <button
+          <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55"
             type="button"
             disabled={busy === 'event-jaeger' || !selectedDiscordId || !accountPrefix.trim()}
             onClick={() => void onRun('event-jaeger', assignCharacter)}
@@ -2770,7 +2857,7 @@ function EventJaegerAssignments({
         </>
       }
     >
-      <div className="rating-adjustment-grid">
+      <div className={ratingAdjustmentGridClass}>
         <label>
           Player
           <select
@@ -2888,7 +2975,7 @@ function PlayerRenameManager({
       id="admin-player-names"
       title="Player names"
       actions={
-        <button
+        <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55"
           type="button"
           disabled={!ready || busy === 'player-rename' || !discordId || !name.trim()}
           onClick={() => void onRun('player-rename', renamePlayer)}
@@ -2897,8 +2984,8 @@ function PlayerRenameManager({
         </button>
       }
     >
-      {!ready ? <div className="empty-inline">Loading players.</div> : null}
-      <div className="rating-adjustment-grid">
+      {!ready ? <div className="empty-inline flex min-h-11 w-full items-center gap-2 rounded-lg border border-dashed border-white/[0.12] bg-white/[0.04] px-3.5 py-3 font-bold text-[#b4bcbb]">Loading players.</div> : null}
+      <div className={ratingAdjustmentGridClass}>
         <label>
           Player
           <select
@@ -3049,8 +3136,8 @@ function PlayerJaegerManager({
 
   return (
     <AdminSection id="admin-jaeger-chars" title="Player Jaeger characters">
-      {!ready ? <div className="empty-inline">Loading players.</div> : null}
-      <div className="rating-adjustment-grid">
+      {!ready ? <div className="empty-inline flex min-h-11 w-full items-center gap-2 rounded-lg border border-dashed border-white/[0.12] bg-white/[0.04] px-3.5 py-3 font-bold text-[#b4bcbb]">Loading players.</div> : null}
+      <div className={ratingAdjustmentGridClass}>
         <label>
           Player
           <select
@@ -3099,9 +3186,9 @@ function PlayerJaegerManager({
             onChange={(event) => setAccountQuery(event.currentTarget.value)}
           />
           {showAccountSuggestions ? (
-            <div className="psb-account-results" role="listbox">
+            <div className={psbAccountResultsClass} role="listbox">
               {accountSuggestions.length ? accountSuggestions.map((account) => (
-                <button
+                <button className={psbAccountResultButtonClass}
                   key={account.accountId}
                   type="button"
                   role="option"
@@ -3111,13 +3198,13 @@ function PlayerJaegerManager({
                   <span>{account.playerName}</span>
                 </button>
               )) : (
-                <div className="psb-account-empty">No matches</div>
+                <div className={psbAccountEmptyClass}>No matches</div>
               )}
             </div>
           ) : null}
         </div>
       </div>
-      <div className="resolved-list admin-assignment-list">
+      <div className={adminAssignmentInfoListClass}>
         {selectedPlayer && (selectedPlayer.noPersonalJaegerAccount || selectedPlayerHasResolvedCharacters) ? (
           <span>
             <strong>
@@ -3139,8 +3226,8 @@ function PlayerJaegerManager({
           </span>
         ))}
       </div>
-      <div className="admin-section-footer">
-        <button
+      <div className={adminSectionFooterClass}>
+        <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55"
           type="button"
           disabled={!ready || busy === 'player-jaeger' || !discordId || !names.TR.trim() || !names.VS.trim() || !names.NC.trim()}
           onClick={() => void onRun('player-jaeger', saveCharacters)}
@@ -3282,9 +3369,9 @@ function BadgeManager({
     }
 
     return (
-      <article className="badge-definition-card" key={`badge-${badge.id}`}>
+      <article className={badgeDefinitionCardClass} key={`badge-${badge.id}`}>
         <strong style={{ '--badge-color': draft.color } as CSSProperties}>{badge.name}</strong>
-        <div className="badge-definition-fields">
+        <div className={badgeDefinitionFieldsClass}>
           <label>
             Name
             <input
@@ -3311,7 +3398,7 @@ function BadgeManager({
               }}
             />
           </label>
-          <label className="inline-color-field">
+          <label className={inlineColorFieldClass}>
             Color
             <input
               type="color"
@@ -3327,10 +3414,10 @@ function BadgeManager({
           </label>
         </div>
         {badge.source === 'manual' ? (
-          <div className="badge-definition-actions">
+          <div className={badgeDefinitionActionsClass}>
             <button
               type="button"
-              className="text-button danger"
+              className="inline-flex min-h-[30px] cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#d94f3d]/55 bg-white/[0.07] px-2.5 font-extrabold text-[#f2b4ab] transition-colors hover:border-[#d94f3d]/70 hover:bg-[#d94f3d]/[0.20] disabled:cursor-not-allowed disabled:opacity-55"
               disabled={busy === `badge-delete-${badge.id}`}
               onClick={() => void onRun(`badge-delete-${badge.id}`, () => deleteBadge(badge.id))}
             >
@@ -3344,8 +3431,8 @@ function BadgeManager({
 
   return (
     <AdminSection id="admin-badges" title="Badges">
-      <div className="badge-admin-grid">
-        <div className="team-admin-card">
+      <div className={badgeAdminGridClass}>
+        <div className={adminFormCardClass}>
           <label>
             Badge name
             <input value={name} onChange={(event) => setName(event.currentTarget.value)} />
@@ -3358,7 +3445,7 @@ function BadgeManager({
             Color
             <input type="color" value={color} onChange={(event) => setColor(event.currentTarget.value)} />
           </label>
-          <button
+          <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55"
             type="button"
             disabled={!ready || busy === 'badge-create' || !name.trim() || !description.trim()}
             onClick={() => void onRun('badge-create', createBadge)}
@@ -3368,32 +3455,32 @@ function BadgeManager({
         </div>
       </div>
 
-      <div className="badge-definition-list">
+      <div className={badgeDefinitionListClass}>
         {data.badges.length ? (
           <>
-            <section className="badge-definition-group">
+            <section className={badgeDefinitionGroupClass}>
               <h3>System Badges</h3>
-              <div className="badge-definition-cards">
+              <div className={badgeDefinitionCardsClass}>
                 {systemBadges.length ? systemBadges.map(renderBadgeEditor) : (
-                  <div className="empty-inline">No system badges created yet.</div>
+                  <div className="empty-inline flex min-h-11 w-full items-center gap-2 rounded-lg border border-dashed border-white/[0.12] bg-white/[0.04] px-3.5 py-3 font-bold text-[#b4bcbb]">No system badges created yet.</div>
                 )}
               </div>
             </section>
-            <section className="badge-definition-group">
+            <section className={badgeDefinitionGroupClass}>
               <h3>Custom Badges</h3>
-              <div className="badge-definition-cards">
+              <div className={badgeDefinitionCardsClass}>
                 {customBadges.length ? customBadges.map(renderBadgeEditor) : (
-                  <div className="empty-inline">No custom badges created yet.</div>
+                  <div className="empty-inline flex min-h-11 w-full items-center gap-2 rounded-lg border border-dashed border-white/[0.12] bg-white/[0.04] px-3.5 py-3 font-bold text-[#b4bcbb]">No custom badges created yet.</div>
                 )}
               </div>
             </section>
           </>
         ) : (
-          <div className="empty-inline">{loaded ? 'No badges created yet.' : 'Loading badges.'}</div>
+          <div className="empty-inline flex min-h-11 w-full items-center gap-2 rounded-lg border border-dashed border-white/[0.12] bg-white/[0.04] px-3.5 py-3 font-bold text-[#b4bcbb]">{loaded ? 'No badges created yet.' : 'Loading badges.'}</div>
         )}
       </div>
-      <div className="admin-section-footer">
-        <button
+      <div className={adminSectionFooterClass}>
+        <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55"
           type="button"
           disabled={
             !ready ||
@@ -3571,7 +3658,7 @@ function CoinflipControls({
 
   return (
     <AdminSection id="admin-coinflip" title="Coinflip">
-      <div className="coinflip-flow-panel">
+      <div className={`${flowPanelClass} coinflip-flow-panel`}>
         <div>
           <strong>
             {completed ? 'Coinflip complete' : pending ? 'Coinflip ready' : 'No caller selected'}
@@ -3584,9 +3671,9 @@ function CoinflipControls({
                 : 'Select a caller before flipping.'}
           </p>
         </div>
-        <div className="coinflip-flow-actions">
+        <div className={`${flowActionsClass} coinflip-flow-actions`}>
           {!coinflip ? (
-            <button
+            <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55"
               type="button"
               disabled={busy === 'coinflip-caller'}
               onClick={() =>
@@ -3600,23 +3687,23 @@ function CoinflipControls({
           ) : null}
           {pending ? (
             <>
-              <div className="segmented-control coinflip-call-control" aria-label="Coin call">
+              <div className={coinflipCallControlClass} aria-label="Coin call">
                 <button
                   type="button"
-                  className={call === 'heads' ? 'active' : ''}
+                  className={segmentedControlButtonClass(call === 'heads')}
                   onClick={() => setCall('heads')}
                 >
                   Heads
                 </button>
                 <button
                   type="button"
-                  className={call === 'tails' ? 'active' : ''}
+                  className={segmentedControlButtonClass(call === 'tails')}
                   onClick={() => setCall('tails')}
                 >
                   Tails
                 </button>
               </div>
-              <button
+              <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55"
                 type="button"
                 disabled={busy === 'coinflip'}
                 onClick={() =>
@@ -3630,7 +3717,7 @@ function CoinflipControls({
           {coinflip ? (
             <button
               type="button"
-              className="danger-button"
+              className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#d94f3d]/90 bg-[#b94135] px-3.5 font-extrabold text-[#fff6f3] transition-colors hover:bg-[#c94e41] disabled:cursor-not-allowed disabled:bg-[#b94135]/34 disabled:text-[#ffd9d1] disabled:opacity-75"
               disabled={busy === 'coinflip-reset'}
               onClick={() =>
                 void onRun('coinflip-reset', () => runCoinflipAction({ action: 'reset' }))
@@ -3642,13 +3729,13 @@ function CoinflipControls({
         </div>
       </div>
 
-      <div className="coinflip-settings-heading">
+      <div className={coinflipSettingsHeadingClass}>
         <strong>Settings</strong>
       </div>
-      <div className="coinflip-grid">
-        <div className="coinflip-card">
+      <div className={coinflipGridClass}>
+        <div className={coinflipCardClass}>
           <strong>Available options</strong>
-          <div className="check-row">
+          <div className={checkRowClass}>
             {factions.map((faction) => (
               <label key={faction}>
                 <input
@@ -3660,13 +3747,13 @@ function CoinflipControls({
               </label>
             ))}
           </div>
-          <div className="coinflip-field">
-            <span className="field-label">Sides</span>
-            <div className="chip-input" aria-disabled={completed}>
+          <div className={coinflipFieldClass}>
+            <span className="block">Sides</span>
+            <div className={chipInputClass} aria-disabled={completed}>
               {availableSides.map((side) => (
-                <span className="side-chip" key={side}>
+                <span className={sideChipClass} key={side}>
                   {side}
-                  <button
+                  <button className={sideChipRemoveButtonClass}
                     type="button"
                     aria-label={`Remove ${side}`}
                     disabled={completed}
@@ -3692,12 +3779,12 @@ function CoinflipControls({
           </div>
         </div>
 
-        <div className="coinflip-card">
+        <div className={coinflipCardClass}>
           <strong>Winner choice</strong>
-          <div className="segmented-control">
+          <div className={segmentedControlClass}>
             <button
               type="button"
-              className={choiceType === 'faction' ? 'active' : ''}
+              className={segmentedControlButtonClass(choiceType === 'faction')}
               disabled={!completed}
               onClick={() => setChoiceType('faction')}
             >
@@ -3705,7 +3792,7 @@ function CoinflipControls({
             </button>
             <button
               type="button"
-              className={choiceType === 'side' ? 'active' : ''}
+              className={segmentedControlButtonClass(choiceType === 'side')}
               disabled={!completed}
               onClick={() => setChoiceType('side')}
             >
@@ -3747,11 +3834,11 @@ function CoinflipControls({
       </div>
 
       {completed ? (
-        <div className="assignment-panel">
-          <div className="assignment-heading">
+        <div className={assignmentPanelClass}>
+          <div className={assignmentHeadingClass}>
             <strong>Team assignments</strong>
           </div>
-          <div className="assignment-grid">
+          <div className={assignmentGridClass}>
             {event.teams.map((team) => {
               const currentFaction = assignments[team.id]?.faction ?? ''
               const currentSide = assignments[team.id]?.startingSide ?? ''
@@ -3769,7 +3856,7 @@ function CoinflipControls({
               )
 
               return (
-                <article className="assignment-card" key={team.id}>
+                <article className={assignmentCardClass} key={team.id}>
                   <strong>{team.teamName}</strong>
                   <label>
                     Faction
@@ -3805,8 +3892,8 @@ function CoinflipControls({
           </div>
         </div>
       ) : null}
-      <div className="admin-section-footer">
-        <button
+      <div className={adminSectionFooterClass}>
+        <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55"
           type="button"
           disabled={
             busy === 'coinflip-settings' ||
@@ -3909,7 +3996,7 @@ function RoundControls({
 
   return (
     <AdminSection id="admin-rounds" title="Rounds">
-      <div className="round-flow-panel">
+      <div className={`${flowPanelClass} round-flow-panel`}>
         <div>
           <strong>
             {canStartRound ? `Round ${nextRoundNumber} ready` : 'All rounds started'}
@@ -3920,8 +4007,8 @@ function RoundControls({
               : 'Starting round 1 locks the draft for captains and admins.'}
           </p>
         </div>
-        <div className="round-flow-actions">
-          <button
+        <div className={`${flowActionsClass} round-flow-actions`}>
+          <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55"
             type="button"
             disabled={busy === 'round-start' || !canStartRound}
             onClick={() => void onRun('round-start', startRound)}
@@ -3930,8 +4017,8 @@ function RoundControls({
           </button>
         </div>
       </div>
-      <div className="event-result-grid round-admin-grid">
-        <div className="event-result-card">
+      <div className={roundAdminGridClass}>
+        <div className={eventResultCardClass}>
           <strong>Round setup</strong>
           <label>
             Rounds
@@ -3960,19 +4047,19 @@ function RoundControls({
           {draftLocked ? <small>Round setup is locked after round 1 starts.</small> : null}
         </div>
 
-        <div className="event-result-card round-list-card">
+        <div className={roundListCardClass}>
           <strong>Round results</strong>
           {event.rounds.length ? (
-            <div className="round-result-list">
+            <div className={roundResultListClass}>
               {event.rounds.map((round) => {
                 const result = roundResults[round.roundNumber] ?? {
                   teamScores: createRoundTeamScoreState(round, event.teams),
                   resultNote: '',
                 }
                 return (
-                  <div className="round-result-row" key={round.roundNumber}>
+                  <div className={roundResultRowClass} key={round.roundNumber}>
                     <span>Round {round.roundNumber}</span>
-                    <div className="round-score-inputs">
+                    <div className={roundScoreInputsClass}>
                       {event.teams.map((team) => (
                         <label key={team.id}>
                           {team.teamName}
@@ -4021,7 +4108,7 @@ function RoundControls({
           )}
         </div>
 
-        <div className="event-result-card">
+        <div className={eventResultCardClass}>
           <strong>Score adjustments</strong>
           <label>
             Team
@@ -4045,7 +4132,7 @@ function RoundControls({
               onChange={(event) => setScoreDelta(event.currentTarget.value)}
             />
           </label>
-          <button
+          <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55"
             type="button"
             disabled={busy === 'score-adjust' || !scoreTeamId || Number(scoreDelta) === 0}
             onClick={() => void onRun('score-adjust', adjustScore)}
@@ -4054,7 +4141,7 @@ function RoundControls({
           </button>
         </div>
 
-        <div className="event-result-card">
+        <div className={eventResultCardClass}>
           <strong>Completion</strong>
           <label>
             Winning team
@@ -4073,7 +4160,7 @@ function RoundControls({
           <p>
             Marking complete records the selected winner and marks that team&apos;s captain and drafted players as event winners.
           </p>
-          <button
+          <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55"
             type="button"
             disabled={busy === 'event-complete' || !winningTeamId}
             onClick={() =>
@@ -4086,15 +4173,15 @@ function RoundControls({
           </button>
         </div>
       </div>
-      <div className="admin-section-footer">
-        <button
+      <div className={adminSectionFooterClass}>
+        <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55"
           type="button"
           disabled={busy === 'round-settings' || draftLocked}
           onClick={() => void onRun('round-settings', saveRoundSettings)}
         >
           Save round setup
         </button>
-        <button
+        <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55"
           type="button"
           disabled={busy === 'round-results' || !changedRoundResults.length}
           onClick={() => void onRun('round-results', saveRoundResults)}
@@ -4268,7 +4355,7 @@ function RatingAdjustments({
       id="admin-ratings"
       title="Rating adjustments"
       actions={
-        <button
+        <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55"
           type="button"
           disabled={busy === 'ratings-reset' || !fromDiscordId}
           onClick={() => void onRun('ratings-reset', resetSubmittedRatings)}
@@ -4277,7 +4364,7 @@ function RatingAdjustments({
         </button>
       }
     >
-      <div className="rating-adjustment-grid">
+      <div className={ratingAdjustmentGridClass}>
         <label>
           Rater
           <select
@@ -4336,7 +4423,7 @@ function TeamForm({
   const score = draft?.score ?? team.score.toString()
 
   return (
-    <article className="team-admin-card">
+    <article className={adminFormCardClass}>
       <label>
         Team name
         <input
@@ -4360,7 +4447,7 @@ function TeamForm({
           ))}
         </select>
       </label>
-      <div className="field-row compact">
+      <div className={`${fieldRowClass} compact`}>
         <label>
           Score
           <input
@@ -4372,7 +4459,7 @@ function TeamForm({
         </label>
       </div>
       {team.honuReportUrl ? (
-        <a className="team-report-link" href={team.honuReportUrl} target="_blank" rel="noreferrer">
+        <a className={teamReportLinkClass} href={team.honuReportUrl} target="_blank" rel="noreferrer">
           <EventLinkIcon name="Users" />
           <span>Honu team report</span>
         </a>

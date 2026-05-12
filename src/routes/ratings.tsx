@@ -4,6 +4,26 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { pageMeta } from '../lib/meta'
 import { isCaptainPlayer } from '../lib/rules'
 import { useSession } from '../lib/SessionContext'
+import {
+  ratingAdminWarningClass,
+  countChipClass,
+  ratingControlsClass,
+  ratingHeaderActionsClass,
+  ratingLegendClass,
+  ratingLegendNoteClass,
+  ratingLegendScaleClass,
+  ratingLegendTitleClass,
+  ratingListClass,
+  ratingListToolbarClass,
+  ratingRaterSelectClass,
+  ratingRowClass,
+  ratingScorePickerClass,
+  ratingSortControlClass,
+  ratingsPanelClass,
+  ratingsPageClass,
+  toastClass,
+  type ToastTone,
+} from '../lib/ui'
 import type { HammaEvent } from '../lib/types'
 import { PlayerName } from '../components/PlayerName'
 
@@ -67,7 +87,7 @@ function Ratings() {
   )
   const [saving, setSaving] = useState<string>()
   const [sortMode, setSortMode] = useState<RatingsSortMode>('name')
-  const [message, setMessage] = useState<{ text: string; tone: 'neutral' | 'success' | 'error' }>()
+  const [message, setMessage] = useState<{ text: string; tone: ToastTone }>()
   const initialPreferencesKey = event && user && initialSelectedRaterId
     ? `${RATINGS_PREFERENCES_PREFIX}:${event.id}:${user.id}`
     : undefined
@@ -359,19 +379,19 @@ function Ratings() {
   }
 
   return (
-    <main className="ratings-page min-w-0">
-      <section className="panel">
-        <div className="section-heading">
+    <main className={ratingsPageClass}>
+      <section className={ratingsPanelClass}>
+        <div className="section-heading mb-5 flex items-center justify-between gap-3 max-[720px]:grid max-[720px]:grid-cols-1 max-[720px]:items-start [&>*]:min-w-0">
           <div>
             <h1>Rate known players</h1>
           </div>
-          <div className="rating-header-actions">
+          <div className={ratingHeaderActionsClass}>
             {ratingsLoaded && players.length ? (
-              <span className="count-chip">
+              <span className={countChipClass}>
                 {ratedCount}/{players.length} rated
               </span>
             ) : null}
-            <label className="rating-rater-select">
+            <label className={ratingRaterSelectClass}>
               <span>Ratings by</span>
               <select
                 value={selectedRaterId}
@@ -398,43 +418,43 @@ function Ratings() {
           </div>
         </div>
         {!event ? (
-          <div className="empty-inline">
+          <div className="empty-inline flex min-h-11 w-full items-center gap-2 rounded-lg border border-dashed border-white/[0.12] bg-white/[0.04] px-3.5 py-3 font-bold text-[#b4bcbb]">
             Ratings will be available once an active HammaBowl event is selected.
           </div>
         ) : null}
         {message ? (
-          <div className={`toast toast-${message.tone}`} role="status" aria-live="polite">
+          <div className={toastClass(message.tone)} role="status" aria-live="polite">
             {message.text}
           </div>
         ) : null}
         {showingOtherRaterSubmissions ? (
-          <div className="rating-admin-warning" role="alert">
+          <div className={ratingAdminWarningClass} role="alert">
             You are viewing and editing {selectedRater?.name ?? 'another rater'}'s submissions, not your own.
           </div>
         ) : null}
         {ratingsLocked ? (
-          <div className="toast toast-neutral" role="status">
+          <div className={toastClass('neutral')} role="status">
             Ratings are locked because the draft has started.
           </div>
         ) : null}
         {event && canRate ? (
           <>
-            <div className="rating-legend">
-              <p className="rating-legend-title">Rating guide</p>
-              <div className="rating-legend-scale">
+            <div className={ratingLegendClass}>
+              <p className={ratingLegendTitleClass}>Rating guide</p>
+              <div className={ratingLegendScaleClass}>
                 <span><strong>1-3</strong> Below average</span>
                 <span><strong>4-6</strong> Average</span>
                 <span><strong>7-9</strong> Above average</span>
                 <span><strong>10</strong> Exceptional</span>
               </div>
-              <p className="rating-legend-note">
+              <p className={ratingLegendNoteClass}>
                 Only rate players you have played with. Leave unknown players unrated. Do not troll,
                 coordinate, or otherwise attempt to manipulate ratings.
               </p>
             </div>
-            <div className="rating-list-toolbar" aria-label="Rating list controls">
+            <div className={ratingListToolbarClass} aria-label="Rating list controls">
               <span>Sort by</span>
-              <div className="rating-sort-control" role="group" aria-label="Sort players">
+              <div className={ratingSortControlClass} role="group" aria-label="Sort players">
                 <button
                   type="button"
                   className={sortMode === 'name' ? 'active' : undefined}
@@ -461,12 +481,12 @@ function Ratings() {
                 </button>
               </div>
             </div>
-            <div className="rating-list" ref={ratingListRef}>
+            <div className={ratingListClass} ref={ratingListRef}>
               {sortedPlayers.map((player) => {
                 const hasRating = ratings[player.id] !== undefined
                 return (
                   <article
-                    className="rating-row"
+                    className={ratingRowClass}
                     data-player-id={player.id}
                     data-rating-state={ratingsLoaded && !hasRating ? 'unrated' : 'rated'}
                     key={player.id}
@@ -476,10 +496,10 @@ function Ratings() {
                         <PlayerName name={player.name} groupTag={player.groupTag} groupTagColor={player.groupTagColor} />
                       </strong>
                     </Link>
-                    <div className="rating-controls">
+                    <div className={ratingControlsClass}>
                       {saving === player.id ? <span className="spinner" aria-label="Saving" /> : null}
                       <div
-                        className="rating-score-picker"
+                        className={ratingScorePickerClass}
                         role="group"
                         aria-label={`Rate ${player.name}`}
                       >
@@ -512,7 +532,7 @@ function Ratings() {
             </div>
           </>
         ) : event ? (
-          <div className="empty-inline">
+          <div className="empty-inline flex min-h-11 w-full items-center gap-2 rounded-lg border border-dashed border-white/[0.12] bg-white/[0.04] px-3.5 py-3 font-bold text-[#b4bcbb]">
             You must be an accepted participant in the current event to rate players.
           </div>
         ) : null}

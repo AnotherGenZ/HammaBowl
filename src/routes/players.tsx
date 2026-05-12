@@ -5,6 +5,49 @@ import { useMemo, useState } from 'react'
 import { PlayerName } from '../components/PlayerName'
 import { pageMeta } from '../lib/meta'
 import type { PlayerBadge, PlayerProfileSummary } from '../lib/types'
+import {
+  eyebrowClass,
+  playersAvatarClass,
+  playersAvatarInitialClass,
+  playersBadgeChipClass,
+  playersBadgeOverflowClass,
+  playersBadgeRowClass,
+  playersCardBadgesClass,
+  playersCardBannerClass,
+  playersCardBodyClass,
+  playersCardCatchphraseClass,
+  playersCardClass,
+  playersCardGridClass,
+  playersCardIdentityClass,
+  playersCardNameClass,
+  playersCardStatClass,
+  playersCardStatLabelClass,
+  playersCardStatValueClass,
+  playersCardStatsClass,
+  playersClearButtonClass,
+  playersCountPillClass,
+  playersFilterSelectClass,
+  playersHeaderClass,
+  playersPanelClass,
+  playersRatingBarClass,
+  playersRatingFillClass,
+  playersRatingTbdClass,
+  playersRatingTrackClass,
+  playersRatingValueClass,
+  playersSearchIconClass,
+  playersSearchInputClass,
+  playersSearchWrapClass,
+  playersSortArrowClass,
+  playersSortButtonClass,
+  playersTableHeaderClass,
+  playersTableNameCellClass,
+  playersTableRowClass,
+  playersTableStatClass,
+  playersTableWrapClass,
+  playersToolbarClass,
+  playersViewToggleButtonClass,
+  playersViewToggleClass,
+} from '../lib/ui'
 
 type PlayerDirectorySortKey = 'name' | 'rating' | 'events' | 'wins'
 type PlayerDirectoryView = 'table' | 'grid'
@@ -55,16 +98,16 @@ function PlayerDirectory() {
   }
 
   return (
-    <main className="min-w-0">
-      <section className="players-header">
+    <main className="min-w-0 mx-auto w-[min(1180px,calc(100%_-_32px))] py-7 pb-[54px] max-[1023px]:w-[min(100%_-_24px,1180px)] max-[1023px]:py-[18px] max-[1023px]:pb-[42px] max-[480px]:w-[min(100%_-_18px,1180px)]">
+      <section className={playersHeaderClass}>
         <div>
-          <p className="eyebrow">Profile directory</p>
+          <p className={eyebrowClass}>Profile directory</p>
           <h1>Players</h1>
         </div>
-        <div className="players-view-toggle">
+        <div className={playersViewToggleClass}>
           <button
             type="button"
-            className={view === 'table' ? 'active' : ''}
+            className={playersViewToggleButtonClass(view === 'table')}
             onClick={() => setView('table')}
           >
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
@@ -75,7 +118,7 @@ function PlayerDirectory() {
           </button>
           <button
             type="button"
-            className={view === 'grid' ? 'active' : ''}
+            className={playersViewToggleButtonClass(view === 'grid')}
             onClick={() => setView('grid')}
           >
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
@@ -89,21 +132,21 @@ function PlayerDirectory() {
         </div>
       </section>
 
-      <section className="panel players-panel">
-        <div className="players-toolbar">
-          <div className="players-search-wrap">
-            <svg className="players-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+      <section className={playersPanelClass}>
+        <div className={playersToolbarClass}>
+          <div className={playersSearchWrapClass}>
+            <svg className={playersSearchIconClass} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
               <circle cx="11" cy="11" r="8" />
               <path d="m21 21-4.35-4.35" />
             </svg>
             <input
-              className="players-search-input"
+              className={playersSearchInputClass}
               value={query}
               placeholder="Search players, catchphrases…"
               onChange={(e) => setQuery(e.currentTarget.value)}
             />
           </div>
-          <label className="players-filter-select">
+          <label className={playersFilterSelectClass}>
             Badge
             <select value={badgeFilter} onChange={(e) => setBadgeFilter(e.currentTarget.value)}>
               <option value="">Any badge</option>
@@ -112,7 +155,7 @@ function PlayerDirectory() {
               ))}
             </select>
           </label>
-          <label className="players-filter-select">
+          <label className={playersFilterSelectClass}>
             Event
             <select value={eventFilter} onChange={(e) => setEventFilter(e.currentTarget.value)}>
               <option value="">Any event</option>
@@ -124,19 +167,19 @@ function PlayerDirectory() {
           {hasActiveFilters ? (
             <button
               type="button"
-              className="players-clear-btn"
+              className={playersClearButtonClass}
               onClick={() => { setQuery(''); setBadgeFilter(''); setEventFilter('') }}
             >
               Clear
             </button>
           ) : null}
-          <span className="players-count-pill">
+          <span className={playersCountPillClass}>
             {sorted.length} player{sorted.length === 1 ? '' : 's'}
           </span>
         </div>
 
         {sorted.length === 0 ? (
-          <div className="empty-inline">No player profiles match that search.</div>
+          <div className="empty-inline flex min-h-11 w-full items-center gap-2 rounded-lg border border-dashed border-white/[0.12] bg-white/[0.04] px-3.5 py-3 font-bold text-[#b4bcbb]">No player profiles match that search.</div>
         ) : view === 'table' ? (
           <PlayersTableView
             players={sorted}
@@ -166,8 +209,8 @@ function PlayersTableView({
   onToggleSort: (key: PlayerDirectorySortKey) => void
 }) {
   return (
-    <div className="players-table-wrap">
-      <div className="players-table-header">
+    <div className={playersTableWrapClass}>
+      <div className={playersTableHeaderClass}>
         <div />
         <SortButton label="Player" sortKey="name" activeKey={sortKey} dir={sortDir} onToggle={onToggleSort} />
         <SortButton label="Events" sortKey="events" activeKey={sortKey} dir={sortDir} onToggle={onToggleSort} />
@@ -179,26 +222,26 @@ function PlayersTableView({
           key={p.discordId}
           to="/players/$discordId"
           params={{ discordId: p.discordId }}
-          className={`players-table-row${i % 2 === 0 ? '' : ' alt'}`}
+          className={playersTableRowClass(i % 2 !== 0)}
         >
           <PlayerAvatar name={p.name} avatarUrl={p.avatarUrl} size={34} />
-          <div className="players-table-name-cell">
+          <div className={playersTableNameCellClass}>
             <strong>
               <PlayerName name={p.name} groupTag={p.groupTag} groupTagColor={p.groupTagColor} />
             </strong>
             {p.badges.length > 0 ? (
-              <div className="players-badge-row">
+              <div className={playersBadgeRowClass}>
                 {p.badges.slice(0, 2).map((b) => (
                   <BadgeChip key={b.id} badge={b} />
                 ))}
                 {p.badges.length > 2 ? (
-                  <span className="players-badge-overflow">+{p.badges.length - 2}</span>
+                  <span className={playersBadgeOverflowClass}>+{p.badges.length - 2}</span>
                 ) : null}
               </div>
             ) : null}
           </div>
-          <span className="players-table-stat">{p.eventCount}</span>
-          <span className={`players-table-stat${p.winCount > 0 ? ' gold' : ' muted'}`}>{p.winCount}</span>
+          <span className={playersTableStatClass()}>{p.eventCount}</span>
+          <span className={playersTableStatClass(p.winCount > 0 ? 'gold' : 'muted')}>{p.winCount}</span>
           <RatingBar rating={p.averageRating} />
         </Link>
       ))}
@@ -223,27 +266,27 @@ function SortButton({
   return (
     <button
       type="button"
-      className={`players-sort-btn${active ? ' active' : ''}`}
+      className={playersSortButtonClass(active)}
       onClick={() => onToggle(sortKey)}
     >
       {label}
-      {active ? <span className="players-sort-arrow">{dir > 0 ? '▲' : '▼'}</span> : null}
+      {active ? <span className={playersSortArrowClass}>{dir > 0 ? '▲' : '▼'}</span> : null}
     </button>
   )
 }
 
 function RatingBar({ rating }: { rating: number | null }) {
   if (rating === null) {
-    return <span className="players-rating-tbd">UNRATED</span>
+    return <span className={playersRatingTbdClass}>UNRATED</span>
   }
   const pct = ((rating - 1) / 9) * 100
   const tier = rating >= 8.5 ? 'high' : rating >= 7 ? 'mid' : 'low'
   return (
-    <div className="players-rating-bar">
-      <div className="players-rating-track">
-        <div className={`players-rating-fill ${tier}`} style={{ width: `${pct}%` }} />
+    <div className={playersRatingBarClass}>
+      <div className={playersRatingTrackClass}>
+        <div className={playersRatingFillClass(tier)} style={{ width: `${pct}%` }} />
       </div>
-      <span className={`players-rating-value ${tier}`}>{rating.toFixed(1)}</span>
+      <span className={playersRatingValueClass(tier)}>{rating.toFixed(1)}</span>
     </div>
   )
 }
@@ -252,46 +295,46 @@ function RatingBar({ rating }: { rating: number | null }) {
 
 function PlayersCardGrid({ players }: { players: PlayerProfileSummary[] }) {
   return (
-    <div className="players-card-grid">
+    <div className={playersCardGridClass}>
       {players.map((p) => (
         <Link
           key={p.discordId}
           to="/players/$discordId"
           params={{ discordId: p.discordId }}
-          className="players-card"
+          className={playersCardClass}
         >
           <div
-            className="players-card-banner"
+            className={playersCardBannerClass}
             style={p.bannerUrl ? { backgroundImage: `url(${p.bannerUrl})` } : undefined}
           />
-          <div className="players-card-body">
-            <div className="players-card-identity">
+          <div className={playersCardBodyClass}>
+            <div className={playersCardIdentityClass}>
               <PlayerAvatar name={p.name} avatarUrl={p.avatarUrl} size={46} />
             </div>
-            <div className="players-card-name">
+            <div className={playersCardNameClass}>
               <PlayerName name={p.name} groupTag={p.groupTag} groupTagColor={p.groupTagColor} />
             </div>
             {p.catchphrase ? (
-              <div className="players-card-catchphrase">{p.catchphrase}</div>
+              <div className={playersCardCatchphraseClass}>{p.catchphrase}</div>
             ) : null}
-            <div className="players-card-stats">
-              <div className="players-card-stat">
-                <span className="players-card-stat-label">Events</span>
-                <span className="players-card-stat-value">{p.eventCount}</span>
+            <div className={playersCardStatsClass}>
+              <div className={playersCardStatClass}>
+                <span className={playersCardStatLabelClass}>Events</span>
+                <span className={playersCardStatValueClass()}>{p.eventCount}</span>
               </div>
-              <div className="players-card-stat">
-                <span className="players-card-stat-label">Wins</span>
-                <span className={`players-card-stat-value${p.winCount > 0 ? ' gold' : ''}`}>{p.winCount}</span>
+              <div className={playersCardStatClass}>
+                <span className={playersCardStatLabelClass}>Wins</span>
+                <span className={playersCardStatValueClass(p.winCount > 0)}>{p.winCount}</span>
               </div>
-              <div className="players-card-stat">
-                <span className="players-card-stat-label">Rating</span>
-                <span className={`players-card-stat-value${p.averageRating !== null && p.averageRating >= 8 ? ' gold' : ''}`}>
+              <div className={playersCardStatClass}>
+                <span className={playersCardStatLabelClass}>Rating</span>
+                <span className={playersCardStatValueClass(p.averageRating !== null && p.averageRating >= 8)}>
                   {p.averageRating === null ? 'UNRATED' : p.averageRating.toFixed(1)}
                 </span>
               </div>
             </div>
             {p.badges.length > 0 ? (
-              <div className="players-card-badges">
+              <div className={playersCardBadgesClass}>
                 {p.badges.map((b) => (
                   <BadgeChip key={b.id} badge={b} />
                 ))}
@@ -320,13 +363,13 @@ function PlayerAvatar({
       <img
         src={avatarUrl}
         alt=""
-        className="players-avatar"
+        className={playersAvatarClass}
         style={{ width: size, height: size }}
       />
     )
   }
   return (
-    <span className="players-avatar players-avatar-initial" style={{ width: size, height: size, fontSize: size * 0.38 }}>
+    <span className={playersAvatarInitialClass} style={{ width: size, height: size, fontSize: size * 0.38 }}>
       {name[0]?.toUpperCase()}
     </span>
   )
@@ -335,7 +378,7 @@ function PlayerAvatar({
 function BadgeChip({ badge }: { badge: PlayerBadge }) {
   return (
     <span
-      className="players-badge-chip"
+      className={playersBadgeChipClass}
       style={{ '--badge-color': badge.color } as CSSProperties}
       title={badge.description}
     >

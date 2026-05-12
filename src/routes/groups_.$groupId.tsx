@@ -7,6 +7,31 @@ import { processGroupLogoInput } from '../lib/groupLogoInput'
 import { pageMeta } from '../lib/meta'
 import { useSession } from '../lib/SessionContext'
 import type { GroupDetail, GroupParticipant } from '../lib/types'
+import {
+  breadcrumbNavClass,
+  dangerActionClass,
+  eyebrowClass,
+  groupAdminPanelClass,
+  groupAdminPickerClass,
+  groupCountBadgeClass,
+  groupFormActionsClass,
+  groupFormClass,
+  groupFormHintClass,
+  groupFormWideClass,
+  groupHeroClass,
+  groupLogoFallbackClass,
+  groupLogoImageClass,
+  groupPlayerAvatarFallbackClass,
+  groupPlayerLinkClass,
+  groupRosterListClass,
+  groupRosterRowClass,
+  groupRosterSectionClass,
+  groupRowActionsClass,
+  groupStatRowClass,
+  groupTagClass,
+  groupTitleLineClass,
+  secondaryActionClass,
+} from '../lib/ui'
 
 const loadGroupDetail = createServerFn({ method: 'GET' })
   .inputValidator((input: { groupId: string }) => input)
@@ -65,11 +90,11 @@ function GroupPage() {
 
   if (!group) {
     return (
-      <main className="min-w-0">
-        <section className="panel empty-state">
+      <main className="min-w-0 mx-auto w-[min(1180px,calc(100%_-_32px))] py-7 pb-[54px] max-[1023px]:w-[min(100%_-_24px,1180px)] max-[1023px]:py-[18px] max-[1023px]:pb-[42px] max-[480px]:w-[min(100%_-_18px,1180px)]">
+        <section className="panel rounded-lg border border-white/[0.10] bg-white/[0.055] p-[clamp(18px,3vw,28px)] mt-[18px] first:mt-0 max-[720px]:px-[clamp(14px,4vw,18px)]  empty-state min-h-[320px] grid content-center justify-items-center text-center gap-2.5 [&_p]:text-[#c0c8c6]">
           <h1>Group not found</h1>
           <p>The group may have been removed.</p>
-          <Link className="secondary-action" to="/groups">Back to groups</Link>
+          <Link className={secondaryActionClass} to="/groups">Back to groups</Link>
         </section>
       </main>
     )
@@ -129,28 +154,28 @@ function GroupPage() {
   }
 
   return (
-    <main className="min-w-0">
-      <nav className="breadcrumb-nav" aria-label="Breadcrumb">
+    <main className="min-w-0 mx-auto w-[min(1180px,calc(100%_-_32px))] py-7 pb-[54px] max-[1023px]:w-[min(100%_-_24px,1180px)] max-[1023px]:py-[18px] max-[1023px]:pb-[42px] max-[480px]:w-[min(100%_-_18px,1180px)]">
+      <nav className={breadcrumbNavClass} aria-label="Breadcrumb">
         <Link to="/groups" activeOptions={{ exact: true }}>
           Groups
         </Link>
         <span aria-hidden="true">/</span>
         <span aria-current="page">{group.name}</span>
       </nav>
-      <section className="group-hero">
+      <section className={groupHeroClass}>
         <GroupLogo group={group} />
         <div>
-          <div className="group-title-line">
-            <span className="group-tag" style={groupTagStyle(group.tagColor)}>{group.tag}</span>
+          <div className={groupTitleLineClass}>
+            <span className={groupTagClass} style={groupTagStyle(group.tagColor)}>{group.tag}</span>
             <h1>{group.name}</h1>
           </div>
           <p>{group.description}</p>
           {group.currentUserStatus ? (
-            <div className="group-stat-row">
+            <div className={groupStatRowClass}>
               {group.currentUserStatus === 'pending' ? <span>Request pending</span> : null}
               {group.currentUserStatus === 'member' ? (
                 <button
-                  className="danger-action"
+                  className={dangerActionClass}
                   type="button"
                   onClick={() => {
                     if (window.confirm(`Leave ${group.name}?`)) membershipAction('leave')
@@ -161,9 +186,9 @@ function GroupPage() {
               ) : null}
             </div>
           ) : (
-            <div className="group-stat-row">
+            <div className={groupStatRowClass}>
               {user ? (
-                <button className="secondary-action" type="button" onClick={() => membershipAction('request')}>
+                <button className={secondaryActionClass} type="button" onClick={() => membershipAction('request')}>
                   Apply
                 </button>
               ) : (
@@ -174,17 +199,17 @@ function GroupPage() {
         </div>
       </section>
 
-      {message ? <div className="admin-result">{message}</div> : null}
+      {message ? <div className="mb-4 rounded-lg border border-white/[0.10] bg-white/[0.06] px-3.5 py-3 text-[#d8dedc]">{message}</div> : null}
 
       {loaderData.canManageGroupSettings ? (
-        <section className="panel group-admin-create">
-          <div className="section-heading">
+        <section className={groupAdminPanelClass}>
+          <div className="section-heading mb-5 flex items-center justify-between gap-3 max-[720px]:grid max-[720px]:grid-cols-1 max-[720px]:items-start [&>*]:min-w-0">
             <div>
-              <p className="eyebrow">Admin</p>
+              <p className={eyebrowClass}>Admin</p>
               <h2>Group properties</h2>
             </div>
           </div>
-          <form className="group-form" onSubmit={saveGroup}>
+          <form className={groupFormClass} onSubmit={saveGroup}>
             <label>
               Tag
               <input
@@ -221,9 +246,9 @@ function GroupPage() {
             <label>
               Logo
               <input accept={GROUP_LOGO_ACCEPT_ATTRIBUTE} type="file" onChange={handleLogoChange} />
-              {logoMessage ? <small className="group-form-hint">{logoMessage}</small> : null}
+              {logoMessage ? <small className={groupFormHintClass}>{logoMessage}</small> : null}
             </label>
-            <label className="group-form-wide">
+            <label className={groupFormWideClass}>
               Description
               <textarea
                 value={form.description}
@@ -235,7 +260,7 @@ function GroupPage() {
                 }}
               />
             </label>
-            <div className="group-form-actions">
+            <div className={groupFormActionsClass}>
               <button className="primary-action" disabled={saving} type="submit">
                 {saving ? 'Saving…' : 'Save properties'}
               </button>
@@ -243,7 +268,7 @@ function GroupPage() {
           </form>
 
           {loaderData.isSiteAdmin ? (
-            <div className="group-admin-picker">
+            <div className={groupAdminPickerClass}>
               <label>
                 Add group administrator
                 <select
@@ -262,7 +287,7 @@ function GroupPage() {
                 </select>
               </label>
               <button
-                className="secondary-action"
+                className={secondaryActionClass}
                 disabled={!selectedAdminId}
                 type="button"
                 onClick={() => membershipAction('set-admin', selectedAdminId, true)}
@@ -280,10 +305,10 @@ function GroupPage() {
           people={group.pendingMembers}
           actions={(player) => (
             <>
-              <button className="secondary-action" type="button" onClick={() => membershipAction('accept', player.discordId)}>
+              <button className={secondaryActionClass} type="button" onClick={() => membershipAction('accept', player.discordId)}>
                 Accept
               </button>
-              <button className="danger-action" type="button" onClick={() => membershipAction('kick', player.discordId)}>
+              <button className={dangerActionClass} type="button" onClick={() => membershipAction('kick', player.discordId)}>
                 Decline
               </button>
             </>
@@ -297,7 +322,7 @@ function GroupPage() {
         emptyText="No group administrators have been assigned."
         actions={(player) =>
           loaderData.isSiteAdmin ? (
-            <button className="danger-action" type="button" onClick={() => membershipAction('set-admin', player.discordId, false)}>
+            <button className={dangerActionClass} type="button" onClick={() => membershipAction('set-admin', player.discordId, false)}>
               Remove admin
             </button>
           ) : null
@@ -310,7 +335,7 @@ function GroupPage() {
         emptyText="No members yet."
         actions={(player) =>
           loaderData.canManageMembership ? (
-            <button className="danger-action" type="button" onClick={() => membershipAction('kick', player.discordId)}>
+            <button className={dangerActionClass} type="button" onClick={() => membershipAction('kick', player.discordId)}>
               Kick
             </button>
           ) : null
@@ -332,28 +357,28 @@ function RosterSection({
   actions?: (player: GroupParticipant) => ReactNode
 }) {
   return (
-    <section className="panel group-roster-section">
-      <div className="section-heading">
+    <section className={groupRosterSectionClass}>
+      <div className="section-heading mb-5 flex items-center justify-between gap-3 max-[720px]:grid max-[720px]:grid-cols-1 max-[720px]:items-start [&>*]:min-w-0">
         <h2>{title}</h2>
-        <span className="group-count-badge">{people.length}</span>
+        <span className={groupCountBadgeClass}>{people.length}</span>
       </div>
       {people.length === 0 ? (
-        <p className="empty-inline">{emptyText ?? 'No players to show.'}</p>
+        <p className="empty-inline flex min-h-11 w-full items-center gap-2 rounded-lg border border-dashed border-white/[0.12] bg-white/[0.04] px-3.5 py-3 font-bold text-[#b4bcbb]">{emptyText ?? 'No players to show.'}</p>
       ) : (
-        <div className="group-roster-list">
+        <div className={groupRosterListClass}>
           {people.map((player) => (
-            <div className="group-roster-row" key={player.discordId}>
-              <Link to="/players/$discordId" params={{ discordId: player.discordId }} className="group-player-link">
+            <div className={groupRosterRowClass} key={player.discordId}>
+              <Link to="/players/$discordId" params={{ discordId: player.discordId }} className={groupPlayerLinkClass}>
                 {player.avatarUrl ? (
                   <img src={player.avatarUrl} alt="" />
                 ) : (
-                  <span className="group-player-avatar-fallback">{player.name.slice(0, 1)}</span>
+                  <span className={groupPlayerAvatarFallbackClass}>{player.name.slice(0, 1)}</span>
                 )}
                 <strong>
                   <PlayerName name={player.name} groupTag={player.groupTag} groupTagColor={player.groupTagColor} />
                 </strong>
               </Link>
-              <div className="group-row-actions">{actions?.(player)}</div>
+              <div className={groupRowActionsClass}>{actions?.(player)}</div>
             </div>
           ))}
         </div>
@@ -363,8 +388,8 @@ function RosterSection({
 }
 
 function GroupLogo({ group }: { group: Pick<GroupDetail, 'tag' | 'logoUrl'> }) {
-  if (group.logoUrl) return <img className="group-logo large" src={group.logoUrl} alt="" />
-  return <span className="group-logo group-logo-fallback large">{group.tag.slice(0, 2)}</span>
+  if (group.logoUrl) return <img className={groupLogoImageClass(true)} src={group.logoUrl} alt="" />
+  return <span className={groupLogoFallbackClass(true)}>{group.tag.slice(0, 2)}</span>
 }
 
 function groupTagStyle(tagColor?: string): CSSProperties | undefined {

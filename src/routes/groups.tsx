@@ -5,6 +5,26 @@ import { GROUP_LOGO_ACCEPT_ATTRIBUTE } from '../lib/groupLogoConstants'
 import { processGroupLogoInput } from '../lib/groupLogoInput'
 import { pageMeta } from '../lib/meta'
 import type { GroupSummary } from '../lib/types'
+import {
+  eyebrowClass,
+  groupAdminPanelClass,
+  groupCardClass,
+  groupCardFooterClass,
+  groupCardMainClass,
+  groupCountBadgeClass,
+  groupFormActionsClass,
+  groupFormClass,
+  groupFormHintClass,
+  groupFormWideClass,
+  groupLogoFallbackClass,
+  groupLogoImageClass,
+  groupTagClass,
+  groupsGridClass,
+  groupsHeaderClass,
+  groupsSearchInputClass,
+  groupsSearchWrapClass,
+  groupTitleLineClass,
+} from '../lib/ui'
 
 const loadGroupDirectory = createServerFn({ method: 'GET' }).handler(async () => {
   const { getDiscordSessionUser } = await import('../lib/discord.server')
@@ -86,15 +106,15 @@ function GroupDirectory() {
   }
 
   return (
-    <main className="min-w-0">
-      <section className="groups-header">
+    <main className="min-w-0 mx-auto w-[min(1180px,calc(100%_-_32px))] py-7 pb-[54px] max-[1023px]:w-[min(100%_-_24px,1180px)] max-[1023px]:py-[18px] max-[1023px]:pb-[42px] max-[480px]:w-[min(100%_-_18px,1180px)]">
+      <section className={groupsHeaderClass}>
         <div>
-          <p className="eyebrow">Group directory</p>
+          <p className={eyebrowClass}>Group directory</p>
           <h1>Groups</h1>
         </div>
-        <div className="groups-search-wrap">
+        <div className={groupsSearchWrapClass}>
           <input
-            className="groups-search-input"
+            className={groupsSearchInputClass}
             value={query}
             placeholder="Search groups"
             onChange={(event) => {
@@ -105,17 +125,17 @@ function GroupDirectory() {
         </div>
       </section>
 
-      {message ? <div className="admin-result">{message}</div> : null}
+      {message ? <div className="mb-4 rounded-lg border border-white/[0.10] bg-white/[0.06] px-3.5 py-3 text-[#d8dedc]">{message}</div> : null}
 
       {loaderData.isSiteAdmin ? (
-        <section className="panel group-admin-create">
-          <div className="section-heading">
+        <section className={groupAdminPanelClass}>
+          <div className="section-heading mb-5 flex items-center justify-between gap-3 max-[720px]:grid max-[720px]:grid-cols-1 max-[720px]:items-start [&>*]:min-w-0">
             <div>
-              <p className="eyebrow">Site admin</p>
+              <p className={eyebrowClass}>Site admin</p>
               <h2>Create group</h2>
             </div>
           </div>
-          <form className="group-form" onSubmit={submitGroup}>
+          <form className={groupFormClass} onSubmit={submitGroup}>
             <label>
               Tag
               <input
@@ -153,9 +173,9 @@ function GroupDirectory() {
             <label>
               Logo
               <input accept={GROUP_LOGO_ACCEPT_ATTRIBUTE} type="file" onChange={handleLogoChange} />
-              {logoMessage ? <small className="group-form-hint">{logoMessage}</small> : null}
+              {logoMessage ? <small className={groupFormHintClass}>{logoMessage}</small> : null}
             </label>
-            <label className="group-form-wide">
+            <label className={groupFormWideClass}>
               Description
               <textarea
                 value={form.description}
@@ -167,7 +187,7 @@ function GroupDirectory() {
                 }}
               />
             </label>
-            <div className="group-form-actions">
+            <div className={groupFormActionsClass}>
               <button className="primary-action" disabled={saving} type="submit">
                 {saving ? 'Creating…' : 'Create group'}
               </button>
@@ -176,27 +196,27 @@ function GroupDirectory() {
         </section>
       ) : null}
 
-      <section className="groups-grid" aria-label="Available groups">
+      <section className={groupsGridClass} aria-label="Available groups">
         {filteredGroups.length === 0 ? (
-          <div className="panel empty-state">
+          <div className="panel rounded-lg border border-white/[0.10] bg-white/[0.055] p-[clamp(18px,3vw,28px)] mt-[18px] first:mt-0 max-[720px]:px-[clamp(14px,4vw,18px)]  empty-state min-h-[320px] grid content-center justify-items-center text-center gap-2.5 [&_p]:text-[#c0c8c6]">
             <h2>No groups found</h2>
             <p>Available groups will appear here after an admin creates them.</p>
           </div>
         ) : (
           filteredGroups.map((group) => (
-            <article className="group-card" key={group.id}>
-              <Link to="/groups/$groupId" params={{ groupId: group.id }} className="group-card-main">
+            <article className={groupCardClass} key={group.id}>
+              <Link to="/groups/$groupId" params={{ groupId: group.id }} className={groupCardMainClass}>
                 <GroupLogo group={group} />
                 <div>
-                  <div className="group-title-line">
-                    <span className="group-tag" style={groupTagStyle(group.tagColor)}>{group.tag}</span>
+                  <div className={groupTitleLineClass}>
+                    <span className={groupTagClass} style={groupTagStyle(group.tagColor)}>{group.tag}</span>
                     <h2>{group.name}</h2>
                   </div>
                   <p>{group.description}</p>
                 </div>
               </Link>
-              <div className="group-card-footer">
-                <span className="group-count-badge">{formatMemberCount(group.memberCount)}</span>
+              <div className={groupCardFooterClass}>
+                <span className={groupCountBadgeClass}>{formatMemberCount(group.memberCount)}</span>
               </div>
             </article>
           ))
@@ -207,8 +227,8 @@ function GroupDirectory() {
 }
 
 function GroupLogo({ group }: { group: Pick<GroupSummary, 'name' | 'tag' | 'logoUrl'> }) {
-  if (group.logoUrl) return <img className="group-logo" src={group.logoUrl} alt="" />
-  return <span className="group-logo group-logo-fallback">{group.tag.slice(0, 2)}</span>
+  if (group.logoUrl) return <img className={groupLogoImageClass()} src={group.logoUrl} alt="" />
+  return <span className={groupLogoFallbackClass()}>{group.tag.slice(0, 2)}</span>
 }
 
 function formatMemberCount(count: number) {

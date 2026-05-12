@@ -1,4 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
+import {
+  countdownBlockClass,
+  countdownDigitClass,
+  countdownInProgressClass,
+  countdownLabelClass,
+  countdownPulseClass,
+  countdownSeparatorClass,
+  countdownUnitClass,
+  countdownUnitLabelClass,
+  countdownUnitsClass,
+} from '../lib/ui'
 
 type CountdownTarget =
   | { label: string; time: number; accent: string; inProgress?: false }
@@ -47,8 +58,8 @@ export function Countdown({
 
   if (target.inProgress) {
     return (
-      <div className="countdown countdown-in-progress">
-        <span className="countdown-pulse" />
+      <div className={countdownInProgressClass}>
+        <span className={countdownPulseClass} />
         <strong>Event in progress</strong>
       </div>
     )
@@ -62,14 +73,14 @@ export function Countdown({
   const seconds = totalSeconds % 60
 
   return (
-    <div className="countdown-block">
-      <p className="countdown-label" style={{ color: target.accent }}>{target.label}</p>
-      <div className="countdown-units">
+    <div className={countdownBlockClass}>
+      <p className={countdownLabelClass} style={{ color: target.accent }}>{target.label}</p>
+      <div className={countdownUnitsClass}>
         {days > 0 ? <CountdownUnit value={days} label="Days" /> : null}
         <CountdownUnit value={hours} label="Hours" />
-        <span className="countdown-sep">:</span>
+        <span className={countdownSeparatorClass}>:</span>
         <CountdownUnit value={minutes} label="Mins" />
-        <span className="countdown-sep">:</span>
+        <span className={countdownSeparatorClass}>:</span>
         <CountdownUnit value={seconds} label="Secs" />
       </div>
     </div>
@@ -78,9 +89,9 @@ export function Countdown({
 
 function CountdownUnit({ value, label }: { value: number; label: string }) {
   return (
-    <div className="countdown-unit">
-      <div className="countdown-digit">{String(value).padStart(2, '0')}</div>
-      <span className="countdown-unit-label">{label}</span>
+    <div className={countdownUnitClass}>
+      <div className={countdownDigitClass}>{String(value).padStart(2, '0')}</div>
+      <span className={countdownUnitLabelClass}>{label}</span>
     </div>
   )
 }

@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
 import type { PlayerRatingSummary } from '../lib/types'
+import { responsivePlayerTableClass } from '../lib/ui'
 import { PlayerName } from './PlayerName'
 
 type PlayerTableSort = 'name-asc' | 'name-desc' | 'rating-asc' | 'rating-desc'
@@ -35,19 +36,19 @@ export function PlayerTable({ rows }: { rows: PlayerRatingSummary[] }) {
   const nextRatingSort = sort === 'rating-desc' ? 'rating-asc' : 'rating-desc'
 
   return (
-    <div className="table-wrap responsive-player-table overflow-x-auto lg:overflow-visible">
+    <div className={responsivePlayerTableClass}>
       <table>
         <thead>
           <tr>
             <th aria-sort={sort === 'name-asc' ? 'ascending' : sort === 'name-desc' ? 'descending' : 'none'}>
-              <button type="button" className="table-sort-button" onClick={() => setSort(nextNameSort)}>
+              <button type="button" className="inline-flex min-h-7 items-center justify-start rounded-md border border-transparent bg-transparent px-2 font-[inherit] text-[0.72rem] font-black uppercase text-[#8a9896] transition-colors -ml-2 hover:border-white/[0.14] hover:bg-white/[0.08] hover:text-white focus-visible:border-white/[0.14] focus-visible:bg-white/[0.08] focus-visible:text-white focus-visible:outline-0" onClick={() => setSort(nextNameSort)}>
                 Player {sort === 'name-asc' ? '↑' : sort === 'name-desc' ? '↓' : ''}
               </button>
             </th>
             <th
               aria-sort={sort === 'rating-asc' ? 'ascending' : sort === 'rating-desc' ? 'descending' : 'none'}
             >
-              <button type="button" className="table-sort-button" onClick={() => setSort(nextRatingSort)}>
+              <button type="button" className="inline-flex min-h-7 items-center justify-start rounded-md border border-transparent bg-transparent px-2 font-[inherit] text-[0.72rem] font-black uppercase text-[#8a9896] transition-colors -ml-2 hover:border-white/[0.14] hover:bg-white/[0.08] hover:text-white focus-visible:border-white/[0.14] focus-visible:bg-white/[0.08] focus-visible:text-white focus-visible:outline-0" onClick={() => setSort(nextRatingSort)}>
                 Average rating {sort === 'rating-asc' ? '↑' : sort === 'rating-desc' ? '↓' : ''}
               </button>
             </th>

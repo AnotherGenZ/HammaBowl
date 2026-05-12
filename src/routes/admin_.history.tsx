@@ -6,6 +6,24 @@ import { DateTimeLocalInput } from '../components/DateTimeLocalInput'
 import { localDatetimeToIso, nowDatetimeLocalValue, shortDate, toDatetimeLocalValue } from '../lib/format'
 import { pageMeta } from '../lib/meta'
 import type { EventTrophyId, HistoricalEvent, RegisteredParticipant } from '../lib/types'
+import {
+  adminSectionBodyClass,
+  adminSectionClass,
+  adminSectionFooterClass,
+  adminSectionHeaderNoToggleClass,
+  adminStackClass,
+  adminMainClass,
+  historyAddTeamRowClass,
+  historyAdminEventClass,
+  historyAdminGridClass,
+  historyFieldActionClass,
+  historyFieldLinkClass,
+  historyFullFieldClass,
+  historyTeamClass,
+  historyTeamGridClass,
+  historyTeamTitleClass,
+  memberLineClass,
+} from '../lib/ui'
 import { useDisplayTimeZone } from '../lib/useDisplayTimeZone'
 
 const EVENT_TROPHY_OPTIONS: Array<{ id: EventTrophyId; label: string }> = [
@@ -118,9 +136,9 @@ function HistoricalAdmin() {
   }
 
   return (
-    <main className="admin-main min-w-0">
+    <main className={adminMainClass}>
       {!initial.authorized ? (
-        <section className="panel empty-state">
+        <section className="panel rounded-lg border border-white/[0.10] bg-white/[0.055] p-[clamp(18px,3vw,28px)] mt-[18px] first:mt-0 max-[720px]:px-[clamp(14px,4vw,18px)]  empty-state min-h-[320px] grid content-center justify-items-center text-center gap-2.5 [&_p]:text-[#c0c8c6]">
           <h1>Admin access required</h1>
           <p>Sign in with Discord to use HammaBowl historical controls.</p>
         </section>
@@ -128,20 +146,20 @@ function HistoricalAdmin() {
       {initial.authorized ? (
       <>
       <AdminLayout sections={historySections}>
-      <section className="panel">
-        <div className="section-heading">
+      <section className="panel rounded-lg border border-white/[0.10] bg-white/[0.055] p-[clamp(18px,3vw,28px)] mt-[18px] first:mt-0 max-[720px]:px-[clamp(14px,4vw,18px)] ">
+        <div className="section-heading mb-5 flex items-center justify-between gap-3 max-[720px]:grid max-[720px]:grid-cols-1 max-[720px]:items-start [&>*]:min-w-0">
           <div>
             <h1>Historical events</h1>
           </div>
         </div>
-        {message ? <div className="admin-result">{message}</div> : null}
+        {message ? <div className="mb-4 rounded-lg border border-white/[0.10] bg-white/[0.06] px-3.5 py-3 text-[#d8dedc]">{message}</div> : null}
 
-        <section className="admin-section" id="admin-history-backfill">
-          <div className="admin-section-header no-toggle">
+        <section className={adminSectionClass} id="admin-history-backfill">
+          <div className={adminSectionHeaderNoToggleClass}>
             <h2>Backfill event</h2>
           </div>
-          <div className="admin-section-body">
-            <div className="history-admin-grid">
+          <div className={adminSectionBodyClass}>
+            <div className={historyAdminGridClass}>
               <label>
                 Event name
                 <input
@@ -172,7 +190,7 @@ function HistoricalAdmin() {
                   }}
                 />
               </label>
-              <button
+              <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55"
                 type="button"
                 disabled={busy || !newEvent.name}
                 onClick={() =>
@@ -189,7 +207,7 @@ function HistoricalAdmin() {
           </div>
         </section>
 
-        <div className="admin-stack">
+        <div className={adminStackClass}>
           {events.map((event) => (
             <HistoricalEventEditor
               key={event.id}
@@ -307,20 +325,20 @@ function HistoricalEventEditor({
   }
 
   return (
-    <article className="admin-section history-admin-event" id={historyEventSectionId(event.id)}>
-      <div className="admin-section-header no-toggle">
+    <article className={historyAdminEventClass} id={historyEventSectionId(event.id)}>
+      <div className={adminSectionHeaderNoToggleClass}>
         <div>
           <h2>{event.name}</h2>
           <p>{shortDate(event.date, { timeZone: displayTimeZone })}</p>
         </div>
-        <div className="button-row">
+        <div className="flex flex-wrap justify-end gap-2">
           <Link to="/hall-of-legends/$eventId" params={{ eventId: event.id }}>
             View
           </Link>
         </div>
       </div>
-      <div className="admin-section-body">
-        <div className="history-admin-grid">
+      <div className={adminSectionBodyClass}>
+        <div className={historyAdminGridClass}>
           <label>
             Display name
             <input value={nameOverride} onChange={(event) => setNameOverride(event.currentTarget.value)} />
@@ -362,22 +380,22 @@ function HistoricalEventEditor({
               onChange={(event) => setHonuAlertId(event.currentTarget.value)}
             />
             {honuAlertUrl(honuAlertId) ? (
-              <a className="history-field-link" href={honuAlertUrl(honuAlertId)} target="_blank" rel="noreferrer">
+              <a className={historyFieldLinkClass} href={honuAlertUrl(honuAlertId)} target="_blank" rel="noreferrer">
                 Open alert
               </a>
             ) : null}
           </label>
-          <div className="history-field-action">
+          <div className={historyFieldActionClass}>
             <span>Honu links</span>
-            <div className="button-row left">
-              <button
+            <div className="flex flex-wrap justify-start gap-2">
+              <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55"
                 type="button"
                 disabled={busy}
                 onClick={() => void onRun({ action: 'generate-honu', eventId: event.id })}
               >
                 Generate Honu links
               </button>
-              <button
+              <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55"
                 type="button"
                 disabled={busy}
                 onClick={() => void onRun({ action: 'reset-honu', eventId: event.id })}
@@ -387,12 +405,12 @@ function HistoricalEventEditor({
             </div>
           </div>
         </div>
-        <label className="full-field">
+        <label className={historyFullFieldClass}>
           Lore
           <textarea value={lore} onChange={(event) => setLore(event.currentTarget.value)} />
         </label>
 
-        <div className="history-team-grid">
+        <div className={historyTeamGridClass}>
           {event.teams.map((team) => (
             <HistoricalTeamEditor
               key={team.id}
@@ -407,7 +425,7 @@ function HistoricalEventEditor({
           ))}
         </div>
 
-        <div className="history-admin-grid add-team-row">
+        <div className={historyAddTeamRowClass}>
           <label>
             New team
             <input
@@ -456,12 +474,12 @@ function HistoricalEventEditor({
               }}
             />
             {optionalExternalUrl(newTeam.honuReportUrl) ? (
-              <a className="history-field-link" href={optionalExternalUrl(newTeam.honuReportUrl)} target="_blank" rel="noreferrer">
+              <a className={historyFieldLinkClass} href={optionalExternalUrl(newTeam.honuReportUrl)} target="_blank" rel="noreferrer">
                 Open report
               </a>
             ) : null}
           </label>
-          <button
+          <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55"
             type="button"
             disabled={busy || !newTeam.name}
             onClick={() =>
@@ -490,8 +508,8 @@ function HistoricalEventEditor({
             Add team
           </button>
         </div>
-        <div className="admin-section-footer">
-          <button
+        <div className={adminSectionFooterClass}>
+          <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55"
             type="button"
             disabled={busy || (!eventDetailsChanged && !changedTeams.length)}
             onClick={() => void saveEventChanges()}
@@ -591,8 +609,8 @@ function HistoricalTeamEditor({
   const honuReportUrl = draft?.honuReportUrl ?? team.honuReportUrl ?? ''
 
   return (
-    <section className={`history-team${team.winner ? ' winner' : ''}`}>
-      <div className="history-team-title">
+    <section className={historyTeamClass(team.winner)}>
+      <div className={historyTeamTitleClass}>
         <h3>{team.name}</h3>
         {team.winner ? <span>Winner</span> : null}
       </div>
@@ -632,13 +650,13 @@ function HistoricalTeamEditor({
           onChange={(event) => onDraft({ honuReportUrl: event.currentTarget.value })}
         />
         {optionalExternalUrl(honuReportUrl) ? (
-          <a className="history-field-link" href={optionalExternalUrl(honuReportUrl)} target="_blank" rel="noreferrer">
+          <a className={historyFieldLinkClass} href={optionalExternalUrl(honuReportUrl)} target="_blank" rel="noreferrer">
             Open report
           </a>
         ) : null}
       </label>
-      <div className="button-row left">
-        <button
+      <div className="flex flex-wrap justify-start gap-2">
+        <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55"
           type="button"
           disabled={busy}
           onClick={() => void onRun({ action: 'winner', eventId, teamId: team.id })}
@@ -646,7 +664,7 @@ function HistoricalTeamEditor({
           Winner
         </button>
       </div>
-      <p className="member-line">{team.members.length ? team.members.join(', ') : 'No members recorded.'}</p>
+      <p className={memberLineClass}>{team.members.length ? team.members.join(', ') : 'No members recorded.'}</p>
       <ParticipantPicker
         participants={participants}
         value={memberDiscordId}
@@ -657,7 +675,7 @@ function HistoricalTeamEditor({
         New participant name
         <input value={memberName} onChange={(event) => setMemberName(event.currentTarget.value)} />
       </label>
-      <button
+      <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55"
         type="button"
         disabled={busy || !memberDiscordId}
         onClick={() =>

@@ -5,11 +5,23 @@ import { PlayerName } from '../components/PlayerName'
 import { pageMeta } from '../lib/meta'
 import { PROFILE_BANNERS } from '../lib/profileBanners'
 import { useSession } from '../lib/SessionContext'
+import {
+  badgeOrderActionsClass,
+  badgeSettingsClass,
+  badgeSettingsListClass,
+  badgeSettingsRowClass,
+  bannerChoiceClass,
+  bannerPickerClass,
+  eyebrowClass,
+  infoListClass,
+  toastClass,
+  type ToastTone,
+} from '../lib/ui'
 import type { Faction, PlayerBadge, PlayerCharacter } from '../lib/types'
 
 const FACTIONS: Faction[] = ['TR', 'VS', 'NC']
 const DEFAULT_BANNER = PROFILE_BANNERS[0]?.src ?? ''
-type SettingsMessage = { text: string; tone: 'neutral' | 'success' | 'error' }
+type SettingsMessage = { text: string; tone: ToastTone }
 
 const loadPlayerSettings = createServerFn({ method: 'GET' }).handler(async () => {
   const { getDiscordSessionUser } = await import('../lib/discord.server')
@@ -131,10 +143,10 @@ function Settings() {
   }
 
   return (
-    <main className="min-w-0">
+    <main className="min-w-0 mx-auto w-[min(1180px,calc(100%_-_32px))] py-7 pb-[54px] max-[1023px]:w-[min(100%_-_24px,1180px)] max-[1023px]:py-[18px] max-[1023px]:pb-[42px] max-[480px]:w-[min(100%_-_18px,1180px)]">
       <section className="event-hero compact-hero">
         <div>
-          <p className="eyebrow">Player settings</p>
+          <p className={eyebrowClass}>Player settings</p>
           <h1>
             <PlayerName
               name={initialProfile.name}
@@ -142,7 +154,7 @@ function Settings() {
               groupTagColor={initialProfile.groupTagColor}
             />
           </h1>
-          <div className="meta-row">
+          <div className="meta-row mt-[18px] flex flex-wrap items-center gap-2.5 [&_a]:rounded-full [&_a]:border [&_a]:border-[#e4b45e]/40 [&_a]:bg-white/[0.08] [&_a]:px-3 [&_a]:py-2 [&_a]:font-black [&_a]:text-[#f4d59a] [&_a]:transition-colors [&_a:hover]:bg-[#e4b45e]/[0.20] [&_span]:rounded-full [&_span]:border [&_span]:border-white/[0.08] [&_span]:bg-white/[0.08] [&_span]:px-3 [&_span]:py-2 [&_span]:text-[#d8dedc] max-[1023px]:max-w-full max-[720px]:[&_a]:w-fit max-[720px]:[&_span]:w-fit">
             <Link to="/players/$discordId" params={{ discordId: initialProfile.discordId }}>
               View profile
             </Link>
@@ -151,14 +163,14 @@ function Settings() {
       </section>
 
       {message ? (
-        <div className={`toast toast-${message.tone}`} role="status" aria-live="polite">
+        <div className={toastClass(message.tone)} role="status" aria-live="polite">
           {message.text}
         </div>
       ) : null}
 
-      <section className="settings-grid">
-        <article className="panel settings-panel">
-          <div className="section-heading">
+      <section className="settings-grid grid min-w-0 grid-cols-2 gap-[18px] max-[720px]:grid-cols-1 [&>.panel]:mt-0">
+        <article className="panel rounded-lg border border-white/[0.10] bg-white/[0.055] p-[clamp(18px,3vw,28px)] mt-[18px] first:mt-0 max-[720px]:px-[clamp(14px,4vw,18px)]  settings-panel grid content-start gap-3.5 [&_label]:grid [&_label]:gap-[7px] [&_label]:text-[0.78rem] [&_label]:font-black [&_label]:uppercase [&_label]:text-[#b4bcbb] [&_input]:min-h-[42px] [&_input]:min-w-0 [&_input]:rounded-md [&_input]:border [&_input]:border-white/[0.18] [&_input]:bg-[#121417] [&_input]:px-3 [&_input]:text-base [&_input]:font-bold [&_input]:normal-case [&_input]:text-[#f4f0e8] [&_input]:transition-colors [&_.checkbox-field]:grid-cols-[auto_minmax(0,1fr)] [&_.checkbox-field]:items-center [&_.checkbox-field]:normal-case [&_.checkbox-field]:text-[#d8dedc] [&_.checkbox-field_input]:w-[18px] [&_.checkbox-field_input]:min-h-[18px]">
+          <div className="section-heading mb-5 flex items-center justify-between gap-3 max-[720px]:grid max-[720px]:grid-cols-1 max-[720px]:items-start [&>*]:min-w-0">
             <div>
               <h2>Jaeger characters</h2>
             </div>
@@ -174,7 +186,7 @@ function Settings() {
           {noPersonalJaegerAccount ? (
             <>
               <p>Admins can assign you a Jaeger character for each event after you sign up.</p>
-              <button disabled={saving === 'characters'} onClick={() => void saveJaegerPreference()}>
+              <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55" disabled={saving === 'characters'} onClick={() => void saveJaegerPreference()}>
                 {saving === 'characters' ? <span className="spinner" aria-label="Saving" /> : null}
                 Save Jaeger status
               </button>
@@ -192,12 +204,12 @@ function Settings() {
                   />
                 </label>
               ))}
-              <button disabled={saving === 'characters'} onClick={() => void resolveCharacters()}>
+              <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55" disabled={saving === 'characters'} onClick={() => void resolveCharacters()}>
                 {saving === 'characters' ? <span className="spinner" aria-label="Saving" /> : null}
                 Resolve and save
               </button>
               {resolvedCharacters.length ? (
-                <div className="resolved-list">
+                <div className={infoListClass}>
                   {resolvedCharacters.map((character) => (
                     <span key={character.faction}>
                       <strong>{character.faction}</strong> {character.characterName} #{character.characterId}
@@ -209,21 +221,21 @@ function Settings() {
           )}
         </article>
 
-        <article className="panel settings-panel">
-          <div className="section-heading">
+        <article className="panel rounded-lg border border-white/[0.10] bg-white/[0.055] p-[clamp(18px,3vw,28px)] mt-[18px] first:mt-0 max-[720px]:px-[clamp(14px,4vw,18px)]  settings-panel grid content-start gap-3.5 [&_label]:grid [&_label]:gap-[7px] [&_label]:text-[0.78rem] [&_label]:font-black [&_label]:uppercase [&_label]:text-[#b4bcbb] [&_input]:min-h-[42px] [&_input]:min-w-0 [&_input]:rounded-md [&_input]:border [&_input]:border-white/[0.18] [&_input]:bg-[#121417] [&_input]:px-3 [&_input]:text-base [&_input]:font-bold [&_input]:normal-case [&_input]:text-[#f4f0e8] [&_input]:transition-colors [&_.checkbox-field]:grid-cols-[auto_minmax(0,1fr)] [&_.checkbox-field]:items-center [&_.checkbox-field]:normal-case [&_.checkbox-field]:text-[#d8dedc] [&_.checkbox-field_input]:w-[18px] [&_.checkbox-field_input]:min-h-[18px]">
+          <div className="section-heading mb-5 flex items-center justify-between gap-3 max-[720px]:grid max-[720px]:grid-cols-1 max-[720px]:items-start [&>*]:min-w-0">
             <div>
               <h2>Profile</h2>
             </div>
           </div>
           {!jaegerReady ? (
-            <div className="empty-inline">Complete the Jaeger section before customizing your profile.</div>
+            <div className="empty-inline flex min-h-11 w-full items-center gap-2 rounded-lg border border-dashed border-white/[0.12] bg-white/[0.04] px-3.5 py-3 font-bold text-[#b4bcbb]">Complete the Jaeger section before customizing your profile.</div>
           ) : null}
           <div>
             <h3>Banner</h3>
           </div>
-          <div className="banner-picker" aria-disabled={!jaegerReady}>
+          <div className={bannerPickerClass} aria-disabled={!jaegerReady}>
             {PROFILE_BANNERS.map((banner) => (
-              <label key={banner.id} className="banner-choice" data-selected={bannerUrl === banner.src}>
+              <label key={banner.id} className={bannerChoiceClass} data-selected={bannerUrl === banner.src}>
                 <input
                   type="radio"
                   name="profile-banner"
@@ -245,16 +257,16 @@ function Settings() {
               onChange={(event) => setCatchphrase(event.target.value)}
             />
           </label>
-          <div className="badge-settings">
+          <div className={badgeSettingsClass}>
             <div>
               <h3>Shown badges</h3>
             </div>
             {initialProfile.badges.length ? (
-              <div className="badge-settings-list">
+              <div className={badgeSettingsListClass}>
                 {orderedBadgeChoices(initialProfile.badges, badgeDisplayOrder).map((badge) => {
                   const selected = badgeDisplayOrder.includes(badge.id)
                   return (
-                    <article className="badge-settings-row" key={badge.id} data-selected={selected}>
+                    <article className={badgeSettingsRowClass} key={badge.id} data-selected={selected}>
                       <label className="checkbox-field">
                         <input
                           disabled={!jaegerReady}
@@ -274,15 +286,15 @@ function Settings() {
                           <small>{badge.description}</small>
                         </span>
                       </label>
-                      <div className="badge-order-actions">
-                        <button
+                      <div className={badgeOrderActionsClass}>
+                        <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55"
                           type="button"
                           disabled={!jaegerReady || !selected || badgeDisplayOrder.indexOf(badge.id) <= 0}
                           onClick={() => setBadgeDisplayOrder((current) => moveBadge(current, badge.id, -1))}
                         >
                           Up
                         </button>
-                        <button
+                        <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55"
                           type="button"
                           disabled={
                             !jaegerReady ||
@@ -300,10 +312,10 @@ function Settings() {
                 })}
               </div>
             ) : (
-              <div className="empty-inline">No badges earned yet.</div>
+              <div className="empty-inline flex min-h-11 w-full items-center gap-2 rounded-lg border border-dashed border-white/[0.12] bg-white/[0.04] px-3.5 py-3 font-bold text-[#b4bcbb]">No badges earned yet.</div>
             )}
           </div>
-          <button disabled={saving === 'profile' || !jaegerReady} onClick={() => void saveProfile()}>
+          <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55" disabled={saving === 'profile' || !jaegerReady} onClick={() => void saveProfile()}>
             {saving === 'profile' ? <span className="spinner" aria-label="Saving" /> : null}
             Save profile
           </button>

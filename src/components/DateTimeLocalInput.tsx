@@ -1,5 +1,6 @@
 import type { InputHTMLAttributes } from 'react'
 import { timeZoneAbbreviation } from '../lib/format'
+import { datetimeLocalFieldClass, datetimeLocalZoneClass } from '../lib/ui'
 
 type DateTimeLocalInputProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'type'>
 
@@ -9,11 +10,11 @@ export function DateTimeLocalInput({ value, className, ...props }: DateTimeLocal
 
   return (
     <div
-      className={`datetime-local-field${className ? ` ${className}` : ''}`}
+      className={`${datetimeLocalFieldClass}${className ? ` ${className}` : ''}`}
       data-invalid={props['aria-invalid'] ? 'true' : undefined}
     >
       <input {...props} type="datetime-local" value={value} />
-      <span className="datetime-local-zone" aria-label={`Local timezone: ${zone}`}>
+      <span className={datetimeLocalZoneClass} aria-label={`Local timezone: ${zone}`}>
         {zone}
       </span>
     </div>

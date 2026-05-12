@@ -20,6 +20,45 @@ import {
 import type { HammaEvent } from '../lib/types'
 import { useRealtimeCurrentEvent } from '../lib/useRealtimeCurrentEvent'
 import { useDisplayTimeZone } from '../lib/useDisplayTimeZone'
+import {
+  activeTeamPanelClass,
+  activeBidPanelClass,
+  availableListClass,
+  bidActionsClass,
+  bidInfoGridClass,
+  captainCrownClass,
+  captainPickNameClass,
+  checkInBadgeClass,
+  checkInPanelClass,
+  compactTeamGridClass,
+  countChipClass,
+  draftLayoutClass,
+  draftLedgerStatsClass,
+  draftStatusClass,
+  draftTeamsPanelClass,
+  draftPlayerNameClass,
+  draftPlayerNameRowClass,
+  eligibilityChipClass,
+  eligibilityClass,
+  factionFieldClass,
+  pickListClass,
+  pickMainClass,
+  pickTurnChipClass,
+  playerSpecsClass,
+  playerCardClass,
+  signupPoolPanelClass,
+  specFilterButtonClass,
+  specFilterRowClass,
+  headingWithChipClass,
+  teamMetaRowClass,
+  teamCountChipClass,
+  teamFooterChipsClass,
+  teamPanelClass,
+  teamTitleRowClass,
+  teamValueChipClass,
+  toastClass,
+  type ToastTone,
+} from '../lib/ui'
 import { PlayerName } from './PlayerName'
 
 export function DraftBoard({
@@ -42,7 +81,7 @@ export function DraftBoard({
   const [resettingPickId, setResettingPickId] = useState<string>()
   const [stealingPlayerId, setStealingPlayerId] = useState<string>()
   const [selectedSpecs, setSelectedSpecs] = useState<string[]>([])
-  const [bidMessage, setBidMessage] = useState<{ text: string; tone: 'neutral' | 'success' | 'error' }>()
+  const [bidMessage, setBidMessage] = useState<{ text: string; tone: ToastTone }>()
   const [now, setNow] = useState(initialNow ?? Date.now())
   const displayTimeZone = useDisplayTimeZone()
   const pickListRefs = useRef<Array<HTMLUListElement | null>>([])
@@ -51,7 +90,7 @@ export function DraftBoard({
 
   if (!currentEvent) {
     return (
-      <section className="panel empty-state">
+      <section className="panel rounded-lg border border-white/[0.10] bg-white/[0.055] p-[clamp(18px,3vw,28px)] mt-[18px] first:mt-0 max-[720px]:px-[clamp(14px,4vw,18px)]  empty-state min-h-[320px] grid content-center justify-items-center text-center gap-2.5 [&_p]:text-[#c0c8c6]">
         <h1>No current event</h1>
         <p>The draft will be available once an active HammaBowl event is selected.</p>
       </section>
@@ -385,17 +424,17 @@ export function DraftBoard({
   }
 
   return (
-    <div className="draft-layout">
-      <section className="panel draft-teams-panel">
-        <div className="section-heading">
+    <div className={draftLayoutClass}>
+      <section className={draftTeamsPanelClass}>
+        <div className="section-heading mb-5 flex items-center justify-between gap-3 max-[720px]:grid max-[720px]:grid-cols-1 max-[720px]:items-start [&>*]:min-w-0">
           <div>
             <h1>Draft</h1>
           </div>
-          <span className={`draft-status ${draftStatus.tone}`}>
+          <span className={draftStatusClass(draftStatus.tone)}>
             {draftStatus.label}
           </span>
         </div>
-        <div className="check-in-panel">
+        <div className={checkInPanelClass}>
           <div>
             <strong>Check-in</strong>
             <small>
@@ -418,7 +457,7 @@ export function DraftBoard({
             currentUserPlayer.checkedInAt ? (
               <CheckInBadge player={currentUserPlayer} event={currentEvent} now={now} />
             ) : (
-              <button type="button" disabled={!canCheckIn || checkingIn} onClick={() => void checkIn()}>
+              <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55" type="button" disabled={!canCheckIn || checkingIn} onClick={() => void checkIn()}>
                 {checkingIn ? <span className="spinner" aria-label="Checking in" /> : null}
                 Check In
               </button>
@@ -426,34 +465,34 @@ export function DraftBoard({
           ) : null}
         </div>
         {draftLocked ? (
-          <div className="toast toast-neutral" role="status">
+          <div className={`${toastClass('neutral')} mt-3 !mb-0`} role="status">
             The first round has started. Draft is locked.
           </div>
         ) : null}
         {draftAdjustmentActive && !draftLocked ? (
-          <div className="toast toast-neutral" role="status">
+          <div className={`${toastClass('neutral')} mt-3 !mb-0`} role="status">
             Adjustment phase active. {draftAdjustment.needsAdjustment && draftAdjustment.stealingTeam && draftAdjustment.sourceTeam
               ? `${draftAdjustment.stealingTeam.teamName} has ${money(draftAdjustment.stealBudget)} steal budget from ${draftAdjustment.sourceTeam.teamName}.`
               : 'Team values are already balanced.'}
           </div>
         ) : null}
         {ledgers.length ? (
-          <div className="team-grid compact">
+          <div className={compactTeamGridClass}>
             {ledgers.map((ledger, ledgerIndex) => {
               const isPickTurn =
                 !draftAdjustmentActive && draftReady && !activeBid && pickTurn?.team.id === ledger.team.id
               const teamPlayerCount = ledger.picks.length + (ledger.captainPlayer ? 1 : 0)
               const teamValue = ledger.picks.reduce((sum, pick) => sum + pick.salary, 0)
               return (
-                <article className={`team-panel${isPickTurn ? ' team-panel-active' : ''}`} key={ledger.team.id}>
-                  <div className="team-title-row">
+                <article className={isPickTurn ? activeTeamPanelClass : teamPanelClass} key={ledger.team.id}>
+                  <div className={teamTitleRowClass}>
                     <h2>{ledger.team.teamName}</h2>
                     {isPickTurn ? (
-                      <span className="pick-turn-chip pick-turn-pulse">Pick turn</span>
+                      <span className={pickTurnChipClass}>Pick turn</span>
                     ) : null}
                   </div>
-                  <div className="team-meta-row">
-                    <span className={`faction-field ${ledger.team.faction ? `faction-${ledger.team.faction.toLowerCase()}` : ''}`}>
+                  <div className={teamMetaRowClass}>
+                    <span className={factionFieldClass(ledger.team.faction)}>
                       <small>Faction</small>
                       <strong>{ledger.team.faction ?? 'TBD'}</strong>
                     </span>
@@ -462,7 +501,7 @@ export function DraftBoard({
                       <strong>{ledger.team.startingSide ?? 'TBD'}</strong>
                     </span>
                   </div>
-                  <dl>
+                  <dl className={draftLedgerStatsClass}>
                     <div>
                       <dt>Budget left</dt>
                       <dd title={money(ledger.budgetRemaining)}>{compactMoney(ledger.budgetRemaining)}</dd>
@@ -477,7 +516,7 @@ export function DraftBoard({
                     </div>
                   </dl>
                   <ul
-                    className="pick-list"
+                    className={pickListClass}
                     ref={(node) => {
                       pickListRefs.current[ledgerIndex] = node
                     }}
@@ -485,11 +524,11 @@ export function DraftBoard({
                   >
                     {ledger.captainPlayer ? (
                       <li className="locked-pick">
-                        <div className="pick-main">
+                        <div className={pickMainClass}>
                           <Link
                             to="/players/$discordId"
                             params={{ discordId: ledger.captainPlayer.id }}
-                            className="captain-pick-name"
+                            className={captainPickNameClass}
                           >
                             <PlayerName
                               name={ledger.captainPlayer.name}
@@ -497,7 +536,7 @@ export function DraftBoard({
                               groupTagColor={ledger.captainPlayer.groupTagColor}
                             />
                             <CheckInBadge player={ledger.captainPlayer} event={currentEvent} now={now} compact />
-                            <span className="captain-crown" aria-hidden="true">
+                            <span className={captainCrownClass} aria-hidden="true">
                               ♛
                             </span>
                           </Link>
@@ -513,7 +552,7 @@ export function DraftBoard({
                       )
                       return (
                       <li key={pick.id}>
-                        <div className="pick-main">
+                        <div className={pickMainClass}>
                           <Link to="/players/$discordId" params={{ discordId: pick.player.id }}>
                             <PlayerName
                               name={pick.player.name}
@@ -534,7 +573,7 @@ export function DraftBoard({
                         </div>
                         {canManageAll && !draftLocked && pick.id === latestPickId ? (
                           <button
-                            className="text-button danger"
+                            className="inline-flex min-h-[30px] cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#d94f3d]/55 bg-white/[0.07] px-2.5 font-extrabold text-[#f2b4ab] transition-colors hover:border-[#d94f3d]/70 hover:bg-[#d94f3d]/[0.20] disabled:cursor-not-allowed disabled:opacity-55"
                             type="button"
                             disabled={Boolean(activeBid) || resettingPickId === pick.id}
                             onClick={() => void resetPick(pick.id)}
@@ -545,7 +584,7 @@ export function DraftBoard({
                         ) : null}
                         {canStealPick ? (
                           <button
-                            className="text-button steal"
+                            className="inline-flex min-h-[30px] cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e]/55 bg-white/[0.07] px-2.5 font-extrabold text-[#f4d59a] transition-colors hover:border-[#e4b45e]/70 hover:bg-[#e4b45e]/[0.18] disabled:cursor-not-allowed disabled:opacity-55"
                             type="button"
                             disabled={stealingPlayerId === pick.playerId}
                             onClick={() => void stealPlayer(pick.playerId)}
@@ -557,11 +596,11 @@ export function DraftBoard({
                       </li>
                     )})}
                   </ul>
-                  <div className="team-footer-chips">
-                    <div className="team-count-chip">
+                  <div className={teamFooterChipsClass}>
+                    <div className={teamCountChipClass}>
                       {teamPlayerCount} {teamPlayerCount === 1 ? 'player' : 'players'}
                     </div>
-                    <div className="team-value-chip" title={money(teamValue)}>
+                    <div className={teamValueChipClass} title={money(teamValue)}>
                       Adjusted {compactMoney(teamValue)}
                     </div>
                   </div>
@@ -570,31 +609,31 @@ export function DraftBoard({
             })}
           </div>
         ) : (
-          <div className="empty-inline">
+          <div className="empty-inline flex min-h-11 w-full items-center gap-2 rounded-lg border border-dashed border-white/[0.12] bg-white/[0.04] px-3.5 py-3 font-bold text-[#b4bcbb]">
             Captains and teams have not been configured for this event yet.
           </div>
         )}
       </section>
 
-      <section className="panel signup-pool-panel">
-        <div className="section-heading">
+      <section className={signupPoolPanelClass}>
+        <div className="section-heading mb-5 flex items-center justify-between gap-3 max-[720px]:grid max-[720px]:grid-cols-1 max-[720px]:items-start [&>*]:min-w-0">
           <div>
-            <div className="heading-with-chip">
+            <div className={headingWithChipClass}>
               <h2>Player Pool</h2>
-              <span className="count-chip">
+              <span className={countChipClass}>
                 {available.length} undrafted
               </span>
             </div>
           </div>
         </div>
         {bidMessage ? (
-          <div className={`toast toast-${bidMessage.tone}`} role="status" aria-live="polite">
+          <div className={`${toastClass(bidMessage.tone)} row-[4]`} role="status" aria-live="polite">
             {bidMessage.text}
           </div>
         ) : null}
         {activeBid ? (
-          <div className="active-bid-panel">
-            <div className="bid-info-grid">
+          <div className={activeBidPanelClass}>
+            <div className={bidInfoGridClass}>
               <div>
                 <small>Player</small>
                 {bidPlayer ? (
@@ -626,10 +665,10 @@ export function DraftBoard({
               </div>
             </div>
             {canSeeBidActions || canCancelBid ? (
-              <div className="bid-actions">
+              <div className={bidActionsClass}>
                 {canSeeBidActions ? (
                   <>
-                    <button
+                    <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55"
                       type="button"
                       disabled={draftLocked || draftAdjustmentActive || savingBid || !canRaiseBid}
                       onClick={() => void runBidAction('bump')}
@@ -638,7 +677,7 @@ export function DraftBoard({
                       {contestWinsPlayer ? 'Contest' : `+${money(currentEvent.bidIncrement)}`}
                     </button>
                     <button
-                      className="text-button danger"
+                      className="inline-flex min-h-[30px] cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#d94f3d]/55 bg-white/[0.07] px-2.5 font-extrabold text-[#f2b4ab] transition-colors hover:border-[#d94f3d]/70 hover:bg-[#d94f3d]/[0.20] disabled:cursor-not-allowed disabled:opacity-55"
                       type="button"
                       disabled={draftLocked || draftAdjustmentActive || savingBid || !canActOnBid}
                       onClick={() => void runBidAction('forfeit')}
@@ -649,7 +688,7 @@ export function DraftBoard({
                 ) : null}
                 {canCancelBid ? (
                   <button
-                    className="text-button danger"
+                    className="inline-flex min-h-[30px] cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#d94f3d]/55 bg-white/[0.07] px-2.5 font-extrabold text-[#f2b4ab] transition-colors hover:border-[#d94f3d]/70 hover:bg-[#d94f3d]/[0.20] disabled:cursor-not-allowed disabled:opacity-55"
                     type="button"
                     disabled={draftLocked || savingBid}
                     onClick={() => void cancelBid()}
@@ -662,10 +701,10 @@ export function DraftBoard({
           </div>
         ) : null}
         {specOptions.length ? (
-          <div className="spec-filter-row" aria-label="Filter signup pool by signed specs">
+          <div className={specFilterRowClass} aria-label="Filter signup pool by signed specs">
             <button
               type="button"
-              className={!activeSelectedSpecs.length ? 'active' : ''}
+              className={specFilterButtonClass(!activeSelectedSpecs.length)}
               onClick={() => setSelectedSpecs([])}
             >
               All
@@ -674,7 +713,7 @@ export function DraftBoard({
               <button
                 key={spec}
                 type="button"
-                className={selectedSpecs.includes(spec) ? 'active' : ''}
+                className={specFilterButtonClass(selectedSpecs.includes(spec))}
                 onClick={() => toggleSpecFilter(spec)}
               >
                 {spec}
@@ -682,13 +721,13 @@ export function DraftBoard({
             ))}
           </div>
         ) : null}
-        <div className={`available-list${!available.length ? ' available-list-empty' : ''}`}>
+        <div className={availableListClass(!available.length)}>
           {!draftEligibleCount ? (
-            <div className="empty-inline">No draft-eligible signups are available for this event yet.</div>
+            <div className="empty-inline flex min-h-11 w-full items-center gap-2 rounded-lg border border-dashed border-white/[0.12] bg-white/[0.04] px-3.5 py-3 font-bold text-[#b4bcbb]">No draft-eligible signups are available for this event yet.</div>
           ) : activeSelectedSpecs.length && availablePlayers.length && !available.length ? (
-            <div className="empty-inline">No undrafted players match the selected specs.</div>
+            <div className="empty-inline flex min-h-11 w-full items-center gap-2 rounded-lg border border-dashed border-white/[0.12] bg-white/[0.04] px-3.5 py-3 font-bold text-[#b4bcbb]">No undrafted players match the selected specs.</div>
           ) : !available.length ? (
-            <div className="empty-inline">Every player has been drafted.</div>
+            <div className="empty-inline flex min-h-11 w-full items-center gap-2 rounded-lg border border-dashed border-white/[0.12] bg-white/[0.04] px-3.5 py-3 font-bold text-[#b4bcbb]">Every player has been drafted.</div>
           ) : available.map((player) => {
             const salary = salaryByPlayer.get(player.id) ?? 0
             const pickCost = pickTurn
@@ -704,9 +743,9 @@ export function DraftBoard({
                 pickCost?.affordable,
             )
             return (
-            <article className="player-card" key={player.id}>
-              <div className="player-name">
-                <div className="player-name-row">
+            <article className={playerCardClass} key={player.id}>
+              <div className={draftPlayerNameClass}>
+                <div className={draftPlayerNameRowClass}>
                   <Link to="/players/$discordId" params={{ discordId: player.id }}>
                     <strong>
                       <PlayerName name={player.name} groupTag={player.groupTag} groupTagColor={player.groupTagColor} />
@@ -715,7 +754,7 @@ export function DraftBoard({
                   <CheckInBadge player={player} event={currentEvent} now={now} compact />
                 </div>
                 {player.specs?.length ? (
-                  <div className="player-specs" aria-label={`${player.name} signed specs`}>
+                  <div className={playerSpecsClass} aria-label={`${player.name} signed specs`}>
                     {player.specs.map((spec) => (
                       <span key={spec}>{spec}</span>
                     ))}
@@ -724,7 +763,7 @@ export function DraftBoard({
               </div>
               <span>{currentEvent.ratings.length ? money(salary) : 'UNRATED'}</span>
               {isCaptain ? (
-                <button
+                <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55"
                   type="button"
                   disabled={!canPickPlayer || pickingPlayerId === player.id}
                   onClick={() => void pickPlayer(player.id)}
@@ -734,7 +773,7 @@ export function DraftBoard({
                 </button>
               ) : null}
               {ledgers.length && currentEvent.ratings.length ? (
-                <div className="eligibility">
+                <div className={eligibilityClass}>
                   {ledgers.map((ledger) => (
                     <EligibilityChip
                       key={ledger.team.id}
@@ -777,7 +816,7 @@ function CheckInBadge({
 
   return (
     <span
-      className={`check-in-badge ${status}${compact ? ' compact' : ''}${icon ? ' icon-only' : ''}`}
+      className={checkInBadgeClass(status, compact, Boolean(icon))}
       title={title}
       aria-label={title}
     >
@@ -794,7 +833,7 @@ function EligibilityChip({
   status: 'budget' | 'combined' | 'blocked'
 }) {
   return (
-    <span className={`eligibility-chip ${status}`} title={`${label}: ${status}`}>
+    <span className={eligibilityChipClass(status)} title={`${label}: ${status}`}>
       <strong>{initials(label)}</strong>
       <small>{status === 'budget' ? 'Budget' : status === 'combined' ? 'Combo' : 'Blocked'}</small>
     </span>

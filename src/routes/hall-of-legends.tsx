@@ -4,6 +4,18 @@ import { useEffect, useRef, useState } from 'react'
 import { shortDateWithTimeZone } from '../lib/format'
 import { pageMeta } from '../lib/meta'
 import type { HistoricalEvent } from '../lib/types'
+import {
+  legendCardClass,
+  legendCardShineClass,
+  legendCardTitleClass,
+  legendCardWinnerClass,
+  legendCarouselClass,
+  legendCarouselSectionClass,
+  legendScoreboardClass,
+  legendsHeroClass,
+  legendsMainClass,
+  legendTrophyClass,
+} from '../lib/ui'
 import { useDisplayTimeZone } from '../lib/useDisplayTimeZone'
 
 const loadHistoricalEvents = createServerFn({ method: 'GET' }).handler(async () => {
@@ -167,34 +179,34 @@ function HallOfLegends() {
   }
 
   return (
-    <main className="legends-main min-w-0">
-      <section className="event-hero compact-hero legends-hero">
+    <main className={legendsMainClass}>
+      <section className={legendsHeroClass}>
         <div>
           <h1>Hall of Legends</h1>
-          <div className="meta-row">
+          <div className="meta-row mt-[18px] flex flex-wrap items-center gap-2.5 [&_a]:rounded-full [&_a]:border [&_a]:border-[#e4b45e]/40 [&_a]:bg-white/[0.08] [&_a]:px-3 [&_a]:py-2 [&_a]:font-black [&_a]:text-[#f4d59a] [&_a]:transition-colors [&_a:hover]:bg-[#e4b45e]/[0.20] [&_span]:rounded-full [&_span]:border [&_span]:border-white/[0.08] [&_span]:bg-white/[0.08] [&_span]:px-3 [&_span]:py-2 [&_span]:text-[#d8dedc] max-[1023px]:max-w-full max-[720px]:[&_a]:w-fit max-[720px]:[&_span]:w-fit">
             <span>{events.length} completed event{events.length === 1 ? '' : 's'}</span>
           </div>
         </div>
       </section>
 
       {events.length ? (
-        <section className="legend-carousel-section" aria-label="Completed events">
+        <section className={legendCarouselSectionClass} aria-label="Completed events">
           <div
-            className="legend-carousel"
+            className={legendCarouselClass}
             ref={carouselRef}
             onScroll={(event) => updateFocusedCard(event.currentTarget)}
             tabIndex={0}
           >
             {events.map((event, index) => (
               <Link
-                className={`legend-card${focusedIndex === index ? ' focused' : ''}`}
+                className={legendCardClass(focusedIndex === index)}
                 key={event.id}
                 to="/hall-of-legends/$eventId"
                 params={{ eventId: event.id }}
                 aria-label={`Open ${event.name} results`}
               >
-                <span className="legend-card-shine" aria-hidden="true" />
-                <div className="legend-card-title">
+                <span className={legendCardShineClass} aria-hidden="true" />
+                <div className={legendCardTitleClass}>
                   <time dateTime={event.date}>
                     {shortDateWithTimeZone(event.date, { timeZone: displayTimeZone })}
                   </time>
@@ -202,7 +214,7 @@ function HallOfLegends() {
                 </div>
                 <LegendTrophy event={event} />
                 <LegendScoreboard event={event} />
-                <div className="legend-card-winner">
+                <div className={legendCardWinnerClass}>
                   <span>Winning team</span>
                   <strong>{event.winningTeam?.name ?? 'Winner pending'}</strong>
                 </div>
@@ -211,7 +223,7 @@ function HallOfLegends() {
           </div>
         </section>
       ) : (
-        <section className="panel empty-state">
+        <section className="panel rounded-lg border border-white/[0.10] bg-white/[0.055] p-[clamp(18px,3vw,28px)] mt-[18px] first:mt-0 max-[720px]:px-[clamp(14px,4vw,18px)]  empty-state min-h-[320px] grid content-center justify-items-center text-center gap-2.5 [&_p]:text-[#c0c8c6]">
           <h2>No completed events yet</h2>
           <p>Completed HammaBowl events will appear here after admins record a winner.</p>
         </section>
@@ -230,7 +242,7 @@ function LegendTrophy({ event }: { event: Pick<HistoricalEvent, 'name' | 'trophy
   const isBiolab = event.trophyId === 'hamma-dome-biolab'
 
   return (
-    <div className={`legend-trophy ${isBiolab ? 'legend-trophy-biolab' : ''}`}>
+    <div className={legendTrophyClass(isBiolab)}>
       <img
         src={isBiolab ? '/trophies/hamma-dome-i.png' : '/trophies/hamma-bowl.png'}
         alt={`${event.name} trophy`}
@@ -241,7 +253,7 @@ function LegendTrophy({ event }: { event: Pick<HistoricalEvent, 'name' | 'trophy
 
 function LegendScoreboard({ event }: { event: HistoricalEvent }) {
   return (
-    <div className="legend-scoreboard" aria-label={`${event.name} final scores`}>
+    <div className={legendScoreboardClass} aria-label={`${event.name} final scores`}>
       {event.teams.map((team) => (
         <div className={team.winner ? 'winner' : undefined} key={team.id}>
           <span>{team.name}</span>

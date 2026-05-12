@@ -3,6 +3,30 @@ import { Pause, Play, SkipBack, SkipForward } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { compactMoney, money } from '../lib/format'
 import type { HistoricalEvent } from '../lib/types'
+import {
+  legendDataSectionClass,
+  legendDraftControlsClass,
+  legendDraftCurrentClass,
+  legendDraftPickCardClass,
+  legendDraftProcessClass,
+  legendDraftReplayClass,
+  legendDraftStateClass,
+  legendDraftTeamHeadingClass,
+  legendDraftTimelineButtonClass,
+  legendDraftTimelineClass,
+  legendMutedClass,
+  legendRatingEmptyClass,
+  legendRatingSpecsClass,
+  legendRatingTableClass,
+  legendRatingTableWrapClass,
+  legendSectionHeadingClass,
+  playersClearButtonClass,
+  playersCountPillClass,
+  playersFilterSelectClass,
+  playersSortArrowClass,
+  playersSortButtonClass,
+  playersToolbarClass,
+} from '../lib/ui'
 import { PlayerName } from './PlayerName'
 
 type RatingSortKey = 'name' | 'rating' | 'salary' | 'team'
@@ -48,8 +72,8 @@ function LegendDraftReplay({ event }: { event: HistoricalEvent }) {
 
   if (!event.draftPicks.length) {
     return (
-      <section className="legend-data-section">
-        <div className="legend-section-heading">
+      <section className={legendDataSectionClass}>
+        <div className={legendSectionHeadingClass}>
           <span>Draft replay</span>
           <h2>No draft picks recorded</h2>
         </div>
@@ -58,17 +82,17 @@ function LegendDraftReplay({ event }: { event: HistoricalEvent }) {
   }
 
   return (
-    <section className="legend-data-section" aria-label={`${event.name} draft replay`}>
-      <div className="legend-section-heading">
+    <section className={legendDataSectionClass} aria-label={`${event.name} draft replay`}>
+      <div className={legendSectionHeadingClass}>
         <span>Draft replay</span>
         <h2>{event.draftPicks.length} selection{event.draftPicks.length === 1 ? '' : 's'}</h2>
       </div>
 
-      <div className="legend-draft-replay">
-        <div className="legend-draft-controls">
+      <div className={legendDraftReplayClass}>
+        <div className={legendDraftControlsClass}>
           <button
             type="button"
-            className="secondary"
+            className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e]/40 bg-[#e4b45e]/[0.10] px-3.5 font-extrabold text-[#f3d99d] transition-colors hover:border-[#f0c878]/70 hover:bg-[#e4b45e]/[0.20] disabled:cursor-not-allowed disabled:opacity-55"
             disabled={selectedIndex === 0}
             onClick={() => {
               setPlaying(false)
@@ -78,7 +102,7 @@ function LegendDraftReplay({ event }: { event: HistoricalEvent }) {
           >
             <SkipBack size={16} aria-hidden="true" />
           </button>
-          <button
+          <button className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e] bg-[#e4b45e] px-3.5 font-extrabold text-[#16130f] transition-colors hover:border-[#f0c878] hover:bg-[#f0c878] disabled:cursor-not-allowed disabled:opacity-55"
             type="button"
             onClick={() => setPlaying((current) => !current)}
             title={playing ? 'Pause replay' : 'Play replay'}
@@ -88,7 +112,7 @@ function LegendDraftReplay({ event }: { event: HistoricalEvent }) {
           </button>
           <button
             type="button"
-            className="secondary"
+            className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#e4b45e]/40 bg-[#e4b45e]/[0.10] px-3.5 font-extrabold text-[#f3d99d] transition-colors hover:border-[#f0c878]/70 hover:bg-[#e4b45e]/[0.20] disabled:cursor-not-allowed disabled:opacity-55"
             disabled={selectedIndex >= event.draftPicks.length - 1}
             onClick={() => {
               setPlaying(false)
@@ -103,12 +127,12 @@ function LegendDraftReplay({ event }: { event: HistoricalEvent }) {
           </span>
         </div>
 
-        <div className="legend-draft-timeline" aria-label="Draft selection timeline">
+        <div className={legendDraftTimelineClass} aria-label="Draft selection timeline">
           {event.draftPicks.map((pick, index) => (
             <button
               key={pick.id}
               type="button"
-              className={index === selectedIndex ? 'active' : undefined}
+              className={legendDraftTimelineButtonClass(index === selectedIndex)}
               onClick={() => {
                 setPlaying(false)
                 setSelectedIndex(index)
@@ -120,8 +144,8 @@ function LegendDraftReplay({ event }: { event: HistoricalEvent }) {
           ))}
         </div>
 
-        <article className="legend-draft-current">
-          <div className="legend-draft-pick-card">
+        <article className={legendDraftCurrentClass}>
+          <div className={legendDraftPickCardClass}>
             <span>Current selection</span>
             <h3>
               <Link to="/players/$discordId" params={{ discordId: selectedPick.player.discordId }}>
@@ -148,7 +172,7 @@ function LegendDraftReplay({ event }: { event: HistoricalEvent }) {
             </dl>
           </div>
 
-          <ol className="legend-draft-process">
+          <ol className={legendDraftProcessClass}>
             {buildDraftProcessSteps(selectedPick).map((step) => (
               <li key={step.label}>
                 <strong>{step.label}</strong>
@@ -158,10 +182,10 @@ function LegendDraftReplay({ event }: { event: HistoricalEvent }) {
           </ol>
         </article>
 
-        <div className="legend-draft-state" aria-label={`Rosters after pick ${selectedPick.order}`}>
+        <div className={legendDraftStateClass} aria-label={`Rosters after pick ${selectedPick.order}`}>
           {replayTeams.map((team) => (
             <article key={team.id}>
-              <div className="legend-draft-team-heading">
+              <div className={legendDraftTeamHeadingClass}>
                 <h3>{team.name}</h3>
                 <span>{team.members.length} player{team.members.length === 1 ? '' : 's'}</span>
               </div>
@@ -223,8 +247,8 @@ function LegendRatingSummary({ event }: { event: HistoricalEvent }) {
 
   if (!rateablePlayers.length) {
     return (
-      <section className="legend-data-section">
-        <div className="legend-section-heading">
+      <section className={legendDataSectionClass}>
+        <div className={legendSectionHeadingClass}>
           <span>Player ratings</span>
           <h2>No player ratings recorded</h2>
         </div>
@@ -233,13 +257,13 @@ function LegendRatingSummary({ event }: { event: HistoricalEvent }) {
   }
 
   return (
-    <section className="legend-data-section" aria-label={`${event.name} player ratings`}>
-      <div className="legend-section-heading">
+    <section className={legendDataSectionClass} aria-label={`${event.name} player ratings`}>
+      <div className={legendSectionHeadingClass}>
         <span>Player ratings</span>
         <h2>{visibleRatings.length} of {rateablePlayers.length} player{rateablePlayers.length === 1 ? '' : 's'}</h2>
       </div>
-      <div className="players-toolbar">
-        <label className="players-filter-select">
+      <div className={playersToolbarClass}>
+        <label className={playersFilterSelectClass}>
           Team
           <select value={teamFilter} onChange={(event) => setTeamFilter(event.currentTarget.value)}>
             <option value="all">Any team</option>
@@ -250,7 +274,7 @@ function LegendRatingSummary({ event }: { event: HistoricalEvent }) {
             ))}
           </select>
         </label>
-        <label className="players-filter-select">
+        <label className={playersFilterSelectClass}>
           Class
           <select value={specFilter} onChange={(event) => setSpecFilter(event.currentTarget.value)}>
             <option value="all">Any Class</option>
@@ -264,7 +288,7 @@ function LegendRatingSummary({ event }: { event: HistoricalEvent }) {
         {hasActiveFilters ? (
           <button
             type="button"
-            className="players-clear-btn"
+            className={playersClearButtonClass}
             onClick={() => {
               setTeamFilter('all')
               setSpecFilter('all')
@@ -273,12 +297,12 @@ function LegendRatingSummary({ event }: { event: HistoricalEvent }) {
             Clear
           </button>
         ) : null}
-        <span className="players-count-pill">
+        <span className={playersCountPillClass}>
           {visibleRatings.length} player{visibleRatings.length === 1 ? '' : 's'}
         </span>
       </div>
-      <div className="legend-rating-table-wrap">
-        <table className="legend-rating-table">
+      <div className={legendRatingTableWrapClass}>
+        <table className={legendRatingTableClass}>
           <thead>
             <tr>
               <th>
@@ -338,13 +362,13 @@ function LegendRatingSummary({ event }: { event: HistoricalEvent }) {
                 <td>{rating.teamName ?? 'Undrafted'}</td>
                 <td>
                   {rating.specs.length ? (
-                    <div className="legend-rating-specs">
+                    <div className={legendRatingSpecsClass}>
                       {rating.specs.map((spec) => (
                         <span key={`${rating.discordId}-${spec}`}>{spec}</span>
                       ))}
                     </div>
                   ) : (
-                    <span className="legend-muted">None</span>
+                    <span className={legendMutedClass}>None</span>
                   )}
                 </td>
               </tr>
@@ -352,7 +376,7 @@ function LegendRatingSummary({ event }: { event: HistoricalEvent }) {
           </tbody>
         </table>
         {!visibleRatings.length ? (
-          <div className="legend-rating-empty">No players match the selected filters.</div>
+          <div className={legendRatingEmptyClass}>No players match the selected filters.</div>
         ) : null}
       </div>
     </section>
@@ -376,11 +400,11 @@ function RatingSortButton({
   return (
     <button
       type="button"
-      className={`players-sort-btn${active ? ' active' : ''}`}
+      className={playersSortButtonClass(active)}
       onClick={() => onToggle(sortKey)}
     >
       {label}
-      {active ? <span className="players-sort-arrow">{direction === 'asc' ? '▲' : '▼'}</span> : null}
+      {active ? <span className={playersSortArrowClass}>{direction === 'asc' ? '▲' : '▼'}</span> : null}
     </button>
   )
 }

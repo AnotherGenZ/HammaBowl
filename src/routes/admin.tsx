@@ -6,6 +6,7 @@ import { AdminLayout, type AdminSidebarSection } from '../components/AdminSideba
 import { pageMeta } from '../lib/meta'
 import { useSession } from '../lib/SessionContext'
 import type { HammaEvent } from '../lib/types'
+import { adminMainClass } from '../lib/ui'
 
 const EVENT_SETUP_SECTIONS: AdminSidebarSection[] = [
   { id: 'admin-event-overview', label: 'Overview', status: 'ok', group: 'Event Setup' },
@@ -90,8 +91,8 @@ function Admin() {
 
   if (loading) {
     return (
-      <main className="min-w-0">
-        <section className="panel empty-state">
+      <main className="min-w-0 mx-auto w-[min(1180px,calc(100%_-_32px))] py-7 pb-[54px] max-[1023px]:w-[min(100%_-_24px,1180px)] max-[1023px]:py-[18px] max-[1023px]:pb-[42px] max-[480px]:w-[min(100%_-_18px,1180px)]">
+        <section className="panel rounded-lg border border-white/[0.10] bg-white/[0.055] p-[clamp(18px,3vw,28px)] mt-[18px] first:mt-0 max-[720px]:px-[clamp(14px,4vw,18px)]  empty-state min-h-[320px] grid content-center justify-items-center text-center gap-2.5 [&_p]:text-[#c0c8c6]">
           <span className="spinner spinner-lg" aria-label="Loading" />
           <h1>Loading admin access</h1>
         </section>
@@ -101,8 +102,8 @@ function Admin() {
 
   if (!isAdmin) {
     return (
-      <main className="min-w-0">
-        <section className="panel empty-state">
+      <main className="min-w-0 mx-auto w-[min(1180px,calc(100%_-_32px))] py-7 pb-[54px] max-[1023px]:w-[min(100%_-_24px,1180px)] max-[1023px]:py-[18px] max-[1023px]:pb-[42px] max-[480px]:w-[min(100%_-_18px,1180px)]">
+        <section className="panel rounded-lg border border-white/[0.10] bg-white/[0.055] p-[clamp(18px,3vw,28px)] mt-[18px] first:mt-0 max-[720px]:px-[clamp(14px,4vw,18px)]  empty-state min-h-[320px] grid content-center justify-items-center text-center gap-2.5 [&_p]:text-[#c0c8c6]">
           <h1>Admin access required</h1>
           <p>Sign in with Discord to use HammaBowl event controls.</p>
         </section>
@@ -112,7 +113,7 @@ function Admin() {
 
   if (!event) {
     return (
-      <main className="admin-main min-w-0">
+      <main className={adminMainClass}>
         <AdminLayout sections={eventSections}>
           <AdminTools
             event={null}
@@ -130,7 +131,7 @@ function Admin() {
   }
 
   return (
-    <main className="admin-main min-w-0">
+    <main className={adminMainClass}>
       <AdminLayout sections={eventSections}>
         <AdminTools
           event={event}

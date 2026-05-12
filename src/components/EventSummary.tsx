@@ -3,6 +3,35 @@ import { CalendarClock, Swords, UserCheck, type LucideIcon } from 'lucide-react'
 import { money, shortDateWithTimeZone } from '../lib/format'
 import { buildTeamLedgers } from '../lib/rules'
 import type { HammaEvent } from '../lib/types'
+import {
+  eventDescriptionClass,
+  eventHeroClass,
+  eventLinkBadgesClass,
+  eventSectionLabelClass,
+  eventTimeBadgeClass,
+  eyebrowClass,
+  completedEventShowcaseClass,
+  completedScoreClass,
+  confettiClass,
+  roundActiveDotClass,
+  roundProgressClass,
+  roundSegmentClass,
+  statPillClass,
+  summaryTeamHeadingClass,
+  summaryTeamPanelWithFactionClass,
+  teamFactionChipClass,
+  teamBudgetCardClass,
+  teamBudgetGridClass,
+  teamGridClass,
+  teamLiveScoreClass,
+  teamRosterGridClass,
+  teamRosterMemberClass,
+  trophyImageClass,
+  trophyStageClass,
+  winnerDetailsClass,
+  winnerRosterClass,
+  winnerTrophyClass,
+} from '../lib/ui'
 import { useDisplayTimeZone } from '../lib/useDisplayTimeZone'
 import { Countdown } from './Countdown'
 import { EventLinkIcon } from './EventLinkIcons'
@@ -44,21 +73,21 @@ export function EventSummary({ event, initialNow }: { event: HammaEvent; initial
   ]
 
   return (
-    <section className="event-hero">
+    <section className={eventHeroClass}>
       <div>
-        <p className="eyebrow">{isComplete ? 'Completed event' : 'Current event'}</p>
+        <p className={eyebrowClass}>{isComplete ? 'Completed event' : 'Current event'}</p>
         <h1>{event.name}</h1>
         {event.eventDescription ? (
-          <p className="event-description">{event.eventDescription}</p>
+          <p className={eventDescriptionClass}>{event.eventDescription}</p>
         ) : null}
-        <div className="event-link-badges" aria-label="Event details and links">
+        <div className={eventLinkBadgesClass} aria-label="Event details and links">
           {visibleEventTimes.map((item) => {
             const Icon = item.icon
             const formattedTime = shortDateWithTimeZone(item.time, { timeZone: displayTimeZone })
 
             return (
               <span
-                className={`event-time-badge ${item.className}`}
+                className={eventTimeBadgeClass(item.className)}
                 key={item.label}
                 title={`${item.label}: ${formattedTime}`}
                 aria-label={`${item.label}: ${formattedTime}`}
@@ -76,7 +105,7 @@ export function EventSummary({ event, initialNow }: { event: HammaEvent; initial
           ))}
         </div>
         {!isComplete && (event.twitchStreamUrl || event.twitchVodUrl) ? (
-          <div className="meta-row">
+          <div className="meta-row mt-[18px] flex flex-wrap items-center gap-2.5 [&_a]:rounded-full [&_a]:border [&_a]:border-[#e4b45e]/40 [&_a]:bg-white/[0.08] [&_a]:px-3 [&_a]:py-2 [&_a]:font-black [&_a]:text-[#f4d59a] [&_a]:transition-colors [&_a:hover]:bg-[#e4b45e]/[0.20] [&_span]:rounded-full [&_span]:border [&_span]:border-white/[0.08] [&_span]:bg-white/[0.08] [&_span]:px-3 [&_span]:py-2 [&_span]:text-[#d8dedc] max-[1023px]:max-w-full max-[720px]:[&_a]:w-fit max-[720px]:[&_span]:w-fit">
             {event.twitchStreamUrl ? (
               <a href={event.twitchStreamUrl} target="_blank" rel="noreferrer">
                 Stream
@@ -107,11 +136,11 @@ export function EventSummary({ event, initialNow }: { event: HammaEvent; initial
 
       {isComplete ? null : matchStarted ? (
         <div>
-          <p className="event-section-label">Round progress</p>
+          <p className={eventSectionLabelClass}>Round progress</p>
           <RoundProgress event={event} />
         </div>
       ) : (
-        <div className="stat-strip">
+        <div className="stat-strip mt-[18px] grid grid-cols-4 gap-2.5 max-[860px]:grid-cols-2 max-[720px]:grid-cols-1">
           <StatPill label="Salary pool" value={money(event.salaryPool)} accent />
           <StatPill label="Signups" value={event.players.length.toString()} />
           <StatPill label="Pending" value={event.pendingPlayerCount.toString()} />
@@ -120,7 +149,7 @@ export function EventSummary({ event, initialNow }: { event: HammaEvent; initial
       )}
 
       {isComplete ? null : ledgers.length ? (
-        <div className="team-grid">
+        <div className={teamGridClass}>
           {ledgers.map((ledger) => {
             const members = [
               ...(ledger.captainPlayer ? [{ player: ledger.captainPlayer, label: 'Captain' }] : []),
@@ -158,7 +187,7 @@ type EventLedger = ReturnType<typeof buildTeamLedgers>[number]
 
 function StatPill({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
-    <div className={`stat-pill${accent ? ' stat-pill-accent' : ''}`}>
+    <div className={statPillClass(accent)}>
       <span>{label}</span>
       <strong>{value}</strong>
     </div>
@@ -180,19 +209,17 @@ function TeamPanel({
   budget: number
   bonusCap: number
 }) {
-  const factionClass = team.faction ? `team-panel-${team.faction.toLowerCase()}` : ''
-
   return (
-    <article className={`team-panel summary-team-panel ${factionClass}`}>
-      <div className="summary-team-heading">
-        {team.faction ? <span className={`team-faction-chip faction-${team.faction.toLowerCase()}`}>{team.faction}</span> : null}
+    <article className={summaryTeamPanelWithFactionClass(team.faction)}>
+      <div className={summaryTeamHeadingClass}>
+        {team.faction ? <span className={teamFactionChipClass(team.faction)}>{team.faction}</span> : null}
         <h2>{team.teamName}</h2>
-        {matchStarted ? <strong className="team-live-score">{team.score}</strong> : null}
+        {matchStarted ? <strong className={teamLiveScoreClass}>{team.score}</strong> : null}
       </div>
       {matchStarted ? (
-        <div className="team-roster-grid">
+        <div className={teamRosterGridClass}>
           {members.map((member) => (
-            <div key={member.player.id} className="team-roster-member">
+            <div key={member.player.id} className={teamRosterMemberClass}>
               <Link to="/players/$discordId" params={{ discordId: member.player.id }}>
                 <PlayerName
                   name={member.player.name}
@@ -205,12 +232,12 @@ function TeamPanel({
           ))}
         </div>
       ) : (
-        <div className="team-budget-grid">
-          <div className="team-budget-card">
+        <div className={teamBudgetGridClass}>
+          <div className={teamBudgetCardClass}>
             <span>Budget</span>
             <strong>{money(budget)}</strong>
           </div>
-          <div className="team-budget-card">
+          <div className={teamBudgetCardClass}>
             <span>Bonus cap</span>
             <strong>{money(bonusCap)}</strong>
           </div>
@@ -233,23 +260,23 @@ function CompletedEventShowcase({ event, ledger }: { event: HammaEvent; ledger: 
   ]
 
   return (
-    <div className="completed-event-showcase">
-      <div className="completed-score">
+    <div className={completedEventShowcaseClass}>
+      <div className={completedScoreClass}>
         <span>Final score</span>
         <strong>
           {ledger.team.score}–{losingScore}
         </strong>
       </div>
-      <div className="trophy-stage" aria-hidden="true">
-        <span className="confetti confetti-1" />
-        <span className="confetti confetti-2" />
-        <span className="confetti confetti-3" />
-        <span className="confetti confetti-4" />
-        <span className="confetti confetti-5" />
-        <span className="confetti confetti-6" />
+      <div className={trophyStageClass} aria-hidden="true">
+        <span className={confettiClass(1)} />
+        <span className={confettiClass(2)} />
+        <span className={confettiClass(3)} />
+        <span className={confettiClass(4)} />
+        <span className={confettiClass(5)} />
+        <span className={confettiClass(6)} />
         <EventTrophy event={event} />
       </div>
-      <div className="winner-details">
+      <div className={winnerDetailsClass}>
         <span>Event winner</span>
         <h2>{ledger.team.teamName}</h2>
         {ledger.captainPlayer ? (
@@ -261,7 +288,7 @@ function CompletedEventShowcase({ event, ledger }: { event: HammaEvent; ledger: 
           </p>
         ) : null}
       </div>
-      <ul className="winner-roster" aria-label={`${ledger.team.teamName} roster`}>
+      <ul className={winnerRosterClass} aria-label={`${ledger.team.teamName} roster`}>
         {members.map((member) => (
           <li key={member.player.id}>
             <Link to="/players/$discordId" params={{ discordId: member.player.id }}>
@@ -289,9 +316,9 @@ function EventTrophy({ event }: { event: HammaEvent }) {
 
 function HammaDomeBiolabTrophy() {
   return (
-    <div className="winner-trophy biolab-trophy">
+    <div className={winnerTrophyClass('biolab')}>
       <img
-        className="biolab-trophy-image"
+        className={trophyImageClass}
         src="/trophies/hamma-dome-i.png"
         alt="Hamma Dome I champion trophy"
       />
@@ -301,9 +328,9 @@ function HammaDomeBiolabTrophy() {
 
 function HammoBowlTrophy() {
   return (
-    <div className="winner-trophy hamma-bowl-trophy">
+    <div className={winnerTrophyClass('hamma-bowl')}>
       <img
-        className="hamma-bowl-trophy-image"
+        className={trophyImageClass}
         src="/trophies/hamma-bowl.png"
         alt="Hamma Bowl champion trophy"
       />
@@ -364,7 +391,7 @@ function RoundProgress({ event }: { event: HammaEvent }) {
 
   return (
     <div
-      className="round-progress"
+      className={roundProgressClass}
       style={{ gridTemplateColumns: `repeat(${roundCount}, minmax(140px, 1fr))` }}
       aria-label="Round progress"
     >
@@ -374,7 +401,7 @@ function RoundProgress({ event }: { event: HammaEvent }) {
         const leader = round?.winningTeamId ? teamsById.get(round.winningTeamId) : undefined
         const hasScores = Boolean(round && event.teams.some((team) => team.id in round.teamScores))
         const state = hasScores ? 'complete' : round ? 'active' : 'future'
-        const factionClass = leader?.faction ? ` round-segment-${leader.faction.toLowerCase()}` : ''
+        const faction = leader?.faction
         const label = round
           ? hasScores
             ? formatRoundScore(round, event.teams)
@@ -382,10 +409,10 @@ function RoundProgress({ event }: { event: HammaEvent }) {
           : 'Upcoming'
 
         return (
-          <div className={`round-segment round-segment-${state}${factionClass}`} key={roundNumber}>
+          <div className={roundSegmentClass(state, faction)} key={roundNumber}>
             <span>Round {roundNumber}</span>
             <strong>{label}</strong>
-            {state === 'active' ? <span className="round-active-dot" /> : null}
+            {state === 'active' ? <span className={roundActiveDotClass} /> : null}
           </div>
         )
       })}
