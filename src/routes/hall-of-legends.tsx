@@ -167,7 +167,7 @@ function HallOfLegends() {
   }
 
   return (
-    <main className="legends-main">
+    <main className="legends-main min-w-0">
       <section className="event-hero compact-hero legends-hero">
         <div>
           <h1>Hall of Legends</h1>

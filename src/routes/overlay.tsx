@@ -22,7 +22,7 @@ function Overlay() {
   const [event] = useRealtimeCurrentEvent(initialEvent)
 
   return (
-    <main className="overlay-page">
+    <main className="overlay-page min-w-0">
       <section className="overlay">
         <div>
           <p>{event?.name ?? 'No current event'}</p>

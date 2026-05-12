@@ -27,11 +27,13 @@
     "recharts": "^3.8.1"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.1.17",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^25.6.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
+    "tailwindcss": "^4.1.17",
     "nitro": "^3.0.260429-beta",
     "typescript": "^6.0.3",
     "vite": "^8.0.10"

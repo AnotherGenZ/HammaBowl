@@ -44,7 +44,7 @@ function Home() {
   const [event] = useRealtimeCurrentEvent(initialEvent)
   if (!event) {
     return (
-      <main>
+      <main className="min-w-0">
         <section className="panel empty-state">
           <h1>No active event</h1>
           <p>There is not currently an event selected for the HammaBowl homepage.</p>
@@ -57,7 +57,7 @@ function Home() {
   const matchStarted = event.rounds.length > 0
 
   return (
-    <main>
+    <main className="min-w-0">
       <EventSummary event={event} initialNow={loadedAt} />
       {!matchStarted ? (
         <section className="panel">

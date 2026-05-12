@@ -359,7 +359,7 @@ function Ratings() {
   }
 
   return (
-    <main className="ratings-page">
+    <main className="ratings-page min-w-0">
       <section className="panel">
         <div className="section-heading">
           <div>

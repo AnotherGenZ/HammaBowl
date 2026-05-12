@@ -51,7 +51,7 @@ function PlayerProfilePage() {
 
   if (!profile) {
     return (
-      <main>
+      <main className="min-w-0">
         <nav className="breadcrumb-nav" aria-label="Breadcrumb">
           <Link to="/players" activeOptions={{ exact: true }}>
             Players
@@ -72,7 +72,7 @@ function PlayerProfilePage() {
   }))
 
   return (
-    <main>
+    <main className="min-w-0">
       <nav className="breadcrumb-nav" aria-label="Breadcrumb">
         <Link to="/players" activeOptions={{ exact: true }}>
           Players

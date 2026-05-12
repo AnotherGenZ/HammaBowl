@@ -55,7 +55,7 @@ function PlayerDirectory() {
   }
 
   return (
-    <main>
+    <main className="min-w-0">
       <section className="players-header">
         <div>
           <p className="eyebrow">Profile directory</p>

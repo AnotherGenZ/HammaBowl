@@ -53,7 +53,7 @@ function GeneralAdmin() {
 
   if (!authorized) {
     return (
-      <main>
+      <main className="min-w-0">
         <section className="panel empty-state">
           <h1>Admin access required</h1>
           <p>Sign in with Discord to use HammaBowl general controls.</p>
@@ -63,7 +63,7 @@ function GeneralAdmin() {
   }
 
   return (
-    <main className="admin-main">
+    <main className="admin-main min-w-0">
       <AdminLayout sections={GENERAL_SECTIONS}>
         <GeneralAdminTools event={event} currentEvents={currentEvents} />
       </AdminLayout>

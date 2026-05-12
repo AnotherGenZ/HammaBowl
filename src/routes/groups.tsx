@@ -86,7 +86,7 @@ function GroupDirectory() {
   }
 
   return (
-    <main>
+    <main className="min-w-0">
       <section className="groups-header">
         <div>
           <p className="eyebrow">Group directory</p>

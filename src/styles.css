@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 :root {
   color-scheme: dark;
   font-family:
@@ -7070,5 +7072,542 @@ img.group-logo {
   .group-roster-row {
     align-items: flex-start;
     flex-direction: column;
+  }
+}
+
+/* ── Tailwind-backed responsive refactor layer ─────────
+   Existing bespoke visuals stay in CSS, but the layout rules below mirror the
+   mobile-first breakpoints used by the Tailwind utilities now available in the
+   app. Desktop/laptop remains the primary dense experience; smaller viewports
+   receive stacked structures and explicit scroll containers. */
+
+.mobile-nav-toggle {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .topbar {
+    min-height: 77px;
+  }
+}
+
+@media (max-width: 1023px) {
+  body.fixed-document {
+    overflow: auto;
+  }
+
+  .fixed-document .shell {
+    display: block;
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+
+  .topbar {
+    grid-template-columns: auto auto;
+    align-items: center;
+    gap: 12px;
+    padding: 12px clamp(14px, 4vw, 28px);
+  }
+
+  .brand {
+    justify-content: flex-start;
+  }
+
+  .mobile-nav-toggle {
+    justify-self: end;
+    display: inline-grid;
+    grid-template-columns: 18px auto;
+    align-items: center;
+    gap: 8px;
+    min-height: 38px;
+    border-color: rgba(228, 180, 94, 0.38);
+    background: rgba(228, 180, 94, 0.1);
+    color: #f3d99d;
+    padding-inline: 11px;
+  }
+
+  .mobile-nav-bars {
+    display: grid;
+    gap: 4px;
+  }
+
+  .mobile-nav-bars span {
+    display: block;
+    width: 18px;
+    height: 2px;
+    border-radius: 999px;
+    background: currentColor;
+  }
+
+  .nav,
+  .account-actions {
+    grid-column: 1 / -1;
+    display: none;
+    width: 100%;
+  }
+
+  .topbar.mobile-open .nav,
+  .topbar.mobile-open .account-actions {
+    display: flex;
+  }
+
+  .nav {
+    justify-content: flex-start;
+    gap: 8px;
+    padding-top: 8px;
+  }
+
+  .nav a,
+  .nav-menu,
+  .nav-menu-trigger,
+  .login,
+  .discord-link,
+  .user-menu,
+  .user-chip {
+    max-width: 100%;
+  }
+
+  .nav a,
+  .nav-menu-trigger,
+  .login,
+  .user-chip {
+    justify-content: center;
+    min-height: 42px;
+  }
+
+  .nav-menu {
+    width: 100%;
+  }
+
+  .nav-menu-trigger {
+    width: 100%;
+  }
+
+  .nav-dropdown,
+  .user-dropdown {
+    position: static;
+    width: 100%;
+    min-width: 0;
+    margin-top: 6px;
+    opacity: 1;
+    pointer-events: auto;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .nav-menu:not(.open) .nav-dropdown,
+  .user-menu:not(.open) .user-dropdown {
+    display: none;
+  }
+
+  .account-actions {
+    justify-content: flex-start;
+    padding-top: 2px;
+  }
+
+  .user-menu {
+    width: min(100%, 320px);
+  }
+
+  main,
+  main.wide-page,
+  main.admin-main,
+  main.ratings-page,
+  main.draft-page {
+    width: min(100% - 24px, 1180px);
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+    padding-block: 18px 42px;
+  }
+
+  main.wide-page {
+    max-width: 1680px;
+  }
+
+  main.admin-main {
+    max-width: 1180px;
+  }
+
+  .admin-sidebar-layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .admin-sidebar {
+    position: sticky;
+    top: 66px;
+    z-index: 8;
+    display: grid;
+    gap: 8px;
+    max-height: 42dvh;
+    overflow: auto;
+  }
+
+  .admin-sidebar-tabs,
+  .admin-sidebar-sections {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scroll-snap-type: x proximity;
+  }
+
+  .admin-sidebar-section-group {
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+  }
+
+  .admin-sidebar-tab,
+  .admin-sidebar-section {
+    white-space: nowrap;
+  }
+
+  .admin-sidebar-group-label {
+    display: none;
+  }
+
+  .admin-sidebar-content {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .draft-layout,
+  .ratings-page > .panel,
+  .admin-stack,
+  .profile-grid,
+  .settings-grid,
+  .directory-toolbar,
+  .players-toolbar,
+  .profile-directory-grid,
+  .group-grid,
+  .group-detail-grid,
+  .hall-page,
+  .legend-detail-main {
+    min-width: 0;
+  }
+
+  .draft-layout,
+  .team-grid,
+  .tool-grid,
+  .team-admin-grid,
+  .coinflip-grid,
+  .event-result-grid,
+  .assignment-grid,
+  .history-team-grid,
+  .history-admin-grid,
+  .settings-grid,
+  .profile-grid,
+  .directory-toolbar,
+  .profile-directory-grid,
+  .banner-picker,
+  .badge-admin-grid,
+  .badge-definition-cards,
+  .badge-definition-list,
+  .badge-assignment-list,
+  .legend-detail-hero,
+  .legend-detail-score-panel,
+  .legend-roster-matchup,
+  .legend-archive-link-panel,
+  .legend-draft-current,
+  .legend-draft-state,
+  .group-grid,
+  .group-detail-grid,
+  .group-form,
+  .group-admin-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .draft-board,
+  .table-wrap,
+  .profile-events-table-wrap,
+  .legend-rating-table-wrap,
+  .rating-list,
+  .available-list,
+  .leaderboard-table-wrap {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .rating-list {
+    overflow-x: visible;
+  }
+
+  .rating-row {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    gap: 12px;
+  }
+
+  .rating-controls {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .rating-score-picker {
+    width: min(100%, 380px);
+    grid-template-columns: repeat(5, minmax(38px, 1fr));
+  }
+
+  .rating-score-picker button {
+    min-width: 0;
+  }
+
+  .rating-header-actions,
+  .rating-list-toolbar,
+  .players-toolbar,
+  .directory-toolbar {
+    flex-wrap: wrap;
+    align-items: stretch;
+  }
+
+  .players-filter-select,
+  .rating-rater-select,
+  .players-search {
+    min-width: min(100%, 260px);
+    flex: 1 1 220px;
+  }
+
+  .profile-hero {
+    min-height: 0;
+  }
+
+  .profile-identity {
+    max-width: 100%;
+  }
+
+  .profile-hero-badges,
+  .event-link-badges,
+  .meta-row {
+    max-width: 100%;
+  }
+
+  .modal-panel {
+    width: min(100% - 24px, 720px);
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
+  }
+
+  .admin-profile-modal {
+    align-self: center;
+  }
+
+  .legend-carousel,
+  .legend-round-track,
+  .legend-draft-timeline {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@media (max-width: 720px) {
+  h1 {
+    font-size: clamp(2rem, 12vw, 3.2rem);
+  }
+
+  .panel,
+  .settings-panel,
+  .legend-roster-panel,
+  .legend-draft-replay {
+    padding-inline: clamp(14px, 4vw, 18px);
+  }
+
+  .section-heading,
+  .history-card-header,
+  .admin-section-header,
+  .legend-section-heading,
+  .legend-archive-link-panel {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .section-heading > *,
+  .admin-section-actions,
+  .history-links {
+    min-width: 0;
+  }
+
+  .button-row,
+  .admin-section-actions,
+  .group-card-footer,
+  .group-row-actions,
+  .badge-order-actions {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .stat-strip {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .event-time-badge,
+  .event-link-badges a,
+  .meta-row span,
+  .meta-row a,
+  .pill {
+    width: fit-content;
+    max-width: 100%;
+  }
+
+  .table-wrap table,
+  .profile-events-table,
+  .legend-rating-table {
+    min-width: 680px;
+  }
+
+  .responsive-player-table {
+    overflow: visible;
+  }
+
+  .responsive-player-table table,
+  .responsive-player-table thead,
+  .responsive-player-table tbody,
+  .responsive-player-table tr,
+  .responsive-player-table th,
+  .responsive-player-table td {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .responsive-player-table table {
+    border-collapse: separate;
+    border-spacing: 0 10px;
+  }
+
+  .responsive-player-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .responsive-player-table tr {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.045);
+    padding: 12px;
+  }
+
+  .responsive-player-table td {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 0;
+    padding: 6px 0;
+  }
+
+  .responsive-player-table td::before {
+    content: attr(data-label);
+    color: #8a9896;
+    font-size: 0.72rem;
+    font-weight: 900;
+    text-transform: uppercase;
+  }
+
+  .profile-hero {
+    padding: clamp(18px, 5vw, 28px);
+  }
+
+  .profile-events-table-wrap {
+    margin-inline: calc(clamp(14px, 4vw, 18px) * -1);
+    padding-inline: clamp(14px, 4vw, 18px);
+  }
+
+  .banner-choice {
+    min-width: min(100%, 260px);
+  }
+
+  .badge-settings-row,
+  .group-roster-row,
+  .legend-draft-state li,
+  .public-team-roster,
+  .team-roster-grid,
+  .winner-roster {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .overlay {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+    min-height: 0;
+    padding: clamp(14px, 4vw, 24px);
+  }
+
+  .overlay h1 {
+    font-size: clamp(1.8rem, 10vw, 3.4rem);
+  }
+
+  .overlay-score {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .overlay-score article {
+    min-width: 0;
+  }
+
+  .overlay-score strong {
+    font-size: clamp(2rem, 11vw, 3rem);
+  }
+}
+
+@media (max-width: 480px) {
+  main,
+  main.wide-page,
+  main.admin-main,
+  main.ratings-page,
+  main.draft-page {
+    width: min(100% - 18px, 1180px);
+  }
+
+  .brand-mark {
+    width: 36px;
+  }
+
+  .brand strong {
+    font-size: 0.95rem;
+  }
+
+  .topbar {
+    padding-inline: 9px;
+  }
+
+  .nav,
+  .account-actions {
+    gap: 6px;
+  }
+
+  .nav a,
+  .nav-menu-trigger,
+  .login,
+  .user-chip {
+    width: 100%;
+  }
+
+  .discord-link {
+    width: 42px;
+  }
+
+  .rating-score-picker {
+    grid-template-columns: repeat(5, minmax(32px, 1fr));
+  }
+
+  .rating-score-picker button {
+    min-height: 36px;
+    padding-inline: 0;
+  }
+
+  .overlay-score {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

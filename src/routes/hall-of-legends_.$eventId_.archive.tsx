@@ -36,7 +36,7 @@ function HistoricalEventArchivePage() {
 
   if (!event) {
     return (
-      <main>
+      <main className="min-w-0">
         <section className="panel empty-state">
           <h1>Archive not found</h1>
           <Link to="/hall-of-legends" className="pill">
@@ -52,7 +52,7 @@ function HistoricalEventArchivePage() {
   ).length
 
   return (
-    <main className="legend-detail-main">
+    <main className="legend-detail-main min-w-0">
       <section className="event-hero compact-hero">
         <div>
           <Link

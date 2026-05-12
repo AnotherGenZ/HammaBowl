@@ -105,6 +105,7 @@ function TopBar() {
   const isAdmin = user?.roles.includes('admin')
   const [communityOpen, setCommunityOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const communityCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const userMenuCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pathname = useRouterState({ select: (state) => state.location.pathname })
@@ -116,11 +117,13 @@ function TopBar() {
   function closeCommunityMenu() {
     clearMenuCloseTimer(communityCloseTimer)
     setCommunityOpen(false)
+    setMobileNavOpen(false)
   }
 
   function closeUserMenu() {
     clearMenuCloseTimer(userMenuCloseTimer)
     setUserMenuOpen(false)
+    setMobileNavOpen(false)
   }
 
   function openCommunityMenu() {
@@ -166,28 +169,42 @@ function TopBar() {
   }
 
   return (
-    <header className="topbar">
-      <Link to="/" className="brand" aria-label="HammaBowl home">
+    <header className={mobileNavOpen ? 'topbar mobile-open' : 'topbar'}>
+      <Link to="/" className="brand" aria-label="HammaBowl home" onClick={() => setMobileNavOpen(false)}>
         <img className="brand-mark" src="/hammabowl.png" alt="" />
         <span>
           <strong>HammaBowl</strong>
         </span>
       </Link>
-      <nav className="nav" aria-label="Main navigation">
-        <Link to="/" activeProps={{ className: 'active' }}>
+      <button
+        type="button"
+        className="mobile-nav-toggle"
+        aria-expanded={mobileNavOpen}
+        aria-controls="primary-navigation"
+        onClick={() => setMobileNavOpen((open) => !open)}
+      >
+        <span className="mobile-nav-bars" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </span>
+        <span>Menu</span>
+      </button>
+      <nav id="primary-navigation" className="nav" aria-label="Main navigation">
+        <Link to="/" activeProps={{ className: 'active' }} onClick={() => setMobileNavOpen(false)}>
           Event
         </Link>
         {hasCurrentEvent ? (
-          <Link to="/draft" activeProps={{ className: 'active' }}>
+          <Link to="/draft" activeProps={{ className: 'active' }} onClick={() => setMobileNavOpen(false)}>
             Draft
           </Link>
         ) : null}
         {canRateCurrentEvent ? (
-          <Link to="/ratings" activeProps={{ className: 'active' }}>
+          <Link to="/ratings" activeProps={{ className: 'active' }} onClick={() => setMobileNavOpen(false)}>
             Ratings
           </Link>
         ) : null}
-        <Link to="/hall-of-legends" activeProps={{ className: 'active' }}>
+        <Link to="/hall-of-legends" activeProps={{ className: 'active' }} onClick={() => setMobileNavOpen(false)}>
           Hall of Legends
         </Link>
         <div
@@ -234,13 +251,19 @@ function TopBar() {
           rel="noreferrer"
           aria-label="Join the HammaBowl Discord"
           title="Join the HammaBowl Discord"
+          onClick={() => setMobileNavOpen(false)}
         >
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <path d="M20.32 4.37A19.83 19.83 0 0 0 15.36 2.83a13.79 13.79 0 0 0-.63 1.3 18.55 18.55 0 0 0-5.5 0 13.79 13.79 0 0 0-.64-1.3 19.74 19.74 0 0 0-4.96 1.54C.5 9.04-.35 13.59.08 18.07a19.94 19.94 0 0 0 6.08 3.08 14.8 14.8 0 0 0 1.3-2.11 12.9 12.9 0 0 1-2.05-.98c.17-.13.34-.26.5-.39a14.13 14.13 0 0 0 12.18 0c.16.13.33.26.5.39-.65.39-1.34.72-2.06.99.37.73.8 1.44 1.3 2.1a19.88 19.88 0 0 0 6.09-3.08c.5-5.19-.84-9.7-3.6-13.7ZM8.02 15.31c-1.18 0-2.15-1.08-2.15-2.42 0-1.33.95-2.42 2.15-2.42 1.2 0 2.17 1.09 2.15 2.42 0 1.34-.95 2.42-2.15 2.42Zm7.96 0c-1.18 0-2.15-1.08-2.15-2.42 0-1.33.95-2.42 2.15-2.42 1.2 0 2.17 1.09 2.15 2.42 0 1.34-.95 2.42-2.15 2.42Z" />
           </svg>
         </a>
         {isAdmin ? (
-          <Link to="/admin" className="login" activeProps={{ className: 'login active' }}>
+          <Link
+            to="/admin"
+            className="login"
+            activeProps={{ className: 'login active' }}
+            onClick={() => setMobileNavOpen(false)}
+          >
             Admin
           </Link>
         ) : null}
@@ -281,7 +304,7 @@ function TopBar() {
             </div>
           </div>
         ) : (
-          <a className="login" href="/api/auth/discord">
+          <a className="login" href="/api/auth/discord" onClick={() => setMobileNavOpen(false)}>
             Login
           </a>
         )}

@@ -131,7 +131,7 @@ function Settings() {
   }
 
   return (
-    <main>
+    <main className="min-w-0">
       <section className="event-hero compact-hero">
         <div>
           <p className="eyebrow">Player settings</p>

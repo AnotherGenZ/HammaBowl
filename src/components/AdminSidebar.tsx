@@ -85,9 +85,9 @@ export function AdminLayout({
   }, [])
 
   return (
-    <div className="admin-sidebar-layout">
-      <div className="admin-sidebar">
-        <div className="admin-sidebar-tabs">
+    <div className="admin-sidebar-layout min-w-0">
+      <div className="admin-sidebar min-w-0">
+        <div className="admin-sidebar-tabs min-w-0">
           {ADMIN_TABS.map((tab) => (
             <Link
               key={tab.id}
@@ -101,7 +101,7 @@ export function AdminLayout({
           ))}
         </div>
         {sections.length > 0 ? (
-          <div className="admin-sidebar-sections">
+          <div className="admin-sidebar-sections min-w-0">
             {sections.map((s, index) => {
               const active = activeSection === s.id
               const previous = sections[index - 1]
@@ -129,7 +129,7 @@ export function AdminLayout({
           </div>
         ) : null}
       </div>
-      <div ref={scrollRef} className="admin-sidebar-content">
+      <div ref={scrollRef} className="admin-sidebar-content min-w-0">
         {children}
       </div>
     </div>

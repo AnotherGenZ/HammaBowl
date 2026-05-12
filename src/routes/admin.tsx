@@ -90,7 +90,7 @@ function Admin() {
 
   if (loading) {
     return (
-      <main>
+      <main className="min-w-0">
         <section className="panel empty-state">
           <span className="spinner spinner-lg" aria-label="Loading" />
           <h1>Loading admin access</h1>
@@ -101,7 +101,7 @@ function Admin() {
 
   if (!isAdmin) {
     return (
-      <main>
+      <main className="min-w-0">
         <section className="panel empty-state">
           <h1>Admin access required</h1>
           <p>Sign in with Discord to use HammaBowl event controls.</p>
@@ -112,7 +112,7 @@ function Admin() {
 
   if (!event) {
     return (
-      <main className="admin-main">
+      <main className="admin-main min-w-0">
         <AdminLayout sections={eventSections}>
           <AdminTools
             event={null}
@@ -130,7 +130,7 @@ function Admin() {
   }
 
   return (
-    <main className="admin-main">
+    <main className="admin-main min-w-0">
       <AdminLayout sections={eventSections}>
         <AdminTools
           event={event}

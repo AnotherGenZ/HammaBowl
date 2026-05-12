@@ -65,7 +65,7 @@ function GroupPage() {
 
   if (!group) {
     return (
-      <main>
+      <main className="min-w-0">
         <section className="panel empty-state">
           <h1>Group not found</h1>
           <p>The group may have been removed.</p>
@@ -129,7 +129,7 @@ function GroupPage() {
   }
 
   return (
-    <main>
+    <main className="min-w-0">
       <nav className="breadcrumb-nav" aria-label="Breadcrumb">
         <Link to="/groups" activeOptions={{ exact: true }}>
           Groups

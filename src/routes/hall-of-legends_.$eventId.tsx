@@ -36,7 +36,7 @@ function HistoricalEventPage() {
 
   if (!event) {
     return (
-      <main>
+    <main className="min-w-0">
         <section className="panel empty-state">
           <h1>Event not found</h1>
           <Link to="/hall-of-legends" className="pill">
@@ -52,7 +52,7 @@ function HistoricalEventPage() {
   const roundProgression = buildRoundProgression(event)
 
   return (
-    <main className="legend-detail-main">
+    <main className="legend-detail-main min-w-0">
       <section className="event-hero compact-hero legend-detail-hero">
         <div>
           <Link to="/hall-of-legends" className="legend-back-link">

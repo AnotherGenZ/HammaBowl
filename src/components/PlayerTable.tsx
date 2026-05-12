@@ -35,7 +35,7 @@ export function PlayerTable({ rows }: { rows: PlayerRatingSummary[] }) {
   const nextRatingSort = sort === 'rating-desc' ? 'rating-asc' : 'rating-desc'
 
   return (
-    <div className="table-wrap">
+    <div className="table-wrap responsive-player-table overflow-x-auto lg:overflow-visible">
       <table>
         <thead>
           <tr>
@@ -56,7 +56,7 @@ export function PlayerTable({ rows }: { rows: PlayerRatingSummary[] }) {
         <tbody>
           {sortedRows.map((row) => (
             <tr key={row.player.id}>
-              <td>
+              <td data-label="Player">
                 <Link to="/players/$discordId" params={{ discordId: row.player.id }}>
                   <strong>
                     <PlayerName
@@ -67,7 +67,7 @@ export function PlayerTable({ rows }: { rows: PlayerRatingSummary[] }) {
                   </strong>
                 </Link>
               </td>
-              <td>
+              <td data-label="Average rating">
                 {row.isCaptain ? (
                   <span aria-label="Team captain" title="Team captain">
                     👑

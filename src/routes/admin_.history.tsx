@@ -118,7 +118,7 @@ function HistoricalAdmin() {
   }
 
   return (
-    <main className="admin-main">
+    <main className="admin-main min-w-0">
       {!initial.authorized ? (
         <section className="panel empty-state">
           <h1>Admin access required</h1>
