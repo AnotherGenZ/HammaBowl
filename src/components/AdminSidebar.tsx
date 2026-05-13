@@ -22,6 +22,21 @@ const adminTabActiveClass = `${adminTabClass} border-[#e4b45e]/55 bg-[#e4b45e]/[
 const sectionButtonBaseClass =
   'grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-md border border-transparent bg-transparent px-2.5 py-2 text-left transition-colors hover:border-white/[0.10] hover:bg-white/[0.06]'
 const sectionButtonActiveClass = `${sectionButtonBaseClass} !border-[#e4b45e]/[0.42] !bg-[#e4b45e]/[0.14] shadow-[inset_3px_0_0_rgba(228,180,94,0.72)]`
+const adminSidebarLayoutClass =
+  'admin-sidebar-layout grid h-full min-h-0 min-w-0 grid-cols-[260px_minmax(0,1fr)] overflow-hidden rounded-lg border border-white/[0.10] bg-[#13171a] max-[1023px]:h-auto max-[1023px]:grid-cols-1 max-[1023px]:gap-3 max-[1023px]:overflow-visible'
+const adminSidebarClass =
+  'admin-sidebar min-w-0 border-r border-white/[0.08] bg-[#111417] p-3 max-[1023px]:sticky max-[1023px]:top-[66px] max-[1023px]:z-[8] max-[1023px]:grid max-[1023px]:max-h-[42dvh] max-[1023px]:gap-2 max-[1023px]:overflow-auto max-[1023px]:border-r-0'
+const adminSidebarTabsClass =
+  'admin-sidebar-tabs flex min-w-0 gap-2 max-[1023px]:overflow-x-auto max-[1023px]:pb-1 max-[1023px]:[scroll-snap-type:x_proximity] lg:grid'
+const adminSidebarSectionsClass = 'admin-sidebar-sections grid min-w-0 gap-1.5 pt-3 max-[1023px]:pt-0'
+const adminSidebarMenuToggleClass =
+  'admin-sidebar-menu-toggle hidden min-h-11 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border border-white/[0.12] bg-white/[0.06] px-3 py-2 text-left max-[1023px]:grid'
+const adminSidebarContentClass =
+  'admin-sidebar-content min-h-0 min-w-0 overflow-y-auto bg-[#13171a] max-[1023px]:h-auto max-[1023px]:overflow-visible [&>.panel]:mt-0 [&>.panel]:rounded-none [&>.panel]:border-0 [&>.panel]:bg-transparent [&>section.panel]:mt-0 [&>section.panel]:rounded-none [&>section.panel]:border-0 [&>section.panel]:bg-transparent'
+
+function adminSidebarSectionMenuClass(open: boolean) {
+  return `${open ? 'grid' : 'hidden'} admin-sidebar-section-menu min-w-0 gap-1.5 lg:grid max-[1023px]:max-h-[52dvh] max-[1023px]:overflow-y-auto max-[1023px]:rounded-lg max-[1023px]:border max-[1023px]:border-white/[0.10] max-[1023px]:bg-[#0f1215] max-[1023px]:p-2`
+}
 
 export function AdminLayout({
   sections,
@@ -116,9 +131,9 @@ export function AdminLayout({
   }, [])
 
   return (
-    <div className="admin-sidebar-layout grid h-full min-h-0 min-w-0 grid-cols-[260px_minmax(0,1fr)] overflow-hidden rounded-lg border border-white/[0.10] bg-[#13171a] max-[1023px]:h-auto max-[1023px]:grid-cols-1 max-[1023px]:gap-3 max-[1023px]:overflow-visible">
-      <div className="admin-sidebar min-w-0 border-r border-white/[0.08] bg-[#111417] p-3 max-[1023px]:sticky max-[1023px]:top-[66px] max-[1023px]:z-[8] max-[1023px]:grid max-[1023px]:max-h-[42dvh] max-[1023px]:gap-2 max-[1023px]:overflow-auto max-[1023px]:border-r-0">
-        <div className="admin-sidebar-tabs flex min-w-0 gap-2 max-[1023px]:overflow-x-auto max-[1023px]:pb-1 max-[1023px]:[scroll-snap-type:x_proximity] lg:grid">
+    <div className={adminSidebarLayoutClass}>
+      <div className={adminSidebarClass}>
+        <div className={adminSidebarTabsClass}>
           {ADMIN_TABS.map((tab) => (
             <Link
               key={tab.id}
@@ -132,10 +147,10 @@ export function AdminLayout({
           ))}
         </div>
         {sections.length > 0 ? (
-          <div className="admin-sidebar-sections grid min-w-0 gap-1.5 pt-3 max-[1023px]:pt-0">
+          <div className={adminSidebarSectionsClass}>
             <button
               type="button"
-              className="admin-sidebar-menu-toggle hidden min-h-11 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border border-white/[0.12] bg-white/[0.06] px-3 py-2 text-left max-[1023px]:grid"
+              className={adminSidebarMenuToggleClass}
               aria-expanded={sectionMenuOpen}
               aria-controls="admin-section-menu"
               onClick={() => setSectionMenuOpen((open) => !open)}
@@ -148,7 +163,7 @@ export function AdminLayout({
             </button>
             <div
               id="admin-section-menu"
-              className={`${sectionMenuOpen ? 'grid' : 'hidden'} admin-sidebar-section-menu min-w-0 gap-1.5 lg:grid max-[1023px]:max-h-[52dvh] max-[1023px]:overflow-y-auto max-[1023px]:rounded-lg max-[1023px]:border max-[1023px]:border-white/[0.10] max-[1023px]:bg-[#0f1215] max-[1023px]:p-2`}
+              className={adminSidebarSectionMenuClass(sectionMenuOpen)}
             >
               {sections.map((s, index) => {
                 const active = activeSection === s.id
@@ -201,7 +216,7 @@ export function AdminLayout({
       </div>
       <div
         ref={scrollRef}
-        className="admin-sidebar-content min-h-0 min-w-0 overflow-y-auto bg-[#13171a] max-[1023px]:h-auto max-[1023px]:overflow-visible [&>.panel]:mt-0 [&>.panel]:rounded-none [&>.panel]:border-0 [&>.panel]:bg-transparent [&>section.panel]:mt-0 [&>section.panel]:rounded-none [&>section.panel]:border-0 [&>section.panel]:bg-transparent"
+        className={adminSidebarContentClass}
       >
         {children}
       </div>

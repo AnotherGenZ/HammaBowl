@@ -18,6 +18,10 @@ export const playerGroupTagClass =
   'player-group-tag inline-flex min-h-5 flex-none items-center justify-center rounded-[5px] border border-[color-mix(in_srgb,var(--group-tag-color,#47bf8f)_62%,transparent)] bg-[color-mix(in_srgb,var(--group-tag-color,#47bf8f)_18%,transparent)] px-1.5 text-[0.7rem] font-black leading-none tracking-normal text-[color-mix(in_srgb,var(--group-tag-color,#47bf8f)_72%,white)]'
 export const pageMainClass =
   'min-w-0 mx-auto w-[min(1180px,calc(100%_-_32px))] py-7 pb-[54px] max-[1023px]:w-[min(100%_-_24px,1180px)] max-[1023px]:py-[18px] max-[1023px]:pb-[42px] max-[480px]:w-[min(100%_-_18px,1180px)]'
+export const standardPanelClass =
+  'panel rounded-lg border border-white/[0.10] bg-white/[0.055] p-[clamp(18px,3vw,28px)] mt-[18px] first:mt-0 max-[720px]:px-[clamp(14px,4vw,18px)]'
+export const emptyStatePanelClass =
+  `${standardPanelClass} empty-state min-h-[320px] grid content-center justify-items-center text-center gap-2.5 [&_p]:text-[#c0c8c6]`
 export const draftMainClass =
   'wide-page draft-page mx-auto grid h-full min-h-0 w-[min(1680px,calc(100%_-_32px))] min-w-0 py-7 pb-[54px] max-[1023px]:w-[min(100%_-_24px,1680px)] max-[1023px]:py-[18px] max-[1023px]:pb-[42px] max-[860px]:h-auto max-[480px]:w-[min(100%_-_18px,1680px)]'
 export const adminMainClass =
@@ -173,7 +177,9 @@ export const dangerZoneCardClass =
   `danger-zone-card grid gap-3.5 rounded-lg border border-[#d94f3d]/60 bg-[#d94f3d]/[0.08] p-4 shadow-[inset_4px_0_0_rgba(217,79,61,0.75)] [&>strong]:text-[#ffd9d1] [&>p]:max-w-[860px] [&>p]:text-[#f2b4ab] ${adminFormLabelClass} ${adminFormControlClass} [&_input]:border-[#d94f3d]/[0.42] [&_input:focus-visible]:border-[#d94f3d]`
 
 export const adminStackClass = 'admin-stack grid gap-4'
-export const adminHeadingActionsClass = 'admin-heading-actions flex min-w-[min(480px,100%)] flex-wrap items-end justify-end gap-2.5 max-[560px]:grid max-[560px]:grid-cols-1 max-[560px]:justify-stretch max-[560px]:[&>*]:w-full'
+const mobileStackChildrenClass = 'max-[560px]:grid max-[560px]:grid-cols-1 max-[560px]:justify-stretch max-[560px]:[&>*]:w-full'
+const mobileStackButtonClass = 'max-[560px]:grid max-[560px]:grid-cols-1 max-[560px]:[&_button]:w-full'
+export const adminHeadingActionsClass = `admin-heading-actions flex min-w-[min(480px,100%)] flex-wrap items-end justify-end gap-2.5 ${mobileStackChildrenClass}`
 export const adminHeadingEventSelectClass = 'admin-heading-event-select grid min-w-[min(460px,100%)] grid-cols-[minmax(220px,1fr)_auto] items-end gap-2.5 max-[560px]:grid-cols-1 max-[560px]:justify-stretch'
 export const adminHeadingControlClass =
   'admin-heading-control grid min-w-[min(360px,100%)] gap-1.5 text-[0.8rem] font-extrabold uppercase text-[#b4bcbb] [&_select]:min-h-10 [&_select]:w-full [&_select]:min-w-0 [&_select]:rounded-md [&_select]:border [&_select]:border-white/[0.18] [&_select]:bg-[#121417] [&_select]:px-2.5 [&_select]:font-semibold [&_select]:normal-case [&_select]:text-[#f4f0e8] [&_select]:transition-colors'
@@ -183,9 +189,9 @@ export const adminSectionHeaderClass =
   'admin-section-header grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2.5 max-[720px]:grid-cols-[auto_minmax(0,1fr)] max-[520px]:grid-cols-1 max-[520px]:items-start [&_h2]:m-0 [&_h2]:min-w-0 max-[720px]:[&_.admin-section-actions]:col-span-full max-[720px]:[&_.admin-section-actions]:justify-start'
 export const adminSectionHeaderNoToggleClass =
   'admin-section-header grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2.5 max-[520px]:grid-cols-1 max-[520px]:items-start [&_h2]:m-0 [&_h2]:min-w-0'
-export const adminSectionActionsClass = 'admin-section-actions flex min-w-0 flex-wrap items-center justify-end gap-2 max-[560px]:grid max-[560px]:grid-cols-1 max-[560px]:justify-stretch max-[560px]:[&>*]:w-full'
+export const adminSectionActionsClass = `admin-section-actions flex min-w-0 flex-wrap items-center justify-end gap-2 ${mobileStackChildrenClass}`
 export const adminSectionBodyClass = 'admin-section-body mt-3.5 grid gap-3.5 [&>p]:m-0'
-export const adminSectionFooterClass = 'admin-section-footer flex justify-end gap-2'
+export const adminSectionFooterClass = `admin-section-footer flex justify-end gap-2 ${mobileStackChildrenClass}`
 export const collapseToggleClass =
   'collapse-toggle inline-grid min-h-8 w-8 place-items-center rounded-md border border-white/[0.14] bg-white/[0.07] p-0 text-[#f4f0e8] hover:bg-white/[0.14] disabled:cursor-not-allowed disabled:opacity-55'
 export const coinflipGridClass = 'coinflip-grid grid grid-cols-2 gap-3 max-[860px]:grid-cols-1 max-[720px]:min-w-0 max-[560px]:grid-cols-[minmax(0,1fr)]'
@@ -206,7 +212,7 @@ export const roundScoreInputsClass =
 export const flowPanelClass =
   'grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 rounded-lg border border-white/[0.12] bg-white/[0.045] p-3.5 max-[720px]:grid-cols-1 max-[720px]:items-stretch [&_p]:mt-1 [&_p]:mb-0 [&_p]:text-[#b4bcbb] [&_strong]:text-[#f4f0e8]'
 export const flowActionsClass =
-  'flex flex-wrap items-center justify-end gap-2 max-[720px]:justify-start max-[560px]:grid max-[560px]:grid-cols-1 max-[560px]:[&>*]:w-full'
+  `flex flex-wrap items-center justify-end gap-2 max-[720px]:justify-start ${mobileStackChildrenClass}`
 export const checkRowClass =
   'check-row flex flex-wrap gap-2 [&_label]:flex [&_label]:min-h-[34px] [&_label]:items-center [&_label]:gap-1.5'
 export const segmentedControlClass = 'segmented-control flex flex-wrap gap-2 [&_button]:min-h-9 [&_button]:px-3'
@@ -267,7 +273,7 @@ export const reminderRowClass =
   'reminder-row grid grid-cols-[repeat(4,minmax(120px,1fr))] items-end gap-2.5 rounded-md border border-white/[0.12] bg-white/[0.03] p-2.5 max-[860px]:grid-cols-1'
 export const reminderMessageFieldClass = 'reminder-message-field col-span-3 max-[860px]:col-auto'
 export const reminderRowActionsClass =
-  'reminder-row-actions flex flex-wrap items-center justify-end gap-2.5 max-[560px]:grid max-[560px]:grid-cols-1 max-[560px]:justify-stretch max-[560px]:[&>*]:w-full [&_small]:text-[0.78rem] [&_small]:font-extrabold [&_small]:text-[#a8b2ae]'
+  `reminder-row-actions flex flex-wrap items-center justify-end gap-2.5 ${mobileStackChildrenClass} [&_small]:text-[0.78rem] [&_small]:font-extrabold [&_small]:text-[#a8b2ae]`
 
 export const badgeAdminGridClass = 'badge-admin-grid grid grid-cols-2 gap-3.5 max-[720px]:grid-cols-1'
 export const badgeDefinitionListClass = 'badge-definition-list grid gap-[18px] max-[720px]:grid-cols-1'
@@ -279,10 +285,10 @@ export const badgeDefinitionCardClass =
 export const badgeDefinitionFieldsClass =
   'badge-definition-fields grid gap-2.5 [&_label]:grid [&_label]:gap-1.5 [&_label]:text-[0.78rem] [&_label]:font-black [&_label]:uppercase [&_label]:text-[#b4bcbb] [&_input:not([type=color])]:min-h-10 [&_input:not([type=color])]:w-full [&_input:not([type=color])]:min-w-0 [&_input:not([type=color])]:rounded-md [&_input:not([type=color])]:border [&_input:not([type=color])]:border-white/[0.18] [&_input:not([type=color])]:bg-[#101216] [&_input:not([type=color])]:px-2.5 [&_input:not([type=color])]:font-semibold [&_input:not([type=color])]:normal-case [&_input:not([type=color])]:text-[#f4f0e8] [&_input:not([type=color])]:transition-colors [&_input:not([type=color]):focus]:border-[#e4b45e]/[0.62] [&_input:not([type=color]):focus]:bg-[#15181d] [&_input:not([type=color]):focus]:outline-none'
 export const badgeDefinitionActionsClass =
-  'badge-definition-actions mt-auto flex items-center justify-end gap-2 pt-0.5 max-[560px]:grid max-[560px]:grid-cols-1 max-[560px]:[&_button]:w-full [&_button]:min-h-8 [&_button]:px-2.5'
+  `badge-definition-actions mt-auto flex items-center justify-end gap-2 pt-0.5 ${mobileStackButtonClass} [&_button]:min-h-8 [&_button]:px-2.5`
 export const inlineColorFieldClass =
   'inline-color-field inline-flex items-center gap-2 text-[0.76rem] font-black uppercase text-[#b4bcbb] [&_input]:h-6 [&_input]:min-h-6 [&_input]:w-[30px] [&_input]:border-0 [&_input]:bg-transparent [&_input]:p-0'
-export const badgeOrderActionsClass = 'badge-order-actions flex flex-wrap gap-2 max-[560px]:grid max-[560px]:grid-cols-1 max-[560px]:[&_button]:w-full [&_button]:min-h-8 [&_button]:px-2.5'
+export const badgeOrderActionsClass = `badge-order-actions flex flex-wrap gap-2 ${mobileStackButtonClass} [&_button]:min-h-8 [&_button]:px-2.5`
 export const teamAdminGridClass = 'team-admin-grid grid grid-cols-2 gap-3.5 max-[860px]:grid-cols-1 max-[720px]:min-w-0 max-[560px]:grid-cols-[minmax(0,1fr)]'
 export const teamReportLinkClass =
   'team-report-link inline-flex min-h-[34px] w-fit items-center justify-center gap-2 rounded-lg border border-[#a1e3cb]/25 px-2.5 py-[7px] text-[0.84rem] font-extrabold text-[#d6f6ea] no-underline hover:border-[#a1e3cb]/50 hover:bg-[#a1e3cb]/[0.08]'
@@ -596,7 +602,7 @@ export const groupFormClass =
   'group-form grid grid-cols-[minmax(120px,0.5fr)_minmax(180px,1fr)_minmax(180px,1fr)] gap-3 max-[860px]:grid-cols-1 [&_label]:grid [&_label]:gap-1.5 [&_label]:text-[0.72rem] [&_label]:font-black [&_label]:uppercase [&_label]:text-[#8a9896] [&_input]:min-h-[42px] [&_input]:w-full [&_input]:rounded-md [&_input]:border [&_input]:border-white/[0.14] [&_input]:bg-white/[0.05] [&_input]:px-3 [&_input]:py-2.5 [&_input]:font-[inherit] [&_input]:text-[#f0ece3] [&_input[type=file]]:px-2.5 [&_input[type=file]]:py-2 [&_textarea]:min-h-[42px] [&_textarea]:w-full [&_textarea]:resize-y [&_textarea]:rounded-md [&_textarea]:border [&_textarea]:border-white/[0.14] [&_textarea]:bg-white/[0.05] [&_textarea]:px-3 [&_textarea]:py-2.5 [&_textarea]:font-[inherit] [&_textarea]:text-[#f0ece3]'
 export const groupFormHintClass = 'group-form-hint text-[0.72rem] font-extrabold leading-[1.35] normal-case text-[#b4bcbb]'
 export const groupFormWideClass = 'group-form-wide col-span-full'
-export const groupFormActionsClass = 'group-form-actions col-span-full flex flex-wrap items-center justify-end gap-2 max-[560px]:grid max-[560px]:grid-cols-1 max-[560px]:justify-stretch max-[560px]:[&>*]:w-full'
+export const groupFormActionsClass = `group-form-actions col-span-full flex flex-wrap items-center justify-end gap-2 ${mobileStackChildrenClass}`
 export const groupTagClass =
   'group-tag inline-flex min-h-[30px] min-w-11 items-center justify-center rounded-md border border-[color-mix(in_srgb,var(--group-tag-color,#47bf8f)_62%,transparent)] bg-[color-mix(in_srgb,var(--group-tag-color,#47bf8f)_18%,transparent)] text-[0.82rem] font-black text-[color-mix(in_srgb,var(--group-tag-color,#47bf8f)_72%,white)]'
 const groupLogoBaseClass =
@@ -622,7 +628,7 @@ export const groupPlayerLinkClass =
   'group-player-link flex min-w-0 items-center gap-2.5 [&_strong]:min-w-0 [&_strong]:[overflow-wrap:anywhere] [&_img]:h-9 [&_img]:w-9 [&_img]:flex-none [&_img]:rounded-full [&_img]:object-cover'
 export const groupPlayerAvatarFallbackClass =
   'group-player-avatar-fallback inline-flex h-9 w-9 flex-none items-center justify-center rounded-full border border-[#e4b45e]/[0.32] bg-[#e4b45e]/[0.08] font-black text-[#e4b45e]'
-export const groupRowActionsClass = 'group-row-actions flex flex-wrap items-center justify-end gap-2 max-[860px]:justify-start max-[720px]:w-full max-[720px]:max-w-full max-[720px]:justify-start max-[560px]:grid max-[560px]:grid-cols-1 max-[560px]:[&>*]:w-full'
+export const groupRowActionsClass = `group-row-actions flex flex-wrap items-center justify-end gap-2 max-[860px]:justify-start max-[720px]:w-full max-[720px]:max-w-full max-[720px]:justify-start ${mobileStackChildrenClass}`
 export const draftLedgerStatsClass =
   'grid grid-cols-3 gap-2.5 m-0 max-[560px]:grid-cols-1 [&>div]:grid [&>div]:gap-[3px] [&>div]:min-w-0 [&>div]:rounded-md [&>div]:bg-white/[0.06] [&>div]:p-2.5 [&_dt]:text-[0.78rem] [&_dt]:uppercase [&_dt]:text-[#b4bcbb] [&_dd]:mt-1 [&_dd]:overflow-hidden [&_dd]:font-extrabold [&_dd]:text-ellipsis [&_dd]:text-[#f8e4a9]'
 const panelShellClass =
@@ -662,7 +668,7 @@ export const activeBidPanelClass =
 export const bidInfoGridClass =
   'bid-info-grid grid grid-cols-4 gap-2.5 max-[860px]:grid-cols-1 [&>div]:grid [&>div]:min-w-0 [&>div]:gap-1'
 export const bidActionsClass =
-  'bid-actions flex min-w-0 flex-wrap items-center justify-end gap-2 max-[560px]:grid max-[560px]:grid-cols-1 max-[560px]:justify-stretch max-[560px]:[&_button]:w-full [&_button]:min-h-10 [&_button]:whitespace-nowrap'
+  `bid-actions flex min-w-0 flex-wrap items-center justify-end gap-2 ${mobileStackButtonClass} [&_button]:min-h-10 [&_button]:whitespace-nowrap`
 export function availableListClass(empty: boolean) {
   return `available-list grid gap-3 pr-1.5 max-[560px]:max-w-full max-[560px]:overflow-x-auto max-[560px]:[-webkit-overflow-scrolling:touch] ${empty ? 'available-list-empty content-center justify-items-center [&_.empty-inline]:max-w-[440px] [&_.empty-inline]:justify-center [&_.empty-inline]:text-center' : ''}`
 }

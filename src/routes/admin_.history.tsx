@@ -13,6 +13,7 @@ import {
   adminSectionHeaderNoToggleClass,
   adminStackClass,
   adminMainClass,
+  emptyStatePanelClass,
   historyAddTeamRowClass,
   historyAdminEventClass,
   historyAdminGridClass,
@@ -138,7 +139,7 @@ function HistoricalAdmin() {
   return (
     <main className={adminMainClass}>
       {!initial.authorized ? (
-        <section className="panel rounded-lg border border-white/[0.10] bg-white/[0.055] p-[clamp(18px,3vw,28px)] mt-[18px] first:mt-0 max-[720px]:px-[clamp(14px,4vw,18px)]  empty-state min-h-[320px] grid content-center justify-items-center text-center gap-2.5 [&_p]:text-[#c0c8c6]">
+        <section className={emptyStatePanelClass}>
           <h1>Admin access required</h1>
           <p>Sign in with Discord to use HammaBowl historical controls.</p>
         </section>
