@@ -2294,7 +2294,7 @@ function EventIdentityControls({
           </label>
         </div>
 
-        <div className={` col-span-full`}>
+        <div className={`${eventResultCardClass} col-span-full`}>
           <strong>Event page details</strong>
           <label>
             Description
@@ -4047,7 +4047,7 @@ function RoundControls({
           {draftLocked ? <small>Round setup is locked after round 1 starts.</small> : null}
         </div>
 
-        <div className={roundListCardClass}>
+        <div className={`${eventResultCardClass} ${roundListCardClass}`}>
           <strong>Round results</strong>
           {event.rounds.length ? (
             <div className={roundResultListClass}>

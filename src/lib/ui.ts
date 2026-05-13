@@ -12,7 +12,7 @@ export function toastClass(tone: ToastTone) {
   return `${toastBaseClass} ${toastToneClass[tone]}`
 }
 
-export const playerNameWithGroupClass = 'player-name-with-group inline-flex min-w-0 items-center gap-1.5 align-middle [&>span:last-child]:min-w-0 [&>span:last-child]:[overflow-wrap:anywhere]'
+export const playerNameWithGroupClass = 'player-name-with-group inline-flex max-w-full min-w-0 items-center gap-1.5 align-middle [&>span:last-child]:min-w-0 [&>span:last-child]:[overflow-wrap:anywhere]'
 export const eyebrowClass = 'eyebrow mb-2 text-[0.76rem] font-black uppercase tracking-normal text-[#e4b45e]'
 export const playerGroupTagClass =
   'player-group-tag inline-flex min-h-5 flex-none items-center justify-center rounded-[5px] border border-[color-mix(in_srgb,var(--group-tag-color,#47bf8f)_62%,transparent)] bg-[color-mix(in_srgb,var(--group-tag-color,#47bf8f)_18%,transparent)] px-1.5 text-[0.7rem] font-black leading-none tracking-normal text-[color-mix(in_srgb,var(--group-tag-color,#47bf8f)_72%,white)]'
@@ -184,7 +184,7 @@ export const adminHeadingEventSelectClass = 'admin-heading-event-select grid min
 export const adminHeadingControlClass =
   'admin-heading-control grid min-w-[min(360px,100%)] gap-1.5 text-[0.8rem] font-extrabold uppercase text-[#b4bcbb] [&_select]:min-h-10 [&_select]:w-full [&_select]:min-w-0 [&_select]:rounded-md [&_select]:border [&_select]:border-white/[0.18] [&_select]:bg-[#121417] [&_select]:px-2.5 [&_select]:font-semibold [&_select]:normal-case [&_select]:text-[#f4f0e8] [&_select]:transition-colors'
 export const eventModeChipClass = 'event-mode-chip inline-flex min-h-10 items-center whitespace-nowrap rounded-full border border-[#a1e3cb]/[0.28] bg-[#a1e3cb]/[0.10] px-3 text-[0.78rem] font-black uppercase text-[#d6f6ea] max-[560px]:w-fit'
-export const adminSectionClass = 'admin-section grid scroll-mt-[calc(42dvh+86px)] gap-0 rounded-lg border border-white/[0.10] bg-white/[0.05] p-4 lg:scroll-mt-4'
+export const adminSectionClass = 'admin-section grid min-w-0 scroll-mt-[calc(42dvh+86px)] gap-0 rounded-lg border border-white/[0.10] bg-white/[0.05] p-4 lg:scroll-mt-4'
 export const adminSectionHeaderClass =
   'admin-section-header grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2.5 max-[720px]:grid-cols-[auto_minmax(0,1fr)] max-[520px]:grid-cols-1 max-[520px]:items-start [&_h2]:m-0 [&_h2]:min-w-0 max-[720px]:[&_.admin-section-actions]:col-span-full max-[720px]:[&_.admin-section-actions]:justify-start'
 export const adminSectionHeaderNoToggleClass =
@@ -199,18 +199,18 @@ export const eventResultGridClass = 'event-result-grid grid grid-cols-3 gap-3 ma
 export const assignmentGridClass = 'assignment-grid grid grid-cols-2 gap-3 max-[860px]:grid-cols-1 max-[720px]:min-w-0 max-[560px]:grid-cols-[minmax(0,1fr)]'
 export const assignmentPanelClass = 'assignment-panel grid gap-3 border-t border-white/10 pt-3.5'
 export const assignmentHeadingClass =
-  'assignment-heading flex items-center justify-between gap-3 [&_strong]:text-[#f4f0e8]'
+  'assignment-heading flex min-w-0 items-center justify-between gap-3 [&_strong]:min-w-0 [&_strong]:[overflow-wrap:anywhere] [&_strong]:text-[#f4f0e8]'
 export const assignmentCardClass =
   'assignment-card grid min-w-0 gap-3 rounded-lg border border-white/10 bg-white/[0.04] p-3.5 [&>strong]:text-[#f4f0e8] [&_label]:grid [&_label]:gap-1.5 [&_label]:text-[0.82rem] [&_label]:font-extrabold [&_label]:uppercase [&_label]:text-[#b4bcbb] [&_select]:min-h-10 [&_select]:w-full [&_select]:min-w-0 [&_select]:rounded-md [&_select]:border [&_select]:border-white/[0.18] [&_select]:bg-[#121417] [&_select]:px-2.5 [&_select]:font-semibold [&_select]:normal-case [&_select]:text-[#f4f0e8] [&_select]:transition-colors'
 export const roundAdminGridClass = `${eventResultGridClass} round-admin-grid`
 export const roundListCardClass = 'round-list-card col-span-2 max-[720px]:col-auto'
 export const roundResultListClass = 'round-result-list grid gap-2.5'
 export const roundResultRowClass =
-  'round-result-row grid grid-cols-[minmax(74px,max-content)_minmax(220px,1fr)_minmax(160px,1fr)] items-center gap-2 max-[720px]:grid-cols-1 [&>span]:font-black [&>span]:text-[#f4f0e8]'
+  'round-result-row grid min-w-0 grid-cols-[minmax(74px,max-content)_minmax(0,1fr)_minmax(0,1fr)] items-center gap-2 max-[720px]:grid-cols-1 [&>*]:min-w-0 [&>span]:font-black [&>span]:text-[#f4f0e8]'
 export const roundScoreInputsClass =
-  'round-score-inputs grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-2 [&_label]:grid [&_label]:gap-1'
+  'round-score-inputs grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,120px),1fr))] gap-2 [&_label]:grid [&_label]:min-w-0 [&_label]:gap-1'
 export const flowPanelClass =
-  'grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 rounded-lg border border-white/[0.12] bg-white/[0.045] p-3.5 max-[720px]:grid-cols-1 max-[720px]:items-stretch [&_p]:mt-1 [&_p]:mb-0 [&_p]:text-[#b4bcbb] [&_strong]:text-[#f4f0e8]'
+  'grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-4 rounded-lg border border-white/[0.12] bg-white/[0.045] p-3.5 max-[720px]:grid-cols-1 max-[720px]:items-stretch [&>div]:min-w-0 [&_p]:mt-1 [&_p]:mb-0 [&_p]:text-[#b4bcbb] [&_strong]:text-[#f4f0e8]'
 export const flowActionsClass =
   `flex flex-wrap items-center justify-end gap-2 max-[720px]:justify-start ${mobileStackChildrenClass}`
 export const checkRowClass =
@@ -232,9 +232,9 @@ export const sideChipRemoveButtonClass =
   'inline-grid min-h-[22px] w-[22px] place-items-center rounded-full border-0 bg-white/10 p-0 leading-none text-[#f4f0e8] hover:not-disabled:bg-[#d94f3d]/[0.50]'
 export const eventLinkEditorClass = 'event-link-editor grid gap-2.5'
 export const eventLinkEditorHeadingClass =
-  'event-link-editor-heading flex items-center justify-between gap-2.5 text-[0.82rem] font-extrabold uppercase text-[#b4bcbb] [&_button]:min-h-8 [&_button]:px-2.5'
+  'event-link-editor-heading flex min-w-0 flex-wrap items-center justify-between gap-2.5 text-[0.82rem] font-extrabold uppercase text-[#b4bcbb] [&_button]:min-h-8 [&_button]:px-2.5 [&_span]:min-w-0 [&_span]:[overflow-wrap:anywhere]'
 export const eventLinkEditorRowClass =
-  'event-link-editor-row grid min-w-0 grid-cols-[minmax(120px,180px)_minmax(220px,1fr)_auto_auto] items-end gap-2.5 max-[720px]:grid-cols-1 max-[720px]:items-stretch'
+  'event-link-editor-row grid min-w-0 grid-cols-[minmax(110px,170px)_minmax(0,1fr)_auto_auto] items-end gap-2.5 max-[720px]:grid-cols-1 max-[720px]:items-stretch [&>*]:min-w-0'
 export const eventIconPickerClass = 'event-icon-picker relative self-end max-[720px]:justify-self-start'
 export const eventIconPickerTriggerClass =
   'event-icon-picker-trigger inline-flex min-h-10 min-w-[120px] items-center justify-start gap-1.5 rounded-md border border-white/[0.18] bg-[#121417] px-3.5 font-extrabold text-[#f4f0e8] hover:not-disabled:border-[#e4b45e]/[0.58] hover:not-disabled:bg-[#e4b45e]/[0.12] [&_span]:min-w-0 [&_span]:overflow-hidden [&_span]:text-ellipsis [&_span]:whitespace-nowrap'
@@ -257,7 +257,7 @@ export function roleComboboxOptionClass(active: boolean) {
 }
 export const specOptionEditorClass = 'spec-option-editor grid gap-2'
 export const specOptionRowClass =
-  'spec-option-row grid grid-cols-[72px_minmax(0,1fr)_88px_auto] items-center gap-2'
+  'spec-option-row grid min-w-0 grid-cols-[72px_minmax(0,1fr)_minmax(72px,88px)_auto] items-center gap-2 max-[560px]:grid-cols-[72px_minmax(0,1fr)] max-[560px]:[&>button]:col-span-full [&>*]:min-w-0'
 export const specCheckboxGridClass =
   'spec-checkbox-grid grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-2'
 export const specLabelClass =
@@ -270,20 +270,20 @@ export const specEmojiPopoverClass =
   'spec-emoji-popover absolute left-0 top-[calc(100%+6px)] z-[25] grid max-h-[420px] w-[min(320px,82vw)] gap-2.5 overflow-auto rounded-lg border border-white/[0.16] bg-[#171a1e] p-2.5 shadow-[0_18px_40px_rgba(0,0,0,0.38)]'
 export const reminderEditorClass = 'reminder-editor grid gap-2.5'
 export const reminderRowClass =
-  'reminder-row grid grid-cols-[repeat(4,minmax(120px,1fr))] items-end gap-2.5 rounded-md border border-white/[0.12] bg-white/[0.03] p-2.5 max-[860px]:grid-cols-1'
+  'reminder-row grid min-w-0 grid-cols-[repeat(4,minmax(min(100%,120px),1fr))] items-end gap-2.5 rounded-md border border-white/[0.12] bg-white/[0.03] p-2.5 max-[860px]:grid-cols-1 [&>*]:min-w-0'
 export const reminderMessageFieldClass = 'reminder-message-field col-span-3 max-[860px]:col-auto'
 export const reminderRowActionsClass =
   `reminder-row-actions flex flex-wrap items-center justify-end gap-2.5 ${mobileStackChildrenClass} [&_small]:text-[0.78rem] [&_small]:font-extrabold [&_small]:text-[#a8b2ae]`
 
-export const badgeAdminGridClass = 'badge-admin-grid grid grid-cols-2 gap-3.5 max-[720px]:grid-cols-1'
-export const badgeDefinitionListClass = 'badge-definition-list grid gap-[18px] max-[720px]:grid-cols-1'
+export const badgeAdminGridClass = 'badge-admin-grid grid min-w-0 grid-cols-[repeat(2,minmax(0,1fr))] gap-3.5 max-[720px]:grid-cols-1'
+export const badgeDefinitionListClass = 'badge-definition-list grid min-w-0 gap-[18px] max-[720px]:grid-cols-1'
 export const badgeDefinitionGroupClass =
-  'badge-definition-group grid gap-2.5 [&_h3]:m-0 [&_h3]:text-[0.95rem] [&_h3]:tracking-normal [&_h3]:text-[#fff7e6]'
-export const badgeDefinitionCardsClass = 'badge-definition-cards grid grid-cols-2 gap-3 max-[720px]:grid-cols-1'
+  'badge-definition-group grid min-w-0 gap-2.5 [&_h3]:m-0 [&_h3]:min-w-0 [&_h3]:[overflow-wrap:anywhere] [&_h3]:text-[0.95rem] [&_h3]:tracking-normal [&_h3]:text-[#fff7e6]'
+export const badgeDefinitionCardsClass = 'badge-definition-cards grid min-w-0 grid-cols-[repeat(2,minmax(0,1fr))] gap-3 max-[720px]:grid-cols-1'
 export const badgeDefinitionCardClass =
-  'badge-definition-card flex min-h-[260px] flex-col gap-3 rounded-lg border border-white/[0.12] bg-[linear-gradient(180deg,rgba(255,255,255,0.07),rgba(255,255,255,0.035)),#15171b] p-3.5 text-[#cbd5d3] [&>strong]:w-fit [&>strong]:max-w-full [&>strong]:[overflow-wrap:anywhere] [&>strong]:rounded-full [&>strong]:border [&>strong]:border-[color-mix(in_srgb,var(--badge-color,#e4b45e)_56%,white_10%)] [&>strong]:bg-[color-mix(in_srgb,var(--badge-color,#e4b45e)_18%,transparent)] [&>strong]:px-2.5 [&>strong]:py-[5px] [&>strong]:text-[color-mix(in_srgb,var(--badge-color,#e4b45e)_72%,white_28%)]'
+  'badge-definition-card flex min-h-[260px] min-w-0 flex-col gap-3 rounded-lg border border-white/[0.12] bg-[linear-gradient(180deg,rgba(255,255,255,0.07),rgba(255,255,255,0.035)),#15171b] p-3.5 text-[#cbd5d3] [&>strong]:w-fit [&>strong]:max-w-full [&>strong]:[overflow-wrap:anywhere] [&>strong]:rounded-full [&>strong]:border [&>strong]:border-[color-mix(in_srgb,var(--badge-color,#e4b45e)_56%,white_10%)] [&>strong]:bg-[color-mix(in_srgb,var(--badge-color,#e4b45e)_18%,transparent)] [&>strong]:px-2.5 [&>strong]:py-[5px] [&>strong]:text-[color-mix(in_srgb,var(--badge-color,#e4b45e)_72%,white_28%)]'
 export const badgeDefinitionFieldsClass =
-  'badge-definition-fields grid gap-2.5 [&_label]:grid [&_label]:gap-1.5 [&_label]:text-[0.78rem] [&_label]:font-black [&_label]:uppercase [&_label]:text-[#b4bcbb] [&_input:not([type=color])]:min-h-10 [&_input:not([type=color])]:w-full [&_input:not([type=color])]:min-w-0 [&_input:not([type=color])]:rounded-md [&_input:not([type=color])]:border [&_input:not([type=color])]:border-white/[0.18] [&_input:not([type=color])]:bg-[#101216] [&_input:not([type=color])]:px-2.5 [&_input:not([type=color])]:font-semibold [&_input:not([type=color])]:normal-case [&_input:not([type=color])]:text-[#f4f0e8] [&_input:not([type=color])]:transition-colors [&_input:not([type=color]):focus]:border-[#e4b45e]/[0.62] [&_input:not([type=color]):focus]:bg-[#15181d] [&_input:not([type=color]):focus]:outline-none'
+  'badge-definition-fields grid min-w-0 gap-2.5 [&_label]:grid [&_label]:min-w-0 [&_label]:gap-1.5 [&_label]:text-[0.78rem] [&_label]:font-black [&_label]:uppercase [&_label]:text-[#b4bcbb] [&_input:not([type=color])]:min-h-10 [&_input:not([type=color])]:w-full [&_input:not([type=color])]:min-w-0 [&_input:not([type=color])]:rounded-md [&_input:not([type=color])]:border [&_input:not([type=color])]:border-white/[0.18] [&_input:not([type=color])]:bg-[#101216] [&_input:not([type=color])]:px-2.5 [&_input:not([type=color])]:font-semibold [&_input:not([type=color])]:normal-case [&_input:not([type=color])]:text-[#f4f0e8] [&_input:not([type=color])]:transition-colors [&_input:not([type=color]):focus]:border-[#e4b45e]/[0.62] [&_input:not([type=color]):focus]:bg-[#15181d] [&_input:not([type=color]):focus]:outline-none'
 export const badgeDefinitionActionsClass =
   `badge-definition-actions mt-auto flex items-center justify-end gap-2 pt-0.5 ${mobileStackButtonClass} [&_button]:min-h-8 [&_button]:px-2.5`
 export const inlineColorFieldClass =
@@ -374,9 +374,9 @@ export const legendRatingEmptyClass = 'legend-rating-empty p-[18px] font-extrabo
 export const overlayPageClass =
   'overlay-page grid min-h-screen w-full [place-items:end_stretch] p-0'
 export const overlayPanelClass =
-  'overlay grid min-h-[150px] grid-cols-[1fr_auto] items-center gap-6 border-t-[3px] border-[#e4b45e] bg-[rgba(10,12,14,0.88)] px-9 py-6 max-[860px]:grid-cols-1 max-[720px]:min-h-0 max-[720px]:gap-3.5 max-[720px]:p-[clamp(14px,4vw,24px)] [&_h1]:text-[3.4rem] max-[720px]:[&_h1]:text-[clamp(1.8rem,10vw,3.4rem)] [&_p]:font-black [&_p]:uppercase [&_p]:text-[#e4b45e]'
+  'overlay grid min-h-[150px] grid-cols-[minmax(0,1fr)_auto] items-center gap-6 border-t-[3px] border-[#e4b45e] bg-[rgba(10,12,14,0.88)] px-9 py-6 max-[860px]:grid-cols-1 max-[720px]:min-h-0 max-[720px]:gap-3.5 max-[720px]:p-[clamp(14px,4vw,24px)] [&>div]:min-w-0 [&_h1]:text-[3.4rem] max-[720px]:[&_h1]:text-[clamp(1.8rem,10vw,3.4rem)] [&_p]:font-black [&_p]:uppercase [&_p]:text-[#e4b45e]'
 export const overlayScoreClass =
-  'overlay-score grid grid-cols-[repeat(2,220px)] gap-3 max-[860px]:grid-cols-1 max-[720px]:grid-cols-2 max-[480px]:grid-cols-1 [&_article]:flex [&_article]:items-center [&_article]:justify-between [&_article]:rounded-lg [&_article]:bg-white/[0.08] [&_article]:p-3.5 max-[720px]:[&_article]:min-w-0 [&_strong]:text-5xl [&_strong]:text-[#e4b45e] max-[720px]:[&_strong]:text-[clamp(2rem,11vw,3rem)]'
+  'overlay-score grid min-w-0 grid-cols-[repeat(2,minmax(0,220px))] gap-3 max-[860px]:grid-cols-1 max-[720px]:grid-cols-[repeat(2,minmax(0,1fr))] max-[480px]:grid-cols-1 [&_article]:flex [&_article]:min-w-0 [&_article]:items-center [&_article]:justify-between [&_article]:gap-3 [&_article]:rounded-lg [&_article]:bg-white/[0.08] [&_article]:p-3.5 [&_span]:min-w-0 [&_span]:overflow-hidden [&_span]:text-ellipsis [&_span]:whitespace-nowrap [&_strong]:flex-none [&_strong]:text-5xl [&_strong]:text-[#e4b45e] max-[720px]:[&_strong]:text-[clamp(2rem,11vw,3rem)]'
 export const legendsMainClass =
   'legends-main m-0 grid h-full min-h-0 w-full grid-rows-[auto_minmax(0,1fr)] gap-[18px] overflow-hidden p-0'
 export const legendsHeroClass =
@@ -432,10 +432,10 @@ export const psbAccountResultButtonClass =
   'grid w-full items-start justify-stretch justify-items-start gap-0.5 rounded-none border-0 border-b border-white/[0.08] bg-transparent px-2.5 py-[9px] text-left text-[#f4f0e8] hover:bg-[#e4b45e]/[0.14] focus-visible:bg-[#e4b45e]/[0.14] last:border-b-0 [&_span]:text-[0.78rem] [&_span]:font-bold [&_span]:text-[#9aa4a1] [&_strong]:text-[0.88rem] [&_strong]:text-[#fff7e6]'
 export const psbAccountEmptyClass = 'psb-account-empty p-2.5 text-[0.78rem] font-bold text-[#9aa4a1]'
 
-export const teamGridClass = 'team-grid grid grid-cols-2 gap-4 max-[720px]:grid-cols-1'
+export const teamGridClass = 'team-grid grid min-w-0 grid-cols-2 gap-4 max-[720px]:grid-cols-1'
 export const compactTeamGridClass = `${teamGridClass} mt-[18px]`
 export const teamPanelClass =
-  'team-panel grid min-w-0 grid-rows-[36px_88px_54px_minmax(0,1fr)_28px] gap-3.5 rounded-lg border border-white/[0.10] bg-[rgba(30,34,38,0.86)] p-[18px] transition-colors [&_dl]:self-start [&_dl]:gap-3 [&_dt]:min-h-[18px] [&_dt]:whitespace-nowrap [&_dt]:text-[0.68rem] [&_dd]:text-[1.05rem] [&_dd]:leading-[1.1] [&_dd]:tabular-nums'
+  'team-panel grid min-w-0 grid-rows-[36px_88px_54px_minmax(0,1fr)_auto] gap-3.5 rounded-lg border border-white/[0.10] bg-[rgba(30,34,38,0.86)] p-[18px] transition-colors [&_dl]:self-start [&_dl]:gap-3 [&_dt]:min-h-[18px] [&_dt]:whitespace-nowrap [&_dt]:text-[0.68rem] [&_dd]:text-[1.05rem] [&_dd]:leading-[1.1] [&_dd]:tabular-nums'
 export const activeTeamPanelClass = `${teamPanelClass} border-[#47bf8f]/50 shadow-[0_0_0_1px_rgba(71,191,143,0.12)]`
 export const summaryTeamPanelClass =
   'team-panel summary-team-panel grid min-w-0 grid-rows-[auto_auto_auto] gap-3.5 overflow-hidden rounded-lg border border-white/[0.10] bg-[rgba(30,34,38,0.86)] p-0 transition-colors'
@@ -460,15 +460,15 @@ export const teamBudgetGridClass = 'team-budget-grid grid grid-cols-2 gap-2 px-4
 export const teamBudgetCardClass =
   'team-budget-card grid min-w-0 gap-[3px] rounded-md border border-white/[0.08] bg-white/[0.04] px-3 py-2.5 [&_span]:text-[0.68rem] [&_span]:font-black [&_span]:uppercase [&_span]:text-[#8a9896] [&_strong]:min-w-0 [&_strong]:overflow-hidden [&_strong]:text-ellipsis [&_strong]:whitespace-nowrap [&_strong]:text-base [&_strong]:font-black [&_strong]:text-[#f0ece3]'
 export const playerCardClass =
-  'player-card grid min-h-[82px] grid-cols-[minmax(0,1fr)_96px_auto_minmax(150px,auto)] items-center gap-3.5 overflow-visible rounded-lg border border-white/[0.10] bg-[rgba(30,34,38,0.86)] p-3.5 max-[720px]:grid-cols-1 max-[720px]:auto-rows-min max-[720px]:items-start [&>span]:text-right [&>span]:font-black [&>span]:tabular-nums [&>span]:text-[#e4b45e] max-[720px]:[&>span]:text-left [&_small]:block [&_small]:text-[#b4bcbb]'
+  'player-card grid min-h-[82px] min-w-0 grid-cols-[minmax(0,1fr)_minmax(72px,96px)_auto] items-center gap-3.5 overflow-hidden rounded-lg border border-white/[0.10] bg-[rgba(30,34,38,0.86)] p-3.5 max-[720px]:grid-cols-1 max-[720px]:auto-rows-min max-[720px]:items-start [&>button]:justify-self-end max-[720px]:[&>button]:justify-self-stretch [&>span]:min-w-0 [&>span]:overflow-hidden [&>span]:text-right [&>span]:font-black [&>span]:tabular-nums [&>span]:text-ellipsis [&>span]:text-[#e4b45e] max-[720px]:[&>span]:text-left [&_small]:block [&_small]:text-[#b4bcbb]'
 export const draftPlayerNameClass =
-  'player-name min-w-0 overflow-visible [&_strong]:block [&_strong]:overflow-hidden [&_strong]:text-ellipsis [&_strong]:whitespace-nowrap'
+  'player-name min-w-0 overflow-hidden [&_strong]:block [&_strong]:min-w-0 [&_strong]:overflow-hidden [&_strong]:text-ellipsis [&_strong]:whitespace-nowrap'
 export const draftPlayerNameRowClass =
-  'player-name-row flex min-w-0 items-center gap-2 [&_a]:min-w-0'
+  'player-name-row flex min-w-0 items-center gap-2 [&_a]:min-w-0 [&_a]:overflow-hidden'
 export const playerSpecsClass =
   'player-specs mt-1.5 flex min-w-0 flex-wrap gap-1.5 overflow-visible [&_span]:inline-flex [&_span]:min-h-[22px] [&_span]:max-w-full [&_span]:items-center [&_span]:whitespace-normal [&_span]:rounded-full [&_span]:border [&_span]:border-white/[0.12] [&_span]:bg-white/[0.06] [&_span]:px-2 [&_span]:text-[0.72rem] [&_span]:font-black [&_span]:leading-tight [&_span]:text-[#d8dedc] [&_span]:[overflow-wrap:anywhere]'
 export const eligibilityClass =
-  'eligibility col-[4] flex min-w-[150px] flex-nowrap justify-end gap-1.5 overflow-hidden max-[720px]:col-auto max-[720px]:justify-start'
+  'eligibility col-[1/-1] flex min-w-0 max-w-full flex-wrap justify-end gap-1.5 overflow-hidden max-[720px]:col-auto max-[720px]:justify-start'
 export function eligibilityChipClass(status: 'budget' | 'combined' | 'blocked') {
   const tone =
     status === 'budget'
@@ -476,7 +476,7 @@ export function eligibilityChipClass(status: 'budget' | 'combined' | 'blocked') 
       : status === 'combined'
         ? 'combined border-[#e4b45e]/50 bg-[#e4b45e]/[0.13]'
         : 'blocked border-[#d94f3d]/55 bg-[#d94f3d]/[0.12]'
-  return `eligibility-chip inline-flex min-h-[30px] items-center gap-1.5 rounded-full border px-[9px] ${tone} [&_strong]:text-[0.72rem] [&_small]:text-[0.72rem] [&_small]:text-[#d8dedc]`
+  return `eligibility-chip inline-flex min-h-[30px] max-w-full items-center gap-1.5 rounded-full border px-[9px] ${tone} [&_strong]:text-[0.72rem] [&_small]:min-w-0 [&_small]:overflow-hidden [&_small]:text-ellipsis [&_small]:whitespace-nowrap [&_small]:text-[0.72rem] [&_small]:text-[#d8dedc]`
 }
 
 export const ratingsPanelClass =
@@ -504,7 +504,7 @@ export const ratingControlsClass = 'rating-controls flex items-center gap-2 max-
 export const ratingScorePickerClass =
   'rating-score-picker grid grid-cols-[repeat(10,32px)] gap-1 max-[860px]:grid-cols-[repeat(5,32px)] max-[720px]:w-[min(100%,380px)] max-[720px]:grid-cols-[repeat(5,minmax(38px,1fr))] max-[480px]:grid-cols-[repeat(5,minmax(32px,1fr))] [&_button]:min-h-8 [&_button]:w-8 [&_button]:rounded-md [&_button]:border-white/[0.14] [&_button]:bg-white/[0.06] [&_button]:p-0 [&_button]:tabular-nums [&_button]:text-[#d8dedc] max-[720px]:[&_button]:min-w-0 max-[480px]:[&_button]:min-h-9 [&_button:hover:not(:disabled)]:border-[#f0c878] [&_button:hover:not(:disabled)]:bg-[#f0c878] [&_button:hover:not(:disabled)]:text-[#121417] [&_button.active]:border-[#f0c878] [&_button.active]:bg-[#f0c878] [&_button.active]:text-[#121417]'
 export const ratingAdjustmentGridClass =
-  'rating-adjustment-grid grid grid-cols-[minmax(220px,360px)] gap-2.5 [&_label]:grid [&_label]:gap-1.5 [&_label]:text-[0.82rem] [&_label]:font-extrabold [&_label]:uppercase [&_label]:text-[#b4bcbb] [&_.psb-account-combobox]:relative [&_.psb-account-combobox]:grid [&_.psb-account-combobox]:gap-1.5 [&_.psb-account-combobox]:text-[0.82rem] [&_.psb-account-combobox]:font-extrabold [&_.psb-account-combobox]:uppercase [&_.psb-account-combobox]:text-[#b4bcbb] [&_input]:min-h-10 [&_input]:w-full [&_input]:min-w-0 [&_input]:rounded-md [&_input]:border [&_input]:border-white/[0.18] [&_input]:bg-[#121417] [&_input]:px-2.5 [&_input]:font-semibold [&_input]:normal-case [&_input]:text-[#f4f0e8] [&_input]:transition-colors [&_select]:min-h-10 [&_select]:w-full [&_select]:min-w-0 [&_select]:rounded-md [&_select]:border [&_select]:border-white/[0.18] [&_select]:bg-[#121417] [&_select]:px-2.5 [&_select]:font-semibold [&_select]:normal-case [&_select]:text-[#f4f0e8] [&_select]:transition-colors'
+  'rating-adjustment-grid grid min-w-0 grid-cols-[minmax(0,360px)] gap-2.5 [&>*]:min-w-0 [&_label]:grid [&_label]:min-w-0 [&_label]:gap-1.5 [&_label]:text-[0.82rem] [&_label]:font-extrabold [&_label]:uppercase [&_label]:text-[#b4bcbb] [&_.psb-account-combobox]:relative [&_.psb-account-combobox]:grid [&_.psb-account-combobox]:min-w-0 [&_.psb-account-combobox]:gap-1.5 [&_.psb-account-combobox]:text-[0.82rem] [&_.psb-account-combobox]:font-extrabold [&_.psb-account-combobox]:uppercase [&_.psb-account-combobox]:text-[#b4bcbb] [&_input]:min-h-10 [&_input]:w-full [&_input]:min-w-0 [&_input]:rounded-md [&_input]:border [&_input]:border-white/[0.18] [&_input]:bg-[#121417] [&_input]:px-2.5 [&_input]:font-semibold [&_input]:normal-case [&_input]:text-[#f4f0e8] [&_input]:transition-colors [&_select]:min-h-10 [&_select]:w-full [&_select]:min-w-0 [&_select]:rounded-md [&_select]:border [&_select]:border-white/[0.18] [&_select]:bg-[#121417] [&_select]:px-2.5 [&_select]:font-semibold [&_select]:normal-case [&_select]:text-[#f4f0e8] [&_select]:transition-colors'
 
 export const playersHeaderClass = 'players-header flex flex-wrap items-end justify-between gap-4 px-0 pb-6 pt-[clamp(20px,4vw,48px)]'
 export const playersViewToggleClass =
@@ -516,7 +516,7 @@ export function playersViewToggleButtonClass(active: boolean) {
   return `flex h-[34px] cursor-pointer items-center gap-[7px] rounded-md border px-3.5 text-[0.84rem] transition-all ${activeClass}`
 }
 export const playersPanelClass =
-  'panel players-panel mt-[18px] first:mt-0 grid gap-3.5 rounded-lg border border-white/[0.10] bg-white/[0.055] p-[clamp(18px,3vw,28px)] max-[720px]:px-[clamp(14px,4vw,18px)]'
+  'panel players-panel mt-[18px] first:mt-0 grid min-w-0 gap-3.5 rounded-lg border border-white/[0.10] bg-white/[0.055] p-[clamp(18px,3vw,28px)] max-[720px]:px-[clamp(14px,4vw,18px)]'
 export const playersToolbarClass = 'players-toolbar flex flex-wrap items-end gap-2.5 max-[1023px]:items-stretch'
 export const playersSearchWrapClass = 'players-search-wrap relative flex-[1_1_200px]'
 export const playersSearchIconClass = 'players-search-icon pointer-events-none absolute left-3 top-1/2 h-[15px] w-[15px] -translate-y-1/2 text-[#8a9896]'
@@ -568,14 +568,14 @@ export const playersCardClass =
 export const playersCardBannerClass =
   "players-card-banner relative h-[72px] bg-[linear-gradient(135deg,rgba(228,180,94,0.1),rgba(150,96,255,0.08))] bg-cover bg-center after:absolute after:inset-0 after:bg-[linear-gradient(transparent_20%,#13171a)] after:content-['']"
 export const playersCardBodyClass = 'players-card-body relative -mt-5 px-4 pb-4 pt-2.5'
-export const playersCardIdentityClass = 'players-card-identity mb-2.5 flex items-end justify-between'
-export const playersCardNameClass = 'players-card-name text-base font-black leading-[1.2] text-[#f0ece3]'
-export const playersCardCatchphraseClass = 'players-card-catchphrase mt-1 text-[0.8rem] leading-[1.4] text-[#8a9896]'
-export const playersCardStatsClass = 'players-card-stats mt-3 grid grid-cols-3 gap-1.5'
+export const playersCardIdentityClass = 'players-card-identity mb-2.5 flex min-w-0 items-end justify-between'
+export const playersCardNameClass = 'players-card-name min-w-0 text-base font-black leading-[1.2] text-[#f0ece3] [&_.player-name-with-group]:max-w-full'
+export const playersCardCatchphraseClass = 'players-card-catchphrase mt-1 min-w-0 text-[0.8rem] leading-[1.4] text-[#8a9896] [overflow-wrap:anywhere]'
+export const playersCardStatsClass = 'players-card-stats mt-3 grid min-w-0 grid-cols-[repeat(3,minmax(0,1fr))] gap-1.5 max-[420px]:grid-cols-1'
 export const playersCardStatClass = 'players-card-stat rounded-md border border-white/[0.08] bg-white/[0.04] px-2.5 py-2 text-center'
 export const playersCardStatLabelClass = 'players-card-stat-label block text-[0.68rem] font-black uppercase tracking-[0.06em] text-[#8a9896]'
 export function playersCardStatValueClass(gold = false) {
-  return `players-card-stat-value mt-0.5 block text-[0.92rem] font-black ${gold ? 'gold text-[#e4b45e]' : 'text-[#f0ece3]'}`
+  return `players-card-stat-value mt-0.5 block min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[0.92rem] font-black ${gold ? 'gold text-[#e4b45e]' : 'text-[#f0ece3]'}`
 }
 export const playersCardBadgesClass = 'players-card-badges mt-2.5 flex flex-wrap gap-1'
 
@@ -587,9 +587,9 @@ export const groupsSearchInputClass =
 export const groupsGridClass = 'groups-grid grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4'
 export const groupCardClass =
   'group-card grid min-h-[260px] grid-rows-[minmax(0,1fr)_auto] overflow-hidden rounded-lg border border-white/[0.10] bg-[rgba(30,34,38,0.86)]'
-export const groupCardMainClass = 'group-card-main grid content-start gap-4 p-[18px] [&_p]:text-[#c8d0ce] [&_p]:leading-[1.55]'
+export const groupCardMainClass = 'group-card-main grid min-w-0 content-start gap-4 p-[18px] [&_p]:min-w-0 [&_p]:[overflow-wrap:anywhere] [&_p]:text-[#c8d0ce] [&_p]:leading-[1.55]'
 export const groupCardFooterClass =
-  'group-card-footer flex min-h-[60px] flex-nowrap items-center justify-start gap-2.5 border-t border-white/[0.08] bg-white/[0.035] px-[18px] py-3 max-[720px]:w-fit max-[720px]:max-w-full [&>*]:min-w-0 [&>*]:flex-[0_1_auto] [&_span]:text-[0.82rem] [&_span]:font-extrabold [&_span]:text-[#b4bcbb]'
+  'group-card-footer flex min-h-[60px] min-w-0 flex-wrap items-center justify-start gap-2.5 border-t border-white/[0.08] bg-white/[0.035] px-[18px] py-3 [&>*]:min-w-0 [&>*]:max-w-full [&>*]:flex-[0_1_auto] [&_span]:text-[0.82rem] [&_span]:font-extrabold [&_span]:text-[#b4bcbb]'
 export const groupTitleLineClass =
   'group-title-line mb-2 flex flex-wrap items-center gap-2.5 [&_h1]:min-w-0 [&_h1]:[overflow-wrap:anywhere] [&_h2]:min-w-0 [&_h2]:[overflow-wrap:anywhere]'
 export const groupCountBadgeClass =
@@ -604,7 +604,7 @@ export const groupFormHintClass = 'group-form-hint text-[0.72rem] font-extrabold
 export const groupFormWideClass = 'group-form-wide col-span-full'
 export const groupFormActionsClass = `group-form-actions col-span-full flex flex-wrap items-center justify-end gap-2 ${mobileStackChildrenClass}`
 export const groupTagClass =
-  'group-tag inline-flex min-h-[30px] min-w-11 items-center justify-center rounded-md border border-[color-mix(in_srgb,var(--group-tag-color,#47bf8f)_62%,transparent)] bg-[color-mix(in_srgb,var(--group-tag-color,#47bf8f)_18%,transparent)] text-[0.82rem] font-black text-[color-mix(in_srgb,var(--group-tag-color,#47bf8f)_72%,white)]'
+  'group-tag inline-flex min-h-[30px] min-w-11 max-w-full items-center justify-center overflow-hidden text-ellipsis whitespace-nowrap rounded-md border border-[color-mix(in_srgb,var(--group-tag-color,#47bf8f)_62%,transparent)] bg-[color-mix(in_srgb,var(--group-tag-color,#47bf8f)_18%,transparent)] px-2 text-[0.82rem] font-black text-[color-mix(in_srgb,var(--group-tag-color,#47bf8f)_72%,white)]'
 const groupLogoBaseClass =
   'group-logo flex-none rounded-lg border border-white/[0.14] bg-[#15191d]'
 export function groupLogoClass(large = false) {
@@ -630,11 +630,11 @@ export const groupPlayerAvatarFallbackClass =
   'group-player-avatar-fallback inline-flex h-9 w-9 flex-none items-center justify-center rounded-full border border-[#e4b45e]/[0.32] bg-[#e4b45e]/[0.08] font-black text-[#e4b45e]'
 export const groupRowActionsClass = `group-row-actions flex flex-wrap items-center justify-end gap-2 max-[860px]:justify-start max-[720px]:w-full max-[720px]:max-w-full max-[720px]:justify-start ${mobileStackChildrenClass}`
 export const draftLedgerStatsClass =
-  'grid grid-cols-3 gap-2.5 m-0 max-[560px]:grid-cols-1 [&>div]:grid [&>div]:gap-[3px] [&>div]:min-w-0 [&>div]:rounded-md [&>div]:bg-white/[0.06] [&>div]:p-2.5 [&_dt]:text-[0.78rem] [&_dt]:uppercase [&_dt]:text-[#b4bcbb] [&_dd]:mt-1 [&_dd]:overflow-hidden [&_dd]:font-extrabold [&_dd]:text-ellipsis [&_dd]:text-[#f8e4a9]'
+  'grid grid-cols-3 gap-2.5 m-0 max-[1280px]:grid-cols-1 max-[860px]:grid-cols-3 max-[560px]:grid-cols-1 [&>div]:grid [&>div]:min-w-0 [&>div]:gap-[3px] [&>div]:rounded-md [&>div]:bg-white/[0.06] [&>div]:p-2.5 [&_dt]:min-w-0 [&_dt]:overflow-hidden [&_dt]:text-ellipsis [&_dt]:whitespace-nowrap [&_dt]:text-[clamp(0.62rem,0.8vw,0.78rem)] [&_dt]:uppercase [&_dt]:text-[#b4bcbb] [&_dd]:mt-1 [&_dd]:min-w-0 [&_dd]:overflow-hidden [&_dd]:text-ellipsis [&_dd]:whitespace-nowrap [&_dd]:font-extrabold [&_dd]:text-[#f8e4a9]'
 const panelShellClass =
-  'panel rounded-lg border border-white/[0.10] bg-white/[0.055] p-[clamp(18px,3vw,28px)] max-[720px]:px-[clamp(14px,4vw,18px)]'
+  'panel min-w-0 rounded-lg border border-white/[0.10] bg-white/[0.055] p-[clamp(18px,3vw,28px)] max-[720px]:px-[clamp(14px,4vw,18px)]'
 export const draftLayoutClass =
-  'draft-layout grid h-[calc(100vh_-_138px)] min-h-0 grid-cols-[minmax(420px,1fr)_minmax(520px,1.35fr)] items-stretch gap-[18px] max-[860px]:h-auto max-[860px]:grid-cols-1 max-[720px]:min-w-0 max-[560px]:grid-cols-[minmax(0,1fr)]'
+  'draft-layout grid h-[calc(100vh_-_138px)] min-h-0 min-w-0 grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] items-stretch gap-[18px] max-[860px]:h-auto max-[860px]:grid-cols-1 max-[720px]:min-w-0 max-[560px]:grid-cols-[minmax(0,1fr)]'
 export function draftStatusClass(tone: string) {
   if (tone === 'ready') return 'draft-status ready inline-flex min-h-[30px] items-center whitespace-nowrap rounded-full border border-[#47bf8f]/[0.58] bg-[#47bf8f]/[0.16] px-2.5 text-[0.82rem] font-black text-[#bff0db]'
   if (tone === 'blocked') return 'draft-status blocked inline-flex min-h-[30px] items-center whitespace-nowrap rounded-full border border-[#d94f3d]/60 bg-[#d94f3d]/[0.15] px-2.5 text-[0.82rem] font-black text-[#f2b4ab]'
@@ -643,11 +643,11 @@ export function draftStatusClass(tone: string) {
 export const draftTeamsPanelClass =
   `${panelShellClass} draft-teams-panel mt-0 grid max-h-full min-h-0 content-stretch grid-rows-[auto_auto_auto_auto_minmax(0,1fr)] overflow-hidden [&_.team-grid]:min-h-0 [&_.team-grid]:items-stretch [&_.team-panel]:min-h-0 [&_.pick-list]:max-h-none [&_.pick-list]:min-h-0`
 export const signupPoolPanelClass =
-  `${panelShellClass} signup-pool-panel mt-0 grid max-[860px]:max-h-none max-[860px]:overflow-visible grid-rows-[auto_auto_auto_auto_minmax(0,1fr)] [&_.active-bid-panel]:row-[3] [&_.available-list]:row-[5] [&_.available-list]:min-h-0 [&_.available-list]:max-h-none [&_.available-list]:content-start [&_.available-list]:overflow-y-auto [&_.available-list]:[grid-auto-rows:minmax(82px,max-content)] max-[1023px]:[&_.available-list]:[grid-auto-rows:minmax(142px,max-content)] max-[860px]:[&_.available-list]:row-auto`
+  `${panelShellClass} signup-pool-panel mt-0 grid max-h-full min-h-0 overflow-hidden grid-rows-[auto_auto_auto_auto_minmax(0,1fr)] max-[860px]:max-h-none max-[860px]:overflow-visible [&_.active-bid-panel]:row-[3] [&_.available-list]:row-[5] [&_.available-list]:min-h-0 [&_.available-list]:max-h-none [&_.available-list]:content-start [&_.available-list]:overflow-y-auto [&_.available-list]:[grid-auto-rows:minmax(82px,max-content)] max-[1023px]:[&_.available-list]:[grid-auto-rows:minmax(142px,max-content)] max-[860px]:[&_.available-list]:row-auto`
 export const teamTitleRowClass =
-  'team-title-row flex min-h-0 items-center justify-between gap-2.5 [&_h2]:m-0 [&_h2]:min-w-0 [&_h2]:leading-[1.15]'
+  'team-title-row flex min-h-0 min-w-0 items-center justify-between gap-2.5 [&_h2]:m-0 [&_h2]:min-w-0 [&_h2]:overflow-hidden [&_h2]:text-ellipsis [&_h2]:whitespace-nowrap [&_h2]:leading-[1.15]'
 export const teamMetaRowClass =
-  'team-meta-row grid grid-cols-2 gap-2 [&_span]:grid [&_span]:min-w-0 [&_span]:content-center [&_span]:gap-[3px] [&_span]:rounded-md [&_span]:border [&_span]:border-white/10 [&_span]:bg-white/[0.05] [&_span]:px-2.5 [&_span]:py-2 [&_small]:text-[0.72rem] [&_small]:font-black [&_small]:uppercase [&_small]:text-[#b4bcbb] [&_strong]:overflow-hidden [&_strong]:text-ellipsis [&_strong]:whitespace-nowrap'
+  'team-meta-row grid min-w-0 grid-cols-2 gap-2 [&_span]:grid [&_span]:min-w-0 [&_span]:content-center [&_span]:gap-[3px] [&_span]:rounded-md [&_span]:border [&_span]:border-white/10 [&_span]:bg-white/[0.05] [&_span]:px-2.5 [&_span]:py-2 [&_small]:text-[0.72rem] [&_small]:font-black [&_small]:uppercase [&_small]:text-[#b4bcbb] [&_strong]:min-w-0 [&_strong]:overflow-hidden [&_strong]:text-ellipsis [&_strong]:whitespace-nowrap'
 export function factionFieldClass(faction?: string | null) {
   if (faction === 'VS') return 'faction-field faction-vs rounded-md border border-[#9660ff]/55 bg-[#9660ff]/[0.18] px-2.5 py-2'
   if (faction === 'TR') return 'faction-field faction-tr rounded-md border border-[#d94f3d]/55 bg-[#d94f3d]/[0.18] px-2.5 py-2'
@@ -657,20 +657,20 @@ export function factionFieldClass(faction?: string | null) {
 export const pickTurnChipClass =
   'pick-turn-chip pick-turn-pulse inline-flex min-h-7 items-center justify-center whitespace-nowrap rounded-full border border-[#47bf8f]/[0.58] bg-[#47bf8f]/[0.16] px-2.5 text-[0.76rem] font-black uppercase text-[#bff0db] [animation:pulse-glow_2s_ease-in-out_infinite]'
 export const pickListClass =
-  'pick-list m-0 grid max-h-[min(260px,34vh)] content-start gap-2 overflow-y-auto overscroll-contain py-0 pl-0 pr-1 [grid-auto-rows:max-content] [&_small]:block [&_small]:text-[#b4bcbb] [&_li]:flex [&_li]:items-center [&_li]:justify-between [&_li]:gap-3.5 [&_li]:rounded-md [&_li]:bg-white/[0.06] [&_li]:px-3 [&_li]:py-2.5 [&_li.locked-pick]:border [&_li.locked-pick]:border-[#47bf8f]/35 [&_li.locked-pick]:bg-[#47bf8f]/[0.12]'
+  'pick-list m-0 grid max-h-[min(260px,34vh)] min-w-0 content-start gap-2 overflow-y-auto overscroll-contain py-0 pl-0 pr-1 [grid-auto-rows:max-content] [&_small]:block [&_small]:text-[#b4bcbb] [&_li]:flex [&_li]:min-w-0 [&_li]:items-center [&_li]:justify-between [&_li]:gap-3.5 [&_li]:rounded-md [&_li]:bg-white/[0.06] [&_li]:px-3 [&_li]:py-2.5 max-[560px]:[&_li]:grid max-[560px]:[&_li]:grid-cols-[minmax(0,1fr)] max-[560px]:[&_li]:justify-stretch [&_li.locked-pick]:border [&_li.locked-pick]:border-[#47bf8f]/35 [&_li.locked-pick]:bg-[#47bf8f]/[0.12] [&_li>button]:flex-none max-[560px]:[&_li>button]:w-full'
 export const pickMainClass =
-  'pick-main grid min-w-0 gap-0.5 [&_a]:overflow-hidden [&_a]:text-ellipsis [&_a]:whitespace-nowrap [&_span]:overflow-hidden [&_span]:text-ellipsis [&_span]:whitespace-nowrap'
+  'pick-main grid min-w-0 gap-0.5 [&_a]:min-w-0 [&_a]:overflow-hidden [&_a]:text-ellipsis [&_a]:whitespace-nowrap [&_span]:min-w-0 [&_span]:overflow-hidden [&_span]:text-ellipsis [&_span]:whitespace-nowrap'
 export const captainPickNameClass =
-  'captain-pick-name inline-flex min-w-0 items-center gap-1.5 [&>span:first-child]:overflow-hidden [&>span:first-child]:text-ellipsis [&>span:first-child]:whitespace-nowrap'
+  'captain-pick-name inline-flex max-w-full min-w-0 items-center gap-1.5 [&>span:first-child]:overflow-hidden [&>span:first-child]:text-ellipsis [&>span:first-child]:whitespace-nowrap'
 export const captainCrownClass = 'captain-crown flex-none text-[0.92em] leading-none text-[#f4d59a]'
 export const activeBidPanelClass =
-  'active-bid-panel mb-4 grid gap-3 rounded-lg border border-[#e4b45e]/[0.32] bg-[#e4b45e]/[0.08] p-3.5 [&_small]:text-[0.82rem] [&_small]:font-black [&_small]:uppercase [&_small]:text-[#b4bcbb] [&_strong]:overflow-hidden [&_strong]:text-ellipsis [&_strong]:whitespace-nowrap [&_strong]:text-[1.05rem]'
+  'active-bid-panel mb-4 grid min-w-0 gap-3 rounded-lg border border-[#e4b45e]/[0.32] bg-[#e4b45e]/[0.08] p-3.5 [&_a]:min-w-0 [&_a]:overflow-hidden [&_small]:text-[0.82rem] [&_small]:font-black [&_small]:uppercase [&_small]:text-[#b4bcbb] [&_strong]:block [&_strong]:min-w-0 [&_strong]:overflow-hidden [&_strong]:text-ellipsis [&_strong]:whitespace-nowrap [&_strong]:text-[1.05rem]'
 export const bidInfoGridClass =
-  'bid-info-grid grid grid-cols-4 gap-2.5 max-[860px]:grid-cols-1 [&>div]:grid [&>div]:min-w-0 [&>div]:gap-1'
+  'bid-info-grid grid min-w-0 grid-cols-[repeat(4,minmax(0,1fr))] gap-2.5 max-[1200px]:grid-cols-2 max-[860px]:grid-cols-1 [&>div]:grid [&>div]:min-w-0 [&>div]:gap-1'
 export const bidActionsClass =
   `bid-actions flex min-w-0 flex-wrap items-center justify-end gap-2 ${mobileStackButtonClass} [&_button]:min-h-10 [&_button]:whitespace-nowrap`
 export function availableListClass(empty: boolean) {
-  return `available-list grid gap-3 pr-1.5 max-[560px]:max-w-full max-[560px]:overflow-x-auto max-[560px]:[-webkit-overflow-scrolling:touch] ${empty ? 'available-list-empty content-center justify-items-center [&_.empty-inline]:max-w-[440px] [&_.empty-inline]:justify-center [&_.empty-inline]:text-center' : ''}`
+  return `available-list grid min-w-0 gap-3 pr-1.5 max-[560px]:max-w-full max-[560px]:[-webkit-overflow-scrolling:touch] ${empty ? 'available-list-empty content-center justify-items-center [&_.empty-inline]:max-w-[440px] [&_.empty-inline]:justify-center [&_.empty-inline]:text-center' : ''}`
 }
 export const specFilterRowClass =
   'spec-filter-row flex min-w-0 gap-2 overflow-x-auto py-2.5 pb-3 [scrollbar-width:thin]'
@@ -687,7 +687,7 @@ export const teamFooterChipsClass = 'team-footer-chips flex min-w-0 flex-wrap it
 export const teamCountChipClass = `${countChipClass} team-count-chip justify-center`
 export const teamValueChipClass =
   'team-value-chip inline-flex min-h-7 items-center justify-center whitespace-nowrap rounded-full border border-[#47bf8f]/40 bg-[#47bf8f]/[0.12] px-2.5 text-[0.76rem] font-black uppercase text-[#bff0db]'
-export const headingWithChipClass = 'heading-with-chip flex flex-wrap items-center gap-2.5 [&_h2]:m-0'
+export const headingWithChipClass = 'heading-with-chip flex min-w-0 flex-wrap items-center gap-2.5 [&_h2]:m-0 [&_h2]:min-w-0 [&_h2]:[overflow-wrap:anywhere]'
 export const checkInPanelClass =
   'check-in-panel mt-3 flex min-w-0 items-center justify-between gap-3 rounded-md border border-white/[0.12] bg-white/[0.06] px-3 py-2.5 max-[560px]:grid max-[560px]:items-stretch [&>div]:grid [&>div]:min-w-0 [&>div]:gap-0.5 [&_button]:flex-none max-[560px]:[&_button]:w-full [&_small]:text-[0.76rem] [&_small]:font-extrabold [&_small]:text-[#b4bcbb] [&_strong]:text-[0.88rem]'
 const checkInBadgeBaseClass =
