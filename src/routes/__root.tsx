@@ -214,7 +214,7 @@ function TopBar() {
       </button>
             <nav
               id="primary-navigation"
-              className={`${mobileNavOpen ? 'flex' : 'hidden'} nav col-span-full w-full flex-col items-stretch gap-2 pt-2 [&>a]:w-full [&>a]:justify-center lg:col-auto lg:flex lg:w-auto lg:flex-row lg:flex-wrap lg:items-center lg:justify-center lg:gap-1 lg:p-0 lg:[&>a]:w-auto`}
+              className={`${mobileNavOpen ? 'flex' : 'hidden'} nav col-span-full w-full flex-col items-stretch gap-2 rounded-lg border border-white/[0.10] bg-white/[0.045] p-2 [&>a]:w-full [&>a]:justify-center lg:col-auto lg:flex lg:w-auto lg:flex-row lg:flex-wrap lg:items-center lg:justify-center lg:gap-1 lg:border-0 lg:bg-transparent lg:p-0 lg:[&>a]:w-auto`}
               aria-label="Main navigation"
             >
         <Link
@@ -292,7 +292,7 @@ function TopBar() {
         </div>
       </nav>
       <div
-        className={`${mobileNavOpen ? 'flex' : 'hidden'} account-actions col-span-full w-full flex-wrap justify-start gap-2 pt-0.5 lg:col-auto lg:flex lg:w-auto lg:justify-end lg:p-0`}
+        className={`${mobileNavOpen ? 'flex' : 'hidden'} account-actions col-span-full w-full flex-col items-stretch gap-2 rounded-lg border border-white/[0.10] bg-white/[0.045] p-2 [&>a]:w-full [&>a]:justify-center lg:col-auto lg:flex lg:w-auto lg:flex-row lg:flex-wrap lg:items-center lg:justify-end lg:border-0 lg:bg-transparent lg:p-0 lg:[&>a]:w-auto`}
       >
         <a
           className="discord-link inline-flex min-h-9 w-9 items-center justify-center rounded-full text-[#cbd5d3] transition-colors hover:bg-white/[0.08] hover:text-[#fff7e6]"
@@ -319,7 +319,7 @@ function TopBar() {
         ) : null}
         {user ? (
           <div
-            className={`user-menu relative w-[min(100%,320px)] lg:w-auto ${userMenuOpen ? 'open' : ''}`}
+            className={`user-menu relative w-full lg:w-auto ${userMenuOpen ? 'open' : ''}`}
             onMouseEnter={openUserMenu}
             onMouseLeave={scheduleUserMenuClose}
             onFocus={openUserMenu}
@@ -328,10 +328,10 @@ function TopBar() {
             <Link
               to="/players/$discordId"
               params={{ discordId: user.id }}
-              className="user-chip inline-flex min-h-9 max-w-full items-center gap-2 rounded-full py-[3px] pl-[3px] pr-3 text-[#cbd5d3] transition-colors hover:bg-white/[0.08] hover:text-[#fff7e6] lg:max-w-[220px]"
+              className="user-chip inline-flex min-h-9 w-full max-w-full items-center justify-center gap-2 rounded-full py-[3px] pl-[3px] pr-3 text-[#cbd5d3] transition-colors hover:bg-white/[0.08] hover:text-[#fff7e6] lg:w-auto lg:max-w-[220px]"
               activeProps={{
                 className:
-                  'user-chip inline-flex min-h-9 max-w-full items-center gap-2 rounded-full bg-white/[0.08] py-[3px] pl-[3px] pr-3 text-[#fff7e6] transition-colors lg:max-w-[220px]',
+                  'user-chip inline-flex min-h-9 w-full max-w-full items-center justify-center gap-2 rounded-full bg-white/[0.08] py-[3px] pl-[3px] pr-3 text-[#fff7e6] transition-colors lg:w-auto lg:max-w-[220px]',
               }}
               aria-label={`${user.name}'s profile`}
               onClick={closeUserMenu}

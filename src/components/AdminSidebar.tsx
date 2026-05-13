@@ -21,7 +21,7 @@ const adminTabClass =
 const adminTabActiveClass = `${adminTabClass} border-[#e4b45e]/55 bg-[#e4b45e]/[0.16] text-[#f3d99d]`
 const sectionButtonBaseClass =
   'grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-md border border-transparent bg-transparent px-2.5 py-2 text-left transition-colors hover:border-white/[0.10] hover:bg-white/[0.06]'
-const sectionButtonActiveClass = `${sectionButtonBaseClass} border-[#e4b45e]/36 bg-[#e4b45e]/[0.12]`
+const sectionButtonActiveClass = `${sectionButtonBaseClass} !border-[#e4b45e]/[0.42] !bg-[#e4b45e]/[0.14] shadow-[inset_3px_0_0_rgba(228,180,94,0.72)]`
 
 export function AdminLayout({
   sections,
@@ -32,9 +32,11 @@ export function AdminLayout({
 }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const [activeSection, setActiveSection] = useState(sections[0]?.id ?? '')
+  const [sectionMenuOpen, setSectionMenuOpen] = useState(false)
   const activeSectionRef = useRef(activeSection)
   const scrollRef = useRef<HTMLDivElement>(null)
   const isScrollingTo = useRef(false)
+  const activeSectionLabel = sections.find((section) => section.id === activeSection)?.label ?? sections[0]?.label ?? 'Sections'
 
   useEffect(() => {
     activeSectionRef.current = activeSection
@@ -46,6 +48,7 @@ export function AdminLayout({
       activeSectionRef.current = first
       setActiveSection(first)
     }
+    setSectionMenuOpen(false)
     if (scrollRef.current) scrollRef.current.scrollTop = 0
   }, [pathname, sections])
 
@@ -53,17 +56,15 @@ export function AdminLayout({
     const container = scrollRef.current
     if (!container || sections.length === 0) return
 
-    function onScroll() {
+    function updateActiveSection(anchorTop: number, getTop: (element: HTMLElement) => number) {
       if (isScrollingTo.current) return
-      const containerTop = container!.getBoundingClientRect().top
       let best: string | null = null
       let bestDist = Infinity
 
       for (const section of sections) {
         const el = document.getElementById(section.id)
         if (!el) continue
-        const top = el.getBoundingClientRect().top - containerTop
-        const dist = Math.abs(top - 40)
+        const dist = Math.abs(getTop(el) - anchorTop)
         if (dist < bestDist) {
           bestDist = dist
           best = section.id
@@ -75,8 +76,25 @@ export function AdminLayout({
       }
     }
 
-    container.addEventListener('scroll', onScroll, { passive: true })
-    return () => container.removeEventListener('scroll', onScroll)
+    function onContainerScroll() {
+      const containerTop = container!.getBoundingClientRect().top
+      updateActiveSection(40, (element) => element.getBoundingClientRect().top - containerTop)
+    }
+
+    function onWindowScroll() {
+      if (!window.matchMedia('(max-width: 1023px)').matches) return
+      const sidebarBottom = document.querySelector<HTMLElement>('.admin-sidebar')?.getBoundingClientRect().bottom ?? 0
+      updateActiveSection(sidebarBottom + 16, (element) => element.getBoundingClientRect().top)
+    }
+
+    container.addEventListener('scroll', onContainerScroll, { passive: true })
+    window.addEventListener('scroll', onWindowScroll, { passive: true })
+    window.addEventListener('resize', onWindowScroll, { passive: true })
+    return () => {
+      container.removeEventListener('scroll', onContainerScroll)
+      window.removeEventListener('scroll', onWindowScroll)
+      window.removeEventListener('resize', onWindowScroll)
+    }
   }, [sections])
 
   const scrollToSection = useCallback((id: string) => {
@@ -85,7 +103,13 @@ export function AdminLayout({
     if (!el || !container) return
 
     setActiveSection(id)
+    setSectionMenuOpen(false)
     isScrollingTo.current = true
+    if (window.matchMedia('(max-width: 1023px)').matches) {
+      el.scrollIntoView({ block: 'start', behavior: 'smooth' })
+      setTimeout(() => { isScrollingTo.current = false }, 700)
+      return
+    }
     const offset = el.offsetTop - container.offsetTop - 16
     container.scrollTo({ top: offset, behavior: 'smooth' })
     setTimeout(() => { isScrollingTo.current = false }, 700)
@@ -108,52 +132,70 @@ export function AdminLayout({
           ))}
         </div>
         {sections.length > 0 ? (
-          <div className="admin-sidebar-sections grid min-w-0 gap-1.5 pt-3 max-[1023px]:flex max-[1023px]:gap-2 max-[1023px]:overflow-x-auto max-[1023px]:pb-1 max-[1023px]:pt-0 max-[1023px]:[scroll-snap-type:x_proximity]">
-            {sections.map((s, index) => {
-              const active = activeSection === s.id
-              const previous = sections[index - 1]
-              const showGroup = Boolean(s.group && s.group !== previous?.group)
-              return (
-                <div key={s.id} className="admin-sidebar-section-group max-[1023px]:shrink-0 max-[1023px]:[scroll-snap-align:start]">
-                  {showGroup ? (
-                    <div className="admin-sidebar-group-label mb-1.5 mt-3 flex items-center gap-2 text-[0.68rem] font-black uppercase tracking-[0.08em] text-[#8a9896] first:mt-0 max-[1023px]:hidden">
-                      <span>{s.group}</span>
-                      <span className="h-px flex-1 bg-white/[0.08]" aria-hidden="true" />
-                    </div>
-                  ) : null}
-                  <button
-                    type="button"
-                    className={active ? sectionButtonActiveClass : sectionButtonBaseClass}
-                    onClick={() => scrollToSection(s.id)}
-                  >
-                    {s.status ? (
-                      <span
-                        className={`admin-sidebar-status size-2.5 rounded-full ${
-                          s.status === 'ok'
-                            ? 'bg-[#47bf8f] shadow-[0_0_0_3px_rgba(71,191,143,0.14)]'
-                            : s.status === 'warning'
-                              ? 'bg-[#e4b45e] shadow-[0_0_0_3px_rgba(228,180,94,0.14)]'
-                              : 'bg-[#8a9896] shadow-[0_0_0_3px_rgba(138,152,150,0.14)]'
-                        }`}
-                        aria-hidden="true"
-                      />
+          <div className="admin-sidebar-sections grid min-w-0 gap-1.5 pt-3 max-[1023px]:pt-0">
+            <button
+              type="button"
+              className="admin-sidebar-menu-toggle hidden min-h-11 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border border-white/[0.12] bg-white/[0.06] px-3 py-2 text-left max-[1023px]:grid"
+              aria-expanded={sectionMenuOpen}
+              aria-controls="admin-section-menu"
+              onClick={() => setSectionMenuOpen((open) => !open)}
+            >
+              <span className="grid min-w-0 gap-0.5">
+                <span className="text-[0.68rem] font-black uppercase tracking-[0.08em] text-[#8a9896]">Section</span>
+                <strong className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-sm text-[#fff7e6]">{activeSectionLabel}</strong>
+              </span>
+              <span className="text-lg leading-none text-[#e4b45e]" aria-hidden="true">{sectionMenuOpen ? '−' : '+'}</span>
+            </button>
+            <div
+              id="admin-section-menu"
+              className={`${sectionMenuOpen ? 'grid' : 'hidden'} admin-sidebar-section-menu min-w-0 gap-1.5 lg:grid max-[1023px]:max-h-[52dvh] max-[1023px]:overflow-y-auto max-[1023px]:rounded-lg max-[1023px]:border max-[1023px]:border-white/[0.10] max-[1023px]:bg-[#0f1215] max-[1023px]:p-2`}
+            >
+              {sections.map((s, index) => {
+                const active = activeSection === s.id
+                const previous = sections[index - 1]
+                const showGroup = Boolean(s.group && s.group !== previous?.group)
+                return (
+                  <div key={s.id} className="admin-sidebar-section-group">
+                    {showGroup ? (
+                      <div className="admin-sidebar-group-label mb-1.5 mt-3 flex items-center gap-2 text-[0.68rem] font-black uppercase tracking-[0.08em] text-[#8a9896] first:mt-0 max-[1023px]:mt-2">
+                        <span>{s.group}</span>
+                        <span className="h-px flex-1 bg-white/[0.08]" aria-hidden="true" />
+                      </div>
                     ) : null}
-                    <span
-                      className={`admin-sidebar-section-label min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-sm font-extrabold ${
-                        active ? 'text-[#fff7e6]' : 'text-[#cbd5d3]'
-                      }`}
+                    <button
+                      type="button"
+                      className={active ? sectionButtonActiveClass : sectionButtonBaseClass}
+                      onClick={() => scrollToSection(s.id)}
                     >
-                      {s.label}
-                    </span>
-                    {s.badge ? (
-                      <span className="admin-sidebar-badge grid min-w-6 place-items-center rounded-full border border-[#e4b45e]/40 bg-[#e4b45e]/[0.14] px-2 py-0.5 text-[0.72rem] font-black text-[#f3d99d]">
-                        {s.badge}
+                      {s.status ? (
+                        <span
+                          className={`admin-sidebar-status size-2.5 rounded-full ${
+                            s.status === 'ok'
+                              ? 'bg-[#47bf8f] shadow-[0_0_0_3px_rgba(71,191,143,0.14)]'
+                              : s.status === 'warning'
+                                ? 'bg-[#e4b45e] shadow-[0_0_0_3px_rgba(228,180,94,0.14)]'
+                                : 'bg-[#8a9896] shadow-[0_0_0_3px_rgba(138,152,150,0.14)]'
+                          }`}
+                          aria-hidden="true"
+                        />
+                      ) : null}
+                      <span
+                        className={`admin-sidebar-section-label min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-sm font-extrabold ${
+                          active ? 'text-[#fff7e6]' : 'text-[#cbd5d3]'
+                        }`}
+                      >
+                        {s.label}
                       </span>
-                    ) : null}
-                  </button>
-                </div>
-              )
-            })}
+                      {s.badge ? (
+                        <span className="admin-sidebar-badge grid min-w-6 place-items-center rounded-full border border-[#e4b45e]/40 bg-[#e4b45e]/[0.14] px-2 py-0.5 text-[0.72rem] font-black text-[#f3d99d]">
+                          {s.badge}
+                        </span>
+                      ) : null}
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
           </div>
         ) : null}
       </div>
